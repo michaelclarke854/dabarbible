@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 
@@ -61,6 +61,42 @@ const ScriptureVersionPills = ({
   const [cachedTexts, setCachedTexts] = useState<Partial<Record<BibleVersion, string>>>({
     [profileDefault]: initialText,
   });
+  const [availableVersions, setAvailableVersions] = useState<BibleVersion[]>([profileDefault]);
+  const [probed, setProbed] = useState(false);
+
+  // Probe all versions on mount to discover which have data for this reference
+  useEffect(() => {
+    let cancelled = false;
+
+    const probeAll = async () => {
+      const results = await Promise.all(
+        VERSIONS.map(async (v) => {
+          if (v === profileDefault) return { version: v, text: initialText };
+          const text = await fetchVerseText(reference, v);
+          return { version: v, text };
+        })
+      );
+
+      if (cancelled) return;
+
+      const available: BibleVersion[] = [];
+      const texts: Partial<Record<BibleVersion, string>> = {};
+
+      for (const r of results) {
+        if (r.text) {
+          available.push(r.version);
+          texts[r.version] = r.text;
+        }
+      }
+
+      setAvailableVersions(available);
+      setCachedTexts(texts);
+      setProbed(true);
+    };
+
+    probeAll();
+    return () => { cancelled = true; };
+  }, [reference, profileDefault, initialText]);
 
   const switchedFromDefault = active !== profileDefault;
 
@@ -73,12 +109,14 @@ const ScriptureVersionPills = ({
       return;
     }
 
+    // Shouldn't happen since we pre-probed, but handle gracefully
     setLoading(true);
     const text = await fetchVerseText(reference, version);
-    const result = text || `[${version} translation not available for this verse]`;
-    setCachedTexts((prev) => ({ ...prev, [version]: result }));
-    setActive(version);
-    onVersionChange?.(version, result);
+    if (text) {
+      setCachedTexts((prev) => ({ ...prev, [version]: text }));
+      setActive(version);
+      onVersionChange?.(version, text);
+    }
     setLoading(false);
   };
 
@@ -92,9 +130,12 @@ const ScriptureVersionPills = ({
     onDefaultChanged?.(active);
   };
 
+  // Don't render pills until probing is done, or if only one version available
+  if (!probed || availableVersions.length <= 1) return null;
+
   return (
     <div className="mt-3 flex items-center gap-1.5 flex-wrap">
-      {VERSIONS.map((v) => {
+      {availableVersions.map((v) => {
         const isActive = v === active;
         return (
           <button
