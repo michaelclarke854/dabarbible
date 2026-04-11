@@ -307,6 +307,10 @@ const Index = () => {
               onDeepLinkConsumed={() => setScriptureDeepLink(null)}
             />
           </Suspense>
+        ) : tab === "history" ? (
+          <Suspense fallback={<PageSpinner />}>
+            <HistoryScreen />
+          </Suspense>
         ) : (
           <Suspense fallback={<PageSpinner />}>
             <JournalScreen stirPrompt={stirPrompt} onStirConsumed={() => setStirPrompt(null)} />
