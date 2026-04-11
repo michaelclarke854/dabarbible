@@ -1,7 +1,8 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { formatTimestamp } from "@/utils/formatTimestamp";
+import { parseResponse, ScriptureCard } from "./WisdomResponseBlocks";
 
 interface HistoryEntry {
   id: string;
@@ -65,47 +66,77 @@ const HistoryScreen = () => {
         </div>
       ) : (
         <div className="space-y-8">
-          {filtered.map((entry) => (
-            <article
-              key={entry.id}
-              className="pb-8 border-b border-border/50 last:border-none cursor-pointer"
-              onClick={() => setExpandedId(expandedId === entry.id ? null : entry.id)}
-            >
-              <time className="font-serif-display text-[10px] tracking-[0.08em] text-gold/60 uppercase">
-                {formatTimestamp(entry.created_at)}
-              </time>
-              {entry.saved_to_journal && (
-                <span className="ml-2 text-[9px] font-body text-gold/40 uppercase tracking-wider">
-                  Saved
-                </span>
-              )}
-              <p className="font-body italic text-foreground/70 mt-3 mb-3 text-sm leading-relaxed">
-                "{entry.question}"
-              </p>
-              <div
-                className={`font-serif text-base leading-relaxed text-foreground whitespace-pre-line transition-all ${
-                  expandedId === entry.id ? "" : "line-clamp-4"
-                }`}
-              >
-                {entry.response}
-              </div>
-              {expandedId !== entry.id && (
-                <p className="text-xs font-body text-gold mt-2">Tap to read full response</p>
-              )}
-              {entry.scripture_refs?.length > 0 && expandedId === entry.id && (
-                <div className="mt-4">
-                  {entry.scripture_refs.map((ref, i) => (
-                    <p key={i} className="text-gold font-serif text-xs tracking-wide">
-                      — {ref}
-                    </p>
-                  ))}
-                </div>
-              )}
-            </article>
-          ))}
+          {filtered.map((entry) => {
+            const isExpanded = expandedId === entry.id;
+            return (
+              <HistoryEntry
+                key={entry.id}
+                entry={entry}
+                isExpanded={isExpanded}
+                onToggle={() => setExpandedId(isExpanded ? null : entry.id)}
+              />
+            );
+          })}
         </div>
       )}
     </div>
+  );
+};
+
+const HistoryEntry = ({
+  entry,
+  isExpanded,
+  onToggle,
+}: {
+  entry: HistoryEntry;
+  isExpanded: boolean;
+  onToggle: () => void;
+}) => {
+  const blocks = useMemo(() => parseResponse(entry.response), [entry.response]);
+
+  return (
+    <article className="pb-8 border-b border-border/50 last:border-none">
+      <div className="cursor-pointer" onClick={onToggle}>
+        <time className="font-serif-display text-[10px] tracking-[0.08em] text-gold/60 uppercase">
+          {formatTimestamp(entry.created_at)}
+        </time>
+        {entry.saved_to_journal && (
+          <span className="ml-2 text-[9px] font-body text-gold/40 uppercase tracking-wider">
+            Saved
+          </span>
+        )}
+        <p className="font-body italic text-foreground/70 mt-3 mb-3 text-sm leading-relaxed">
+          "{entry.question}"
+        </p>
+      </div>
+
+      {isExpanded ? (
+        <div className="space-y-4">
+          {blocks.map((block, i) =>
+            block.type === "scripture" ? (
+              <ScriptureCard key={i} block={block} />
+            ) : (
+              <p key={i} className="font-serif text-base leading-relaxed text-foreground">
+                {block.content}
+              </p>
+            )
+          )}
+        </div>
+      ) : (
+        <>
+          <div className="font-serif text-base leading-relaxed text-foreground line-clamp-4">
+            {blocks
+              .filter((b) => b.type === "text")
+              .slice(0, 2)
+              .map((b) => b.content)
+              .join(" ")}
+          </div>
+          <p className="text-xs font-body text-gold mt-2 cursor-pointer" onClick={onToggle}>
+            Tap to read full response
+          </p>
+        </>
+      )}
+    </article>
   );
 };
 
