@@ -8,6 +8,10 @@ import ResponseScreen from "@/components/ResponseScreen";
 import AuthModal from "@/components/AuthModal";
 import OnboardingScreen from "@/components/OnboardingScreen";
 import BetaFeedbackButton from "@/components/BetaFeedbackButton";
+import TrialBadge from "@/components/TrialBadge";
+import TrialPaywall from "@/components/TrialPaywall";
+import TrialNudgeBanner from "@/components/TrialNudgeBanner";
+import TrialInterstitial from "@/components/TrialInterstitial";
 import { parseScriptureRef } from "@/data/kjvBooks";
 import { useAuth } from "@/contexts/AuthContext";
 
@@ -20,7 +24,7 @@ const PrivacySettings = lazy(() => import("@/components/PrivacySettings"));
 type Tab = "ask" | "scripture" | "history" | "journal";
 type Screen = "ask" | "response";
 
-const GUEST_LIMIT = 1;
+const GUEST_LIMIT = 3;
 const FREE_DAILY_LIMIT = 3;
 const STORAGE_KEY = "dabar-questions-used";
 const ONBOARDING_KEY = "dabar-onboarded";
@@ -40,7 +44,7 @@ const PageSpinner = () => (
 
 const Index = () => {
   const navigate = useNavigate();
-  const { user, role, plan, isSuspended, ageGroup, hasFullAccess, isBeta, isAdmin, languagePreference, setLanguagePreference, preferredBibleVersion, setPreferredBibleVersion, refreshProfile, loading: authLoading } = useAuth();
+  const { user, role, plan, isSuspended, ageGroup, hasFullAccess, isBeta, isAdmin, languagePreference, setLanguagePreference, preferredBibleVersion, setPreferredBibleVersion, refreshProfile, loading: authLoading, trial } = useAuth();
 
   const [needsDob, setNeedsDob] = useState(false);
   const [tab, setTab] = useState<Tab>("ask");
@@ -61,6 +65,39 @@ const Index = () => {
     try { return localStorage.getItem(ONBOARDING_KEY) === "true"; } catch { return false; }
   });
   const [scriptureDeepLink, setScriptureDeepLink] = useState<{ book: string; chapter: number; verse: number; version?: string } | null>(null);
+
+  // Trial nudge state
+  const [nudgeDismissed, setNudgeDismissed] = useState<Record<string, boolean>>({});
+  const [showInterstitial, setShowInterstitial] = useState(false);
+  const [trialQuestionCount, setTrialQuestionCount] = useState(0);
+  const [trialTopTheme, setTrialTopTheme] = useState<string | null>(null);
+
+  // Fetch trial stats when on trial
+  useEffect(() => {
+    if (!user || !trial.isOnTrial) return;
+    (async () => {
+      const { count } = await supabase
+        .from("wisdom_sessions")
+        .select("id", { count: "exact", head: true })
+        .eq("user_id", user.id);
+      setTrialQuestionCount(count || 0);
+
+      const { data: themes } = await supabase
+        .from("user_patterns")
+        .select("theme, occurrence")
+        .eq("user_id", user.id)
+        .order("occurrence", { ascending: false })
+        .limit(1);
+      setTrialTopTheme(themes?.[0]?.theme || null);
+    })();
+  }, [user, trial.isOnTrial]);
+
+  // Show day 21 interstitial once
+  useEffect(() => {
+    if (trial.isOnTrial && trial.daysLeft <= 9 && !trial.trialNudgeSent.day21 && !nudgeDismissed.day21) {
+      setShowInterstitial(true);
+    }
+  }, [trial]);
 
   // Redirect suspended users
   useEffect(() => {
@@ -85,6 +122,15 @@ const Index = () => {
       supabase.auth.signOut();
     }
   }, [ageGroup, user]);
+
+  const markNudgeSent = useCallback(async (key: "day14" | "day21" | "day28") => {
+    if (!user) return;
+    const updated = { ...trial.trialNudgeSent, [key]: true };
+    await supabase
+      .from("profiles")
+      .update({ trial_nudge_sent: updated } as any)
+      .eq("user_id", user.id);
+  }, [user, trial.trialNudgeSent]);
 
   const checkDailyLimit = useCallback(async (): Promise<boolean> => {
     if (!user) return true;
@@ -136,7 +182,7 @@ const Index = () => {
       if (!user && getGuestQuestionsUsed() >= GUEST_LIMIT) {
         setAuthModal({
           open: true,
-          message: "Your first question was free. Create an account to keep seeking — and to save what you've received.",
+          message: "Your words are worth keeping. Create a free account to start your 30-day trial — no card required.",
         });
         return;
       }
@@ -261,12 +307,68 @@ const Index = () => {
     if (newTab === "ask") setScreen("ask");
   };
 
+  const handleUpgrade = () => navigate("/pricing");
+
+  const handleDowngradeToFree = async () => {
+    if (!user) return;
+    await supabase
+      .from("profiles")
+      .update({ plan: "free", role: "free" } as any)
+      .eq("user_id", user.id);
+    await refreshProfile();
+  };
+
   const showAuthModal = authModal.open && !needsDob;
   const showDobModal = needsDob && !!user;
 
+  // Trial paywall: show if trial expired and still on trial plan
+  if (user && trial.trialExpired) {
+    return (
+      <TrialPaywall
+        questionCount={trialQuestionCount}
+        onUpgrade={handleUpgrade}
+        onFreePlan={handleDowngradeToFree}
+      />
+    );
+  }
+
+  // Determine which nudge banner to show
+  const showDay14Banner = trial.isOnTrial && trial.daysLeft <= 16 && trial.daysLeft > 9 && !trial.trialNudgeSent.day14 && !nudgeDismissed.day14;
+  const showDay28Banner = trial.isOnTrial && trial.daysLeft <= 2;
+
   return (
     <div className="min-h-screen flex flex-col">
-      <main className={`flex-1 ${hasOnboarded || user ? "pb-20" : ""}`}>
+      {/* Trial nudge banners */}
+      {(showDay14Banner || showDay28Banner) && (hasOnboarded || user) && (
+        <div className="fixed top-0 left-0 right-0 z-30">
+          <TrialNudgeBanner
+            daysLeft={trial.daysLeft}
+            variant={showDay28Banner ? "day28" : "day14"}
+            onDismiss={() => {
+              setNudgeDismissed(prev => ({ ...prev, day14: true }));
+              markNudgeSent("day14");
+            }}
+            onUpgrade={handleUpgrade}
+          />
+        </div>
+      )}
+
+      {/* Day 21 interstitial */}
+      {showInterstitial && (
+        <TrialInterstitial
+          daysLeft={trial.daysLeft}
+          questionCount={trialQuestionCount}
+          topTheme={trialTopTheme}
+          onUpgrade={handleUpgrade}
+          onDismiss={() => {
+            setShowInterstitial(false);
+            setNudgeDismissed(prev => ({ ...prev, day21: true }));
+            markNudgeSent("day21");
+          }}
+        />
+      )}
+
+      <main className={`flex-1 ${hasOnboarded || user ? "pb-20" : ""} ${(showDay14Banner || showDay28Banner) && (hasOnboarded || user) ? "pt-10" : ""}`}>
         {!hasOnboarded && !user ? (
           <OnboardingScreen
             onBegin={() => {
@@ -376,7 +478,7 @@ const Index = () => {
       </nav>}
 
       {/* Top bar */}
-      {(hasOnboarded || user) && <div className="fixed top-0 left-0 right-0 z-20 flex justify-between items-center px-4 py-3">
+      {(hasOnboarded || user) && <div className={`fixed ${(showDay14Banner || showDay28Banner) ? "top-10" : "top-0"} left-0 right-0 z-20 flex justify-between items-center px-4 py-3`}>
         <div className="flex items-center gap-2">
           {user && !hasFullAccess && (
             <button
@@ -391,6 +493,9 @@ const Index = () => {
           )}
         </div>
         <div className="flex items-center gap-3">
+          {trial.isOnTrial && trial.trialEndsAt && (
+            <TrialBadge trialEndsAt={trial.trialEndsAt} />
+          )}
           {isAdmin && (
             <button
               onClick={() => navigate("/admin")}

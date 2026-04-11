@@ -7,7 +7,17 @@ export type UserRole =
   | "family_owner" | "family_member" | "community_admin"
   | "community_member" | "suspended";
 
-export type UserPlan = "free" | "personal" | "family" | "community";
+export type UserPlan = "free" | "trial" | "personal" | "family" | "community";
+
+interface TrialState {
+  isOnTrial: boolean;
+  trialEndsAt: string | null;
+  trialStartedAt: string | null;
+  trialConverted: boolean;
+  trialNudgeSent: { day14: boolean; day21: boolean; day28: boolean };
+  daysLeft: number;
+  trialExpired: boolean;
+}
 
 interface AuthContextValue {
   user: User | null;
@@ -21,6 +31,7 @@ interface AuthContextValue {
   isBeta: boolean;
   hasFullAccess: boolean;
   loading: boolean;
+  trial: TrialState;
   refreshProfile: () => Promise<void>;
   setLanguagePreference: (lang: string) => void;
   setPreferredBibleVersion: (v: string) => void;
@@ -33,6 +44,29 @@ const FULL_ACCESS_ROLES: UserRole[] = [
   "family_owner", "family_member", "community_admin", "community_member",
 ];
 
+const DEFAULT_NUDGE = { day14: false, day21: false, day28: false };
+
+function computeTrialState(profile: any): TrialState {
+  const plan = profile?.plan || "free";
+  const trialEndsAt = profile?.trial_ends_at || null;
+  const trialStartedAt = profile?.trial_started_at || null;
+  const trialConverted = profile?.trial_converted || false;
+  const trialNudgeSent = profile?.trial_nudge_sent || DEFAULT_NUDGE;
+
+  const isOnTrial = plan === "trial" && !!trialEndsAt;
+  let daysLeft = 0;
+  let trialExpired = false;
+
+  if (trialEndsAt) {
+    const now = new Date();
+    const ends = new Date(trialEndsAt);
+    daysLeft = Math.max(0, Math.ceil((ends.getTime() - now.getTime()) / (1000 * 60 * 60 * 24)));
+    trialExpired = plan === "trial" && now >= ends;
+  }
+
+  return { isOnTrial, trialEndsAt, trialStartedAt, trialConverted, trialNudgeSent, daysLeft, trialExpired };
+}
+
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [role, setRole] = useState<UserRole>("free");
@@ -42,21 +76,28 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [languagePreference, setLanguagePreference] = useState("en");
   const [preferredBibleVersion, setPreferredBibleVersion] = useState("KJV");
   const [loading, setLoading] = useState(true);
+  const [trial, setTrial] = useState<TrialState>({
+    isOnTrial: false, trialEndsAt: null, trialStartedAt: null,
+    trialConverted: false, trialNudgeSent: DEFAULT_NUDGE, daysLeft: 0, trialExpired: false,
+  });
 
   const fetchProfile = useCallback(async (userId: string) => {
     const { data: profile } = await supabase
       .from("profiles")
-      .select("role, plan, is_suspended, age_group, language_preference, preferred_bible_version")
+      .select("role, plan, is_suspended, age_group, language_preference, preferred_bible_version, trial_started_at, trial_ends_at, trial_converted, trial_nudge_sent")
       .eq("user_id", userId)
       .single();
 
     if (profile) {
-      setRole((profile.role || "free") as UserRole);
-      setPlan((profile.plan || "free") as UserPlan);
+      const profileRole = (profile.role || "free") as UserRole;
+      const profilePlan = (profile.plan || "free") as UserPlan;
+      setRole(profileRole);
+      setPlan(profilePlan);
       setIsSuspended(profile.is_suspended || false);
       setAgeGroup(profile.age_group || null);
       setLanguagePreference(profile.language_preference || "en");
       setPreferredBibleVersion((profile as any).preferred_bible_version || "KJV");
+      setTrial(computeTrialState(profile));
     }
   }, []);
 
@@ -76,6 +117,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           setPlan("free");
           setIsSuspended(false);
           setAgeGroup(null);
+          setTrial({ isOnTrial: false, trialEndsAt: null, trialStartedAt: null, trialConverted: false, trialNudgeSent: DEFAULT_NUDGE, daysLeft: 0, trialExpired: false });
           setLoading(false);
         }
       }
@@ -94,6 +136,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return () => subscription.unsubscribe();
   }, [fetchProfile]);
 
+  const hasFullAccess = FULL_ACCESS_ROLES.includes(role) || (plan === "trial" && !trial.trialExpired);
+
   const value: AuthContextValue = {
     user,
     role,
@@ -104,8 +148,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     preferredBibleVersion,
     isAdmin: role === "super_admin" || role === "admin",
     isBeta: role === "beta",
-    hasFullAccess: FULL_ACCESS_ROLES.includes(role),
+    hasFullAccess,
     loading,
+    trial,
     refreshProfile,
     setLanguagePreference,
     setPreferredBibleVersion,
