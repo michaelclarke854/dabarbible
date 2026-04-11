@@ -42,10 +42,11 @@ const OnboardingScreen = ({ onBegin }: OnboardingScreenProps) => {
 
   return (
     <div
-      className={`min-h-screen flex flex-col items-center px-6 pt-16 md:pt-24 pb-0 transition-opacity duration-1000 overflow-x-hidden ${
+      className={`min-h-screen flex flex-col transition-opacity duration-1000 overflow-x-hidden ${
         visible ? "opacity-100" : "opacity-0"
       }`}
     >
+      <div className="flex flex-col items-center px-6 pt-16 md:pt-24 flex-1">
       {/* Glow keyframe */}
       <style>{`
         @keyframes cta-border-glow {
@@ -239,12 +240,12 @@ const OnboardingScreen = ({ onBegin }: OnboardingScreenProps) => {
             — Jeremiah 23:29 (KJV)
           </p>
         </div>
-      </div>
+      </div>{/* end centered content wrapper */}
 
       {/* 6. Footer */}
       <footer
-        className="w-screen mt-8 py-10 px-6"
-        style={{ backgroundColor: "#0F0D0A", marginLeft: "calc(-50vw + 50%)", marginRight: "calc(-50vw + 50%)", width: "100vw" }}
+        className="w-full py-10 px-6"
+        style={{ backgroundColor: "#0F0D0A" }}
       >
         <div className="max-w-md mx-auto text-center space-y-6">
           {/* App Store badges */}
