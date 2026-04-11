@@ -52,14 +52,15 @@ const Index = () => {
       .select("age_group")
       .eq("user_id", userId)
       .single();
-    if ((data as any)?.age_group) {
-      setAgeGroup((data as any).age_group);
-      if ((data as any).age_group === "minor") {
+    const ag = (data as any)?.age_group;
+    if (ag) {
+      setAgeGroup(ag);
+      setNeedsDob(false);
+      if (ag === "minor") {
         toast.error("You must be at least 13 years old to use The Voice.");
         await supabase.auth.signOut();
       }
     } else {
-      // No DOB set yet (e.g. Google OAuth signup) — prompt for it
       setNeedsDob(true);
     }
   }, []);
@@ -70,10 +71,7 @@ const Index = () => {
         const u = session?.user ?? null;
         setUser(u);
         if (u) fetchAgeGroup(u.id);
-        else {
-          setAgeGroup(null);
-          setNeedsDob(false);
-        }
+        else { setAgeGroup(null); setNeedsDob(false); }
       }
     );
     supabase.auth.getSession().then(({ data: { session } }) => {
@@ -89,19 +87,13 @@ const Index = () => {
       if (!user && getQuestionsUsed() >= FREE_QUESTION_LIMIT) {
         setAuthModal({
           open: true,
-          message:
-            "Your words are worth keeping. Create a free account to save your reflections and continue seeking.",
+          message: "Your words are worth keeping. Create a free account to save your reflections and continue seeking.",
         });
         return;
       }
 
       if (user && needsDob) {
-        setNeedsDob(true);
-        setAuthModal({
-          open: true,
-          message: "Please provide your date of birth to continue.",
-        });
-        return;
+        return; // DOB modal is showing
       }
 
       setIsLoading(true);
@@ -136,8 +128,7 @@ const Index = () => {
     if (!user) {
       setAuthModal({
         open: true,
-        message:
-          "Create a free account to save this reflection to your journal.",
+        message: "Create a free account to save this reflection to your journal.",
       });
       return;
     }
@@ -177,6 +168,9 @@ const Index = () => {
     if (newTab === "ask") setScreen("ask");
   };
 
+  const showAuthModal = authModal.open && !needsDob;
+  const showDobModal = needsDob && !!user;
+
   return (
     <div className="min-h-screen flex flex-col">
       <main className="flex-1">
@@ -188,10 +182,7 @@ const Index = () => {
               question={currentResponse.question}
               response={currentResponse.response}
               scriptures={currentResponse.scriptures}
-              onAskAgain={() => {
-                setScreen("ask");
-                setCurrentResponse(null);
-              }}
+              onAskAgain={() => { setScreen("ask"); setCurrentResponse(null); }}
               onReflect={reflectOnThis}
               isSaving={isSaving}
               isSaved={isSaved}
@@ -235,22 +226,22 @@ const Index = () => {
         </button>
       )}
 
+      {/* Auth modal for signup/signin */}
       <AuthModal
-        isOpen={authModal.open || needsDob}
-        onClose={() => {
-          setAuthModal({ open: false });
-          if (needsDob && user) {
-            // They dismissed without providing DOB — re-check
-          }
-        }}
-        onSignedUp={() => {
-          if (user) fetchAgeGroup(user.id);
-        }}
-        message={
-          needsDob && !authModal.message
-            ? "Please provide your date of birth to continue."
-            : authModal.message
-        }
+        isOpen={showAuthModal}
+        onClose={() => setAuthModal({ open: false })}
+        onSignedUp={() => { if (user) fetchAgeGroup(user.id); }}
+        message={authModal.message}
+      />
+
+      {/* DOB-only modal for Google OAuth users without DOB */}
+      <AuthModal
+        isOpen={showDobModal}
+        onClose={() => {}} // Can't dismiss — DOB is required
+        dobOnly
+        userId={user?.id}
+        onDobSubmitted={() => { if (user) fetchAgeGroup(user.id); }}
+        message="So your experience feels right for where you are in life."
       />
     </div>
   );

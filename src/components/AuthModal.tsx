@@ -6,10 +6,13 @@ interface AuthModalProps {
   isOpen: boolean;
   onClose: () => void;
   onSignedUp?: () => void;
+  onDobSubmitted?: () => void;
   message?: string;
+  dobOnly?: boolean;
+  userId?: string;
 }
 
-const AuthModal = ({ isOpen, onClose, onSignedUp, message }: AuthModalProps) => {
+const AuthModal = ({ isOpen, onClose, onSignedUp, onDobSubmitted, message, dobOnly, userId }: AuthModalProps) => {
   const [mode, setMode] = useState<"signin" | "signup">("signup");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -42,6 +45,46 @@ const AuthModal = ({ isOpen, onClose, onSignedUp, message }: AuthModalProps) => 
     return age;
   };
 
+  const getAgeGroup = (age: number) => {
+    if (age < 13) return "minor";
+    if (age <= 17) return "youth";
+    if (age <= 22) return "young_adult";
+    return "adult";
+  };
+
+  const handleDobSubmit = async () => {
+    setDobError("");
+    const dob = parseDob();
+    if (!dob) {
+      setDobError("Please enter a valid date of birth.");
+      return;
+    }
+    const age = getAgeYears(dob);
+    if (age < 13) {
+      setDobError("You must be at least 13 years old to use The Voice. Please ask a parent or guardian for guidance.");
+      return;
+    }
+
+    setLoading(true);
+    try {
+      const dobString = `${dobYear}-${dobMonth.padStart(2, "0")}-${dobDay.padStart(2, "0")}`;
+      const ageGroup = getAgeGroup(age);
+
+      await supabase
+        .from("profiles" as any)
+        .update({ date_of_birth: dobString, age_group: ageGroup } as any)
+        .eq("user_id", userId);
+
+      toast.success("Thank you.");
+      onDobSubmitted?.();
+      onClose();
+    } catch {
+      toast.error("Something went wrong. Please try again.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setDobError("");
@@ -55,7 +98,6 @@ const AuthModal = ({ isOpen, onClose, onSignedUp, message }: AuthModalProps) => 
           setLoading(false);
           return;
         }
-
         const age = getAgeYears(dob);
         if (age < 13) {
           setDobError("You must be at least 13 years old to use The Voice. Please ask a parent or guardian for guidance.");
@@ -70,12 +112,10 @@ const AuthModal = ({ isOpen, onClose, onSignedUp, message }: AuthModalProps) => 
         });
         if (error) throw error;
 
-        // Update profile with DOB after signup
         if (signUpData.user) {
           const dobString = `${dobYear}-${dobMonth.padStart(2, "0")}-${dobDay.padStart(2, "0")}`;
-          const ageGroup = age < 13 ? "minor" : age <= 17 ? "youth" : age <= 22 ? "young_adult" : "adult";
+          const ageGroup = getAgeGroup(age);
 
-          // Use service-role via edge function or direct update
           await supabase
             .from("profiles" as any)
             .update({ date_of_birth: dobString, age_group: ageGroup } as any)
@@ -111,6 +151,80 @@ const AuthModal = ({ isOpen, onClose, onSignedUp, message }: AuthModalProps) => 
 
   const inputClass = "w-full bg-transparent border-b border-border pb-2 text-sm font-body outline-none focus:border-gold transition-colors";
   const dobInputClass = "bg-transparent border-b border-border pb-2 text-sm font-body outline-none focus:border-gold transition-colors text-center";
+
+  const dobFields = (
+    <div className="pt-2">
+      <label className="block text-xs font-body text-foreground/70 mb-2">
+        Your date of birth
+      </label>
+      <div className="flex gap-3">
+        <input
+          type="text"
+          inputMode="numeric"
+          maxLength={2}
+          value={dobMonth}
+          onChange={(e) => setDobMonth(e.target.value.replace(/\D/g, ""))}
+          placeholder="MM"
+          required
+          className={`${dobInputClass} w-16`}
+        />
+        <span className="text-muted-foreground self-end pb-2">/</span>
+        <input
+          type="text"
+          inputMode="numeric"
+          maxLength={2}
+          value={dobDay}
+          onChange={(e) => setDobDay(e.target.value.replace(/\D/g, ""))}
+          placeholder="DD"
+          required
+          className={`${dobInputClass} w-16`}
+        />
+        <span className="text-muted-foreground self-end pb-2">/</span>
+        <input
+          type="text"
+          inputMode="numeric"
+          maxLength={4}
+          value={dobYear}
+          onChange={(e) => setDobYear(e.target.value.replace(/\D/g, ""))}
+          placeholder="YYYY"
+          required
+          className={`${dobInputClass} w-20`}
+        />
+      </div>
+      <p className="text-xs text-muted-foreground/60 mt-2 font-body">
+        So your experience feels right for where you are in life.
+      </p>
+      {dobError && (
+        <p className="text-xs text-destructive mt-1 font-body">{dobError}</p>
+      )}
+    </div>
+  );
+
+  // DOB-only mode for existing users (e.g. Google OAuth)
+  if (dobOnly) {
+    return (
+      <div className="fixed inset-0 z-50 flex items-center justify-center bg-ink/40 backdrop-blur-sm px-6">
+        <div className="bg-parchment rounded-sm shadow-xl max-w-sm w-full p-8 relative">
+          {message && (
+            <p className="font-serif text-sm text-foreground/80 text-center mb-6 leading-relaxed">
+              {message}
+            </p>
+          )}
+          <h3 className="font-serif text-xl text-center mb-6 tracking-wide">
+            One more thing
+          </h3>
+          {dobFields}
+          <button
+            onClick={handleDobSubmit}
+            disabled={loading}
+            className="w-full mt-6 font-serif text-sm tracking-widest uppercase py-3 bg-gold text-primary-foreground rounded-sm transition-all hover:bg-gold-dark disabled:opacity-50"
+          >
+            {loading ? "…" : "Continue"}
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-ink/40 backdrop-blur-sm px-6">
@@ -151,53 +265,7 @@ const AuthModal = ({ isOpen, onClose, onSignedUp, message }: AuthModalProps) => 
             className={inputClass}
           />
 
-          {mode === "signup" && (
-            <div className="pt-2">
-              <label className="block text-xs font-body text-foreground/70 mb-2">
-                Your date of birth
-              </label>
-              <div className="flex gap-3">
-                <input
-                  type="text"
-                  inputMode="numeric"
-                  maxLength={2}
-                  value={dobMonth}
-                  onChange={(e) => setDobMonth(e.target.value.replace(/\D/g, ""))}
-                  placeholder="MM"
-                  required
-                  className={`${dobInputClass} w-16`}
-                />
-                <span className="text-muted-foreground self-end pb-2">/</span>
-                <input
-                  type="text"
-                  inputMode="numeric"
-                  maxLength={2}
-                  value={dobDay}
-                  onChange={(e) => setDobDay(e.target.value.replace(/\D/g, ""))}
-                  placeholder="DD"
-                  required
-                  className={`${dobInputClass} w-16`}
-                />
-                <span className="text-muted-foreground self-end pb-2">/</span>
-                <input
-                  type="text"
-                  inputMode="numeric"
-                  maxLength={4}
-                  value={dobYear}
-                  onChange={(e) => setDobYear(e.target.value.replace(/\D/g, ""))}
-                  placeholder="YYYY"
-                  required
-                  className={`${dobInputClass} w-20`}
-                />
-              </div>
-              <p className="text-xs text-muted-foreground/60 mt-2 font-body">
-                So your experience feels right for where you are in life.
-              </p>
-              {dobError && (
-                <p className="text-xs text-destructive mt-1 font-body">{dobError}</p>
-              )}
-            </div>
-          )}
+          {mode === "signup" && dobFields}
 
           <button
             type="submit"
