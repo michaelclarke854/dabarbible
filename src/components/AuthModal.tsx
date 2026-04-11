@@ -62,7 +62,7 @@ const AuthModal = ({ isOpen, onClose, onSignedUp, onDobSubmitted, message, dobOn
     }
     const age = getAgeYears(dob);
     if (age < 13) {
-      setDobError("The Voice is designed for ages 13 and up. Ask a parent or guardian to create a Family Account — they can set up access for you from their account.");
+      setDobError("Dabar is designed for ages 13 and up. Ask a parent or guardian to create a Family Account — they can set up access for you from their account.");
       return;
     }
 
@@ -101,7 +101,7 @@ const AuthModal = ({ isOpen, onClose, onSignedUp, onDobSubmitted, message, dobOn
         }
         const age = getAgeYears(dob);
         if (age < 13) {
-          setDobError("The Voice is designed for ages 13 and up. Ask a parent or guardian to create a Family Account — they can set up access for you from their account.");
+          setDobError("Dabar is designed for ages 13 and up. Ask a parent or guardian to create a Family Account — they can set up access for you from their account.");
           setLoading(false);
           return;
         }

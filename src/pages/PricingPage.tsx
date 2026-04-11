@@ -129,7 +129,7 @@ const PricingPage = () => {
         Choose Your Path
       </h1>
       <p className="font-body text-sm text-muted-foreground text-center mb-12">
-        Free · Personal $6.99/mo · Family $12.99/mo · Community $99/mo
+        Dabar · Free · Personal $6.99/mo · Family $12.99/mo · Community $99/mo
       </p>
 
       <div className="space-y-6">
