@@ -141,9 +141,10 @@ const ScriptureScreen = ({
       setChapterLoading(true);
       setVerses([]);
       const bookQuery = book.name.replace(/ /g, "+");
+      const projectId = import.meta.env.VITE_SUPABASE_PROJECT_ID;
       try {
         const res = await fetch(
-          `https://bible-api.com/${bookQuery}+${chapter}?translation=${VERSION_API_MAP[version]}`
+          `https://${projectId}.supabase.co/functions/v1/bible-proxy?ref=${encodeURIComponent(bookQuery + "+" + chapter)}&translation=${VERSION_API_MAP[version]}`
         );
         const data = await res.json();
         if (data.verses) {
@@ -194,9 +195,10 @@ const ScriptureScreen = ({
 
     // Fetch other versions in parallel
     const others = VERSIONS.filter((v) => v !== activeChapterVersion);
+    const projectId = import.meta.env.VITE_SUPABASE_PROJECT_ID;
     const results = await Promise.allSettled(
       others.map(async (ver) => {
-        const res = await fetch(`https://bible-api.com/${ref}?translation=${VERSION_API_MAP[ver]}`);
+        const res = await fetch(`https://${projectId}.supabase.co/functions/v1/bible-proxy?ref=${encodeURIComponent(ref)}&translation=${VERSION_API_MAP[ver]}`);
         const data = await res.json();
         return { ver, text: data.text?.trim() || `[${ver} not available]` };
       })
