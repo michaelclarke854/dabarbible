@@ -193,19 +193,22 @@ const ScriptureScreen = ({
       [activeChapterVersion]: current?.text || "",
     };
 
-    // Fetch other versions in parallel
+    // Fetch other versions in parallel — only cache versions that return data
     const others = VERSIONS.filter((v) => v !== activeChapterVersion);
     const projectId = import.meta.env.VITE_SUPABASE_PROJECT_ID;
     const results = await Promise.allSettled(
       others.map(async (ver) => {
         const res = await fetch(`https://${projectId}.supabase.co/functions/v1/bible-proxy?ref=${encodeURIComponent(ref)}&translation=${VERSION_API_MAP[ver]}`);
         const data = await res.json();
-        return { ver, text: data.text?.trim() || `[${ver} not available]` };
+        const text = data.text?.trim();
+        return { ver, text: text || null };
       })
     );
 
     results.forEach((r) => {
-      if (r.status === "fulfilled") cache[r.value.ver] = r.value.text;
+      if (r.status === "fulfilled" && r.value.text) {
+        cache[r.value.ver] = r.value.text;
+      }
     });
 
     setVerseVersionCache((prev) => ({ ...prev, [verseNum]: cache }));
