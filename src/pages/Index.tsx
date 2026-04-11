@@ -304,8 +304,8 @@ const Index = () => {
         )}
       </main>
 
-      {/* Bottom Navigation */}
-      <nav className="fixed bottom-0 left-0 right-0 bg-parchment/95 backdrop-blur-sm border-t border-border z-30">
+      {/* Bottom Navigation — hidden during onboarding */}
+      {(hasOnboarded || user) && <nav className="fixed bottom-0 left-0 right-0 bg-parchment/95 backdrop-blur-sm border-t border-border z-30">
         <div className="flex max-w-lg mx-auto">
           <button
             onClick={() => handleTabChange("ask")}
