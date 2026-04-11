@@ -29,6 +29,7 @@ const incrementQuestionsUsed = () => {
 
 const Index = () => {
   const [user, setUser] = useState<User | null>(null);
+  const [ageGroup, setAgeGroup] = useState<string | null>(null);
   const [tab, setTab] = useState<Tab>("ask");
   const [screen, setScreen] = useState<Screen>("ask");
   const [isLoading, setIsLoading] = useState(false);
@@ -43,20 +44,48 @@ const Index = () => {
     open: boolean;
     message?: string;
   }>({ open: false });
+  const [needsDob, setNeedsDob] = useState(false);
+
+  const fetchAgeGroup = useCallback(async (userId: string) => {
+    const { data } = await supabase
+      .from("profiles" as any)
+      .select("age_group")
+      .eq("user_id", userId)
+      .single();
+    if ((data as any)?.age_group) {
+      setAgeGroup((data as any).age_group);
+      if ((data as any).age_group === "minor") {
+        toast.error("You must be at least 13 years old to use The Voice.");
+        await supabase.auth.signOut();
+      }
+    } else {
+      // No DOB set yet (e.g. Google OAuth signup) — prompt for it
+      setNeedsDob(true);
+    }
+  }, []);
 
   useEffect(() => {
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      (_event, session) => setUser(session?.user ?? null)
+      (_event, session) => {
+        const u = session?.user ?? null;
+        setUser(u);
+        if (u) fetchAgeGroup(u.id);
+        else {
+          setAgeGroup(null);
+          setNeedsDob(false);
+        }
+      }
     );
     supabase.auth.getSession().then(({ data: { session } }) => {
-      setUser(session?.user ?? null);
+      const u = session?.user ?? null;
+      setUser(u);
+      if (u) fetchAgeGroup(u.id);
     });
     return () => subscription.unsubscribe();
-  }, []);
+  }, [fetchAgeGroup]);
 
   const seekWisdom = useCallback(
     async (question: string) => {
-      // Check free limit for guests
       if (!user && getQuestionsUsed() >= FREE_QUESTION_LIMIT) {
         setAuthModal({
           open: true,
@@ -66,12 +95,21 @@ const Index = () => {
         return;
       }
 
+      if (user && needsDob) {
+        setNeedsDob(true);
+        setAuthModal({
+          open: true,
+          message: "Please provide your date of birth to continue.",
+        });
+        return;
+      }
+
       setIsLoading(true);
       setIsSaved(false);
 
       try {
         const { data, error } = await supabase.functions.invoke("seek-wisdom", {
-          body: { question, userId: user?.id || null },
+          body: { question, userId: user?.id || null, ageGroup: ageGroup || null },
         });
 
         if (error) throw error;
@@ -91,7 +129,7 @@ const Index = () => {
         setIsLoading(false);
       }
     },
-    [user]
+    [user, ageGroup, needsDob]
   );
 
   const reflectOnThis = useCallback(async () => {
@@ -107,7 +145,6 @@ const Index = () => {
 
     setIsSaving(true);
     try {
-      // Find the most recent session matching this question/response
       const { data: sessions } = await supabase
         .from("wisdom_sessions")
         .select("id")
@@ -165,7 +202,6 @@ const Index = () => {
         )}
       </main>
 
-      {/* Bottom Navigation */}
       <nav className="fixed bottom-0 left-0 right-0 bg-parchment/95 backdrop-blur-sm border-t border-border">
         <div className="flex max-w-lg mx-auto">
           <button
@@ -187,7 +223,6 @@ const Index = () => {
         </div>
       </nav>
 
-      {/* User auth indicator */}
       {user && (
         <button
           onClick={async () => {
@@ -201,9 +236,21 @@ const Index = () => {
       )}
 
       <AuthModal
-        isOpen={authModal.open}
-        onClose={() => setAuthModal({ open: false })}
-        message={authModal.message}
+        isOpen={authModal.open || needsDob}
+        onClose={() => {
+          setAuthModal({ open: false });
+          if (needsDob && user) {
+            // They dismissed without providing DOB — re-check
+          }
+        }}
+        onSignedUp={() => {
+          if (user) fetchAgeGroup(user.id);
+        }}
+        message={
+          needsDob && !authModal.message
+            ? "Please provide your date of birth to continue."
+            : authModal.message
+        }
       />
     </div>
   );
