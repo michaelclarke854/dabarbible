@@ -260,7 +260,14 @@ const Index = () => {
   return (
     <div className="min-h-screen flex flex-col">
       <main className="flex-1 pb-20">
-        {showLanguageSettings && user ? (
+        {!hasOnboarded && !user ? (
+          <OnboardingScreen
+            onBegin={() => {
+              try { localStorage.setItem(ONBOARDING_KEY, "true"); } catch {}
+              setHasOnboarded(true);
+            }}
+          />
+        ) : showLanguageSettings && user ? (
           <LanguageSettings
             userId={user.id}
             currentLanguage={languagePreference}
