@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { useNavigate } from "react-router-dom";
-import { Home, BookOpen } from "lucide-react";
+import { Flame, BookOpen } from "lucide-react";
 import AskScreen from "@/components/AskScreen";
 import ResponseScreen from "@/components/ResponseScreen";
 import JournalScreen from "@/components/JournalScreen";
@@ -275,7 +275,7 @@ const Index = () => {
               tab === "ask" ? "text-gold" : "text-muted-foreground"
             }`}
           >
-            <Home size={18} strokeWidth={1.5} />
+            <Flame size={18} strokeWidth={1.5} />
             <span className="font-serif text-[10px] tracking-widest uppercase">Ask</span>
           </button>
           <button
