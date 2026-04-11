@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback, lazy, Suspense } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { useNavigate } from "react-router-dom";
-import { Flame, BookOpen, Globe, BookText, Lock, Settings } from "lucide-react";
+import { Flame, BookOpen, Globe, BookText, Lock, Settings, Clock } from "lucide-react";
 import AskScreen from "@/components/AskScreen";
 import ResponseScreen from "@/components/ResponseScreen";
 import AuthModal from "@/components/AuthModal";
@@ -13,10 +13,11 @@ import { useAuth } from "@/contexts/AuthContext";
 
 const JournalScreen = lazy(() => import("@/components/JournalScreen"));
 const ScriptureScreen = lazy(() => import("@/components/ScriptureScreen"));
+const HistoryScreen = lazy(() => import("@/components/HistoryScreen"));
 const LanguageSettings = lazy(() => import("@/components/LanguageSettings"));
 const PrivacySettings = lazy(() => import("@/components/PrivacySettings"));
 
-type Tab = "ask" | "scripture" | "journal";
+type Tab = "ask" | "scripture" | "history" | "journal";
 type Screen = "ask" | "response";
 
 const GUEST_LIMIT = 3;
@@ -236,6 +237,16 @@ const Index = () => {
       setAuthModal({ open: true, message: "Sign in to access the Scripture companion." });
       return;
     }
+    if (newTab === "history" && !user) {
+      setAuthModal({ open: true, message: "Sign in to view your history." });
+      return;
+    }
+    if (newTab === "history" && !hasFullAccess) {
+      toast("History requires a Personal plan or above.", {
+        action: { label: "View Plans", onClick: () => navigate("/pricing") },
+      });
+      return;
+    }
     if (newTab === "journal" && !user) {
       setAuthModal({ open: true, message: "Sign in to view your journal." });
       return;
@@ -306,6 +317,10 @@ const Index = () => {
               onDeepLinkConsumed={() => setScriptureDeepLink(null)}
             />
           </Suspense>
+        ) : tab === "history" ? (
+          <Suspense fallback={<PageSpinner />}>
+            <HistoryScreen />
+          </Suspense>
         ) : (
           <Suspense fallback={<PageSpinner />}>
             <JournalScreen stirPrompt={stirPrompt} onStirConsumed={() => setStirPrompt(null)} />
@@ -333,6 +348,15 @@ const Index = () => {
           >
             {!hasFullAccess && user ? <Lock size={18} strokeWidth={1.5} /> : <BookText size={18} strokeWidth={1.5} />}
             <span className="font-serif text-[10px] tracking-widest uppercase">Scripture</span>
+          </button>
+          <button
+            onClick={() => handleTabChange("history")}
+            className={`flex-1 py-3 flex flex-col items-center gap-1 transition-colors ${
+              tab === "history" ? "text-gold" : "text-muted-foreground"
+            }`}
+          >
+            {!hasFullAccess && user ? <Lock size={18} strokeWidth={1.5} /> : <Clock size={18} strokeWidth={1.5} />}
+            <span className="font-serif text-[10px] tracking-widest uppercase">History</span>
           </button>
           <button
             onClick={() => handleTabChange("journal")}
