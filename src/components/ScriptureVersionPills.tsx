@@ -35,7 +35,10 @@ interface ScriptureVersionPillsProps {
 async function fetchVerseText(reference: string, version: BibleVersion): Promise<string | null> {
   try {
     const refQuery = reference.replace(/ /g, "+");
-    const res = await fetch(`https://bible-api.com/${refQuery}?translation=${VERSION_API_MAP[version]}`);
+    const projectId = import.meta.env.VITE_SUPABASE_PROJECT_ID;
+    const res = await fetch(
+      `https://${projectId}.supabase.co/functions/v1/bible-proxy?ref=${encodeURIComponent(refQuery)}&translation=${VERSION_API_MAP[version]}`
+    );
     const data = await res.json();
     return data.text ? data.text.trim() : null;
   } catch {
