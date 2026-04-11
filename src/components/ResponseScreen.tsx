@@ -69,6 +69,9 @@ const ResponseScreen = ({
               <ScriptureCard
                 block={block}
                 onScriptureRef={onScriptureRef}
+                userId={userId}
+                profileDefault={profileVersion}
+                onDefaultChanged={onProfileVersionChanged}
               />
             ) : (
               <p className="font-serif text-lg md:text-xl leading-relaxed text-foreground">
