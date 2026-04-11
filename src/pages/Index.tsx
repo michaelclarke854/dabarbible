@@ -14,7 +14,7 @@ type Screen = "ask" | "response";
 
 const GUEST_LIMIT = 3;
 const FREE_DAILY_LIMIT = 3;
-const STORAGE_KEY = "the-voice-questions-used";
+const STORAGE_KEY = "dabar-questions-used";
 
 const getGuestQuestionsUsed = (): number => {
   try { return parseInt(localStorage.getItem(STORAGE_KEY) || "0", 10); } catch { return 0; }
@@ -53,7 +53,7 @@ const Index = () => {
       setAgeGroup(ag);
       setNeedsDob(false);
       if (ag === "minor") {
-        toast.error("The Voice is designed for ages 13 and up. Ask a parent or guardian to create a Family Account.");
+        toast.error("Dabar is designed for ages 13 and up. Ask a parent or guardian to create a Family Account.");
         await supabase.auth.signOut();
         return;
       }

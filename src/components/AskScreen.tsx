@@ -16,9 +16,13 @@ const AskScreen = ({ onSeekWisdom, isLoading }: AskScreenProps) => {
 
   return (
     <div className="flex flex-col items-center justify-center min-h-[calc(100vh-80px)] px-6 py-12">
-      <h1 className="font-serif text-3xl md:text-4xl text-foreground mb-2 tracking-wide text-center">
-        The Voice
+      <h1 className="font-serif text-4xl md:text-5xl text-foreground tracking-widest text-center">
+        DABAR
       </h1>
+      <p className="text-gold font-serif text-sm tracking-wider mt-1 mb-1">דָּבָר</p>
+      <p className="font-['Playfair_Display'] italic text-muted-foreground text-sm tracking-wide mb-2">
+        The word that finds you.
+      </p>
       <div className="w-12 h-px bg-gold my-6" />
 
       <div className="w-full max-w-lg">
