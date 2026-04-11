@@ -32,6 +32,30 @@ export type Database = {
         }
         Relationships: []
       }
+      beta_feedback: {
+        Row: {
+          created_at: string
+          feedback_text: string
+          id: string
+          screen_context: string | null
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          feedback_text: string
+          id?: string
+          screen_context?: string | null
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          feedback_text?: string
+          id?: string
+          screen_context?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
       community_members: {
         Row: {
           community_id: string
@@ -144,28 +168,64 @@ export type Database = {
       profiles: {
         Row: {
           age_group: string | null
+          beta_granted_at: string | null
+          beta_granted_by: string | null
+          beta_notes: string | null
           created_at: string
           date_of_birth: string | null
+          grace_period_until: string | null
           id: string
+          is_suspended: boolean | null
           language_preference: string
+          plan: string
+          previous_role: string | null
+          role: string
+          role_changed_at: string | null
+          role_changed_by: string | null
+          suspended_at: string | null
+          suspended_by: string | null
           updated_at: string
           user_id: string
         }
         Insert: {
           age_group?: string | null
+          beta_granted_at?: string | null
+          beta_granted_by?: string | null
+          beta_notes?: string | null
           created_at?: string
           date_of_birth?: string | null
+          grace_period_until?: string | null
           id?: string
+          is_suspended?: boolean | null
           language_preference?: string
+          plan?: string
+          previous_role?: string | null
+          role?: string
+          role_changed_at?: string | null
+          role_changed_by?: string | null
+          suspended_at?: string | null
+          suspended_by?: string | null
           updated_at?: string
           user_id: string
         }
         Update: {
           age_group?: string | null
+          beta_granted_at?: string | null
+          beta_granted_by?: string | null
+          beta_notes?: string | null
           created_at?: string
           date_of_birth?: string | null
+          grace_period_until?: string | null
           id?: string
+          is_suspended?: boolean | null
           language_preference?: string
+          plan?: string
+          previous_role?: string | null
+          role?: string
+          role_changed_at?: string | null
+          role_changed_by?: string | null
+          suspended_at?: string | null
+          suspended_by?: string | null
           updated_at?: string
           user_id?: string
         }
@@ -198,6 +258,36 @@ export type Database = {
           updated_at?: string
           user_id?: string
           writing_prompt?: string | null
+        }
+        Relationships: []
+      }
+      role_change_log: {
+        Row: {
+          changed_at: string
+          changed_by: string | null
+          id: string
+          new_role: string | null
+          notes: string | null
+          old_role: string | null
+          target_user_id: string | null
+        }
+        Insert: {
+          changed_at?: string
+          changed_by?: string | null
+          id?: string
+          new_role?: string | null
+          notes?: string | null
+          old_role?: string | null
+          target_user_id?: string | null
+        }
+        Update: {
+          changed_at?: string
+          changed_by?: string | null
+          id?: string
+          new_role?: string | null
+          notes?: string | null
+          old_role?: string | null
+          target_user_id?: string | null
         }
         Relationships: []
       }
@@ -468,6 +558,7 @@ export type Database = {
     }
     Functions: {
       calculate_age_group: { Args: { dob: string }; Returns: string }
+      get_user_role: { Args: { _user_id: string }; Returns: string }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]
