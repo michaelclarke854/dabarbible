@@ -326,10 +326,10 @@ const Index = () => {
             <span className="font-serif text-[10px] tracking-widest uppercase">Journal</span>
           </button>
         </div>
-      </nav>
+      </nav>}
 
-      {/* Top bar */}
-      <div className="fixed top-0 left-0 right-0 z-20 flex justify-between items-center px-4 py-3">
+      {/* Top bar — hidden during onboarding */}
+      {(hasOnboarded || user) && <div className="fixed top-0 left-0 right-0 z-20 flex justify-between items-center px-4 py-3">
         {user && planType === "free" && (
           <button
             onClick={() => navigate("/pricing")}
