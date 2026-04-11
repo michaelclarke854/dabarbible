@@ -2,11 +2,12 @@ import { useState, useEffect, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { useNavigate } from "react-router-dom";
-import { Flame, BookOpen } from "lucide-react";
+import { Flame, BookOpen, Globe } from "lucide-react";
 import AskScreen from "@/components/AskScreen";
 import ResponseScreen from "@/components/ResponseScreen";
 import JournalScreen from "@/components/JournalScreen";
 import AuthModal from "@/components/AuthModal";
+import LanguageSettings from "@/components/LanguageSettings";
 import type { User } from "@supabase/supabase-js";
 
 type Tab = "ask" | "journal";
@@ -41,15 +42,18 @@ const Index = () => {
   const [authModal, setAuthModal] = useState<{ open: boolean; message?: string }>({ open: false });
   const [needsDob, setNeedsDob] = useState(false);
   const [stirPrompt, setStirPrompt] = useState<string | null>(null);
+  const [languagePreference, setLanguagePreference] = useState("en");
+  const [showLanguageSettings, setShowLanguageSettings] = useState(false);
 
   const fetchUserData = useCallback(async (userId: string) => {
     // Fetch age group
     const { data: profile } = await supabase
       .from("profiles")
-      .select("age_group")
+      .select("age_group, language_preference")
       .eq("user_id", userId)
       .single();
     const ag = profile?.age_group;
+    const lp = profile?.language_preference;
     if (ag) {
       setAgeGroup(ag);
       setNeedsDob(false);
@@ -60,6 +64,9 @@ const Index = () => {
       }
     } else {
       setNeedsDob(true);
+    }
+    if (lp) {
+      setLanguagePreference(lp);
     }
 
     // Fetch subscription
@@ -248,7 +255,17 @@ const Index = () => {
   return (
     <div className="min-h-screen flex flex-col">
       <main className="flex-1 pb-20">
-        {tab === "ask" ? (
+        {showLanguageSettings && user ? (
+          <LanguageSettings
+            userId={user.id}
+            currentLanguage={languagePreference}
+            onLanguageChanged={(lang) => {
+              setLanguagePreference(lang);
+              setShowLanguageSettings(false);
+            }}
+            onBack={() => setShowLanguageSettings(false)}
+          />
+        ) : tab === "ask" ? (
           screen === "ask" ? (
             <AskScreen onSeekWisdom={seekWisdom} isLoading={isLoading} />
           ) : currentResponse ? (
@@ -259,7 +276,6 @@ const Index = () => {
               onAskAgain={() => { setScreen("ask"); setCurrentResponse(null); }}
               onReflect={reflectOnThis}
               onStir={(thresholdQ) => {
-                // Save to journal first, then open reflections with the threshold question
                 reflectOnThis().then(() => {
                   if (!user) return;
                   if (planType === "free") return;
@@ -310,18 +326,28 @@ const Index = () => {
             Upgrade
           </button>
         )}
-        <div className="flex-1" />
-        {user ? (
-          <button
-            onClick={async () => {
-              await supabase.auth.signOut();
-              toast.success("Signed out.");
-            }}
-            className="text-xs font-body text-muted-foreground hover:text-foreground transition-colors"
-          >
-            Sign out
-          </button>
-        ) : null}
+        <div className="flex items-center gap-3">
+          {user && (
+            <button
+              onClick={() => setShowLanguageSettings(true)}
+              className="text-muted-foreground hover:text-gold transition-colors"
+              title="Language"
+            >
+              <Globe size={16} />
+            </button>
+          )}
+          {user ? (
+            <button
+              onClick={async () => {
+                await supabase.auth.signOut();
+                toast.success("Signed out.");
+              }}
+              className="text-xs font-body text-muted-foreground hover:text-foreground transition-colors"
+            >
+              Sign out
+            </button>
+          ) : null}
+        </div>
       </div>
 
       <AuthModal
