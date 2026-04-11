@@ -406,10 +406,7 @@ const Index = () => {
         onClose={() => {}}
         dobOnly
         userId={user?.id}
-        onDobSubmitted={() => {
-          // Refresh profile to pick up new age_group, dismissing DOB modal
-          import("@/contexts/AuthContext").then(() => {});
-        }}
+        onDobSubmitted={() => refreshProfile()}
         message="So your experience feels right for where you are in life."
       />
     </div>
