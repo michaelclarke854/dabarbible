@@ -1,1 +1,4 @@
 project_id = "crkkimoblnrxpszehmkg"
+
+[functions.seek-wisdom]
+verify_jwt = false
