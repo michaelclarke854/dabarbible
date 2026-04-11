@@ -42,7 +42,7 @@ const OnboardingScreen = ({ onBegin }: OnboardingScreenProps) => {
 
   return (
     <div
-      className={`min-h-screen flex flex-col items-center px-6 py-16 md:py-24 transition-opacity duration-1000 ${
+      className={`min-h-screen flex flex-col items-center px-6 pt-16 md:pt-24 pb-0 transition-opacity duration-1000 overflow-x-hidden ${
         visible ? "opacity-100" : "opacity-0"
       }`}
     >
