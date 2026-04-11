@@ -1,15 +1,18 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, lazy, Suspense } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { useNavigate } from "react-router-dom";
 import { Flame, BookOpen, Globe, BookText } from "lucide-react";
 import AskScreen from "@/components/AskScreen";
 import ResponseScreen from "@/components/ResponseScreen";
-import JournalScreen from "@/components/JournalScreen";
-import ScriptureScreen from "@/components/ScriptureScreen";
 import AuthModal from "@/components/AuthModal";
-import LanguageSettings from "@/components/LanguageSettings";
 import OnboardingScreen from "@/components/OnboardingScreen";
+import { parseScriptureRef } from "@/data/kjvBooks";
+
+// Lazy-loaded: only fetched when user navigates to these tabs
+const JournalScreen = lazy(() => import("@/components/JournalScreen"));
+const ScriptureScreen = lazy(() => import("@/components/ScriptureScreen"));
+const LanguageSettings = lazy(() => import("@/components/LanguageSettings"));
 import { parseScriptureRef } from "@/data/kjvBooks";
 import type { User } from "@supabase/supabase-js";
 
