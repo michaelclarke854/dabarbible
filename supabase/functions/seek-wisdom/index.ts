@@ -221,7 +221,7 @@ serve(async (req) => {
 
     if (userId) {
       const [profileResult, patternsResult] = await Promise.all([
-        supabase.from("profiles").select("age_group").eq("user_id", userId).single(),
+        supabase.from("profiles").select("age_group, language_preference").eq("user_id", userId).single(),
         supabase.from("user_patterns").select("theme, occurrence, first_seen").eq("user_id", userId),
       ]);
       if (profileResult.data?.age_group) {
@@ -250,7 +250,7 @@ serve(async (req) => {
     }
 
     const patternContext = buildPatternContext(userPatterns);
-    const systemPrompt = getSystemPrompt(validatedAgeGroup, patternContext);
+    const systemPrompt = getSystemPrompt(validatedAgeGroup, patternContext, language, scriptureVersion);
 
     const aiResponse = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
       method: "POST",
