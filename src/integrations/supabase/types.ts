@@ -138,6 +138,35 @@ export type Database = {
         }
         Relationships: []
       }
+      session_themes: {
+        Row: {
+          confidence: number
+          id: string
+          session_id: string
+          theme: string
+        }
+        Insert: {
+          confidence?: number
+          id?: string
+          session_id: string
+          theme: string
+        }
+        Update: {
+          confidence?: number
+          id?: string
+          session_id?: string
+          theme?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "session_themes_session_id_fkey"
+            columns: ["session_id"]
+            isOneToOne: false
+            referencedRelation: "wisdom_sessions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       subscriptions: {
         Row: {
           billing_cycle: string | null
@@ -186,6 +215,33 @@ export type Database = {
           id?: string
           question_count?: number
           user_id?: string | null
+        }
+        Relationships: []
+      }
+      user_patterns: {
+        Row: {
+          first_seen: string
+          id: string
+          last_seen: string
+          occurrence: number
+          theme: string
+          user_id: string
+        }
+        Insert: {
+          first_seen?: string
+          id?: string
+          last_seen?: string
+          occurrence?: number
+          theme: string
+          user_id: string
+        }
+        Update: {
+          first_seen?: string
+          id?: string
+          last_seen?: string
+          occurrence?: number
+          theme?: string
+          user_id?: string
         }
         Relationships: []
       }
