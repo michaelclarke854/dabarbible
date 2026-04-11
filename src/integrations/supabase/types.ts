@@ -162,6 +162,47 @@ export type Database = {
         }
         Relationships: []
       }
+      saved_verses: {
+        Row: {
+          book: string
+          chapter: number
+          created_at: string
+          id: string
+          session_id: string | null
+          user_id: string
+          verse_number: number
+          verse_text: string
+        }
+        Insert: {
+          book: string
+          chapter: number
+          created_at?: string
+          id?: string
+          session_id?: string | null
+          user_id: string
+          verse_number: number
+          verse_text: string
+        }
+        Update: {
+          book?: string
+          chapter?: number
+          created_at?: string
+          id?: string
+          session_id?: string | null
+          user_id?: string
+          verse_number?: number
+          verse_text?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "saved_verses_session_id_fkey"
+            columns: ["session_id"]
+            isOneToOne: false
+            referencedRelation: "wisdom_sessions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       session_themes: {
         Row: {
           confidence: number
@@ -268,6 +309,41 @@ export type Database = {
           user_id?: string
         }
         Relationships: []
+      }
+      verse_annotations: {
+        Row: {
+          created_at: string
+          id: string
+          note: string
+          saved_verse_id: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          note: string
+          saved_verse_id: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          note?: string
+          saved_verse_id?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "verse_annotations_saved_verse_id_fkey"
+            columns: ["saved_verse_id"]
+            isOneToOne: false
+            referencedRelation: "saved_verses"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       wisdom_sessions: {
         Row: {

@@ -9,6 +9,7 @@ interface ResponseScreenProps {
   onStir: (thresholdQuestion: string) => void;
   isSaving: boolean;
   isSaved: boolean;
+  onScriptureRef?: (ref: string) => void;
 }
 
 interface ContentBlock {
@@ -51,7 +52,6 @@ function parseResponse(response: string): ContentBlock[] {
 }
 
 function extractThresholdQuestion(blocks: ContentBlock[]): string | null {
-  // The threshold question is typically the last text block ending with "?"
   for (let i = blocks.length - 1; i >= 0; i--) {
     if (blocks[i].type === "text" && blocks[i].content.trim().endsWith("?")) {
       return blocks[i].content.trim();
@@ -69,6 +69,7 @@ const ResponseScreen = ({
   onStir,
   isSaving,
   isSaved,
+  onScriptureRef,
 }: ResponseScreenProps) => {
   const [visibleBlocks, setVisibleBlocks] = useState(0);
   const blocks = useMemo(() => parseResponse(response), [response]);
@@ -110,9 +111,12 @@ const ResponseScreen = ({
                 <p className="font-serif text-base md:text-lg leading-relaxed text-foreground/90 italic">
                   "{block.verseText}"
                 </p>
-                <p className="text-gold font-serif text-sm tracking-wide mt-2">
-                  — {block.reference}
-                </p>
+                <button
+                  onClick={() => block.reference && onScriptureRef?.(block.reference)}
+                  className="text-gold font-serif text-sm tracking-wide mt-2 hover:text-gold-dark transition-colors cursor-pointer inline-flex items-center gap-1"
+                >
+                  — {block.reference} ↗
+                </button>
               </div>
             ) : (
               <p className="font-serif text-lg md:text-xl leading-relaxed text-foreground">

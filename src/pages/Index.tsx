@@ -2,16 +2,18 @@ import { useState, useEffect, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { useNavigate } from "react-router-dom";
-import { Flame, BookOpen, Globe } from "lucide-react";
+import { Flame, BookOpen, Globe, BookText } from "lucide-react";
 import AskScreen from "@/components/AskScreen";
 import ResponseScreen from "@/components/ResponseScreen";
 import JournalScreen from "@/components/JournalScreen";
+import ScriptureScreen from "@/components/ScriptureScreen";
 import AuthModal from "@/components/AuthModal";
 import LanguageSettings from "@/components/LanguageSettings";
 import OnboardingScreen from "@/components/OnboardingScreen";
+import { parseScriptureRef } from "@/data/kjvBooks";
 import type { User } from "@supabase/supabase-js";
 
-type Tab = "ask" | "journal";
+type Tab = "ask" | "scripture" | "journal";
 type Screen = "ask" | "response";
 
 const GUEST_LIMIT = 3;
@@ -49,9 +51,9 @@ const Index = () => {
   const [hasOnboarded, setHasOnboarded] = useState(() => {
     try { return localStorage.getItem(ONBOARDING_KEY) === "true"; } catch { return false; }
   });
+  const [scriptureDeepLink, setScriptureDeepLink] = useState<{ book: string; chapter: number; verse: number } | null>(null);
 
   const fetchUserData = useCallback(async (userId: string) => {
-    // Fetch age group
     const { data: profile } = await supabase
       .from("profiles")
       .select("age_group, language_preference")
@@ -74,7 +76,6 @@ const Index = () => {
       setLanguagePreference(lp);
     }
 
-    // Fetch subscription
     const { data: sub } = await supabase
       .from("subscriptions")
       .select("plan_type")
@@ -104,8 +105,8 @@ const Index = () => {
   }, [fetchUserData]);
 
   const checkDailyLimit = useCallback(async (): Promise<boolean> => {
-    if (!user) return true; // guests use localStorage limit
-    if (planType !== "free") return true; // paid users unlimited
+    if (!user) return true;
+    if (planType !== "free") return true;
 
     const today = new Date().toISOString().split("T")[0];
     const { data } = await supabase
@@ -150,7 +151,6 @@ const Index = () => {
 
   const seekWisdom = useCallback(
     async (question: string) => {
-      // Guest limit
       if (!user && getGuestQuestionsUsed() >= GUEST_LIMIT) {
         setAuthModal({
           open: true,
@@ -159,7 +159,6 @@ const Index = () => {
         return;
       }
 
-      // Daily limit for free users
       if (user) {
         const canAsk = await checkDailyLimit();
         if (!canAsk) return;
@@ -239,8 +238,16 @@ const Index = () => {
     }
   }, [user, currentResponse, planType, navigate]);
 
+  const handleScriptureDeepLink = useCallback((ref: string) => {
+    const parsed = parseScriptureRef(ref);
+    if (parsed) {
+      setScriptureDeepLink(parsed);
+      setTab("scripture");
+    }
+  }, []);
+
   const handleTabChange = (newTab: Tab) => {
-    if (newTab === "journal" && !user) {
+    if ((newTab === "journal") && !user) {
       setAuthModal({ open: true, message: "Sign in to view your journal." });
       return;
     }
@@ -297,14 +304,21 @@ const Index = () => {
               }}
               isSaving={isSaving}
               isSaved={isSaved}
+              onScriptureRef={handleScriptureDeepLink}
             />
           ) : null
+        ) : tab === "scripture" ? (
+          <ScriptureScreen
+            user={user}
+            deepLink={scriptureDeepLink}
+            onDeepLinkConsumed={() => setScriptureDeepLink(null)}
+          />
         ) : (
           <JournalScreen stirPrompt={stirPrompt} onStirConsumed={() => setStirPrompt(null)} />
         )}
       </main>
 
-      {/* Bottom Navigation — hidden during onboarding */}
+      {/* Bottom Navigation */}
       {(hasOnboarded || user) && <nav className="fixed bottom-0 left-0 right-0 bg-parchment/95 backdrop-blur-sm border-t border-border z-30">
         <div className="flex max-w-lg mx-auto">
           <button
@@ -315,6 +329,15 @@ const Index = () => {
           >
             <Flame size={18} strokeWidth={1.5} />
             <span className="font-serif text-[10px] tracking-widest uppercase">Ask</span>
+          </button>
+          <button
+            onClick={() => handleTabChange("scripture")}
+            className={`flex-1 py-3 flex flex-col items-center gap-1 transition-colors ${
+              tab === "scripture" ? "text-gold" : "text-muted-foreground"
+            }`}
+          >
+            <BookText size={18} strokeWidth={1.5} />
+            <span className="font-serif text-[10px] tracking-widest uppercase">Scripture</span>
           </button>
           <button
             onClick={() => handleTabChange("journal")}
@@ -328,7 +351,7 @@ const Index = () => {
         </div>
       </nav>}
 
-      {/* Top bar — hidden during onboarding */}
+      {/* Top bar */}
       {(hasOnboarded || user) && <div className="fixed top-0 left-0 right-0 z-20 flex justify-between items-center px-4 py-3">
         {user && planType === "free" && (
           <button
