@@ -73,6 +73,7 @@ const ScriptureScreen = ({
   const [verseActiveVersion, setVerseActiveVersion] = useState<Record<number, BibleVersion>>({});
   const [sheetOpen, setSheetOpen] = useState(false);
   const [chapterLoading, setChapterLoading] = useState(false);
+  const [availableChapterVersions, setAvailableChapterVersions] = useState<BibleVersion[]>(VERSIONS.slice() as BibleVersion[]);
 
   // Annotations
   const [annotations, setAnnotations] = useState<Record<string, AnnotationData>>({});
