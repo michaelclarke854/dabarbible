@@ -8,6 +8,7 @@ import ResponseScreen from "@/components/ResponseScreen";
 import JournalScreen from "@/components/JournalScreen";
 import AuthModal from "@/components/AuthModal";
 import LanguageSettings from "@/components/LanguageSettings";
+import OnboardingScreen from "@/components/OnboardingScreen";
 import type { User } from "@supabase/supabase-js";
 
 type Tab = "ask" | "journal";
@@ -16,6 +17,7 @@ type Screen = "ask" | "response";
 const GUEST_LIMIT = 3;
 const FREE_DAILY_LIMIT = 3;
 const STORAGE_KEY = "dabar-questions-used";
+const ONBOARDING_KEY = "dabar-onboarded";
 
 const getGuestQuestionsUsed = (): number => {
   try { return parseInt(localStorage.getItem(STORAGE_KEY) || "0", 10); } catch { return 0; }
@@ -44,6 +46,9 @@ const Index = () => {
   const [stirPrompt, setStirPrompt] = useState<string | null>(null);
   const [languagePreference, setLanguagePreference] = useState("en");
   const [showLanguageSettings, setShowLanguageSettings] = useState(false);
+  const [hasOnboarded, setHasOnboarded] = useState(() => {
+    try { return localStorage.getItem(ONBOARDING_KEY) === "true"; } catch { return false; }
+  });
 
   const fetchUserData = useCallback(async (userId: string) => {
     // Fetch age group
@@ -255,7 +260,14 @@ const Index = () => {
   return (
     <div className="min-h-screen flex flex-col">
       <main className="flex-1 pb-20">
-        {showLanguageSettings && user ? (
+        {!hasOnboarded && !user ? (
+          <OnboardingScreen
+            onBegin={() => {
+              try { localStorage.setItem(ONBOARDING_KEY, "true"); } catch {}
+              setHasOnboarded(true);
+            }}
+          />
+        ) : showLanguageSettings && user ? (
           <LanguageSettings
             userId={user.id}
             currentLanguage={languagePreference}
@@ -292,8 +304,8 @@ const Index = () => {
         )}
       </main>
 
-      {/* Bottom Navigation */}
-      <nav className="fixed bottom-0 left-0 right-0 bg-parchment/95 backdrop-blur-sm border-t border-border z-30">
+      {/* Bottom Navigation — hidden during onboarding */}
+      {(hasOnboarded || user) && <nav className="fixed bottom-0 left-0 right-0 bg-parchment/95 backdrop-blur-sm border-t border-border z-30">
         <div className="flex max-w-lg mx-auto">
           <button
             onClick={() => handleTabChange("ask")}
@@ -314,10 +326,10 @@ const Index = () => {
             <span className="font-serif text-[10px] tracking-widest uppercase">Journal</span>
           </button>
         </div>
-      </nav>
+      </nav>}
 
-      {/* Top bar */}
-      <div className="fixed top-0 left-0 right-0 z-20 flex justify-between items-center px-4 py-3">
+      {/* Top bar — hidden during onboarding */}
+      {(hasOnboarded || user) && <div className="fixed top-0 left-0 right-0 z-20 flex justify-between items-center px-4 py-3">
         {user && planType === "free" && (
           <button
             onClick={() => navigate("/pricing")}
@@ -348,7 +360,7 @@ const Index = () => {
             </button>
           ) : null}
         </div>
-      </div>
+      </div>}
 
       <AuthModal
         isOpen={showAuthModal}
