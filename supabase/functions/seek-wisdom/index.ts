@@ -259,7 +259,8 @@ serve(async (req) => {
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        model: "google/gemini-2.5-flash",
+        model: "google/gemini-3-flash-preview",
+        max_tokens: 1200,
         messages: [
           { role: "system", content: systemPrompt },
           { role: "user", content: question },
@@ -316,7 +317,7 @@ serve(async (req) => {
         );
 
         // Upsert user_patterns
-        for (const t of detectedThemes) {
+        await Promise.all(detectedThemes.map(async (t) => {
           const { data: existing } = await supabase
             .from("user_patterns")
             .select("id, occurrence")
@@ -336,7 +337,7 @@ serve(async (req) => {
               occurrence: 1,
             });
           }
-        }
+        }));
       }
     }
 
