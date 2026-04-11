@@ -61,7 +61,7 @@ const AskScreen = ({ onSeekWisdom, isLoading }: AskScreenProps) => {
         <textarea
           value={question}
           onChange={(e) => setQuestion(e.target.value)}
-          placeholder="What is weighing on your heart today?"
+          placeholder="What are you carrying today?"
           className="w-full min-h-[160px] bg-transparent border-none outline-none resize-none text-lg font-body text-foreground placeholder:text-muted-foreground/60 leading-relaxed p-4 focus:ring-0"
           disabled={isLoading}
           onKeyDown={(e) => {

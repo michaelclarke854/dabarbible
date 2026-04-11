@@ -33,7 +33,7 @@ const OnboardingScreen = ({ onBegin }: OnboardingScreenProps) => {
 
       {/* Body */}
       <div className="max-w-md w-full space-y-6 text-center">
-        <p className="font-serif text-xl md:text-2xl text-foreground leading-relaxed">
+        <p className="font-serif text-2xl md:text-3xl text-foreground leading-relaxed">
           What are you carrying today?
         </p>
 

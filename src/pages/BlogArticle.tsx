@@ -179,11 +179,11 @@ const BlogArticle = () => {
 
       {/* CTA */}
       <div className="mt-12 pt-8 border-t border-border text-center">
-        <p className="font-['Playfair_Display'] italic text-muted-foreground text-base mb-2">
-          The word that finds you.
+        <p className="font-serif text-xl text-foreground tracking-wide mb-2">
+          What are you carrying today?
         </p>
         <p className="font-body text-sm text-muted-foreground/70 mb-6">
-          Bring your real question. Not the polished version — the raw one.
+          Bring it here. The word finds you.
         </p>
         <Link
           to="/"
