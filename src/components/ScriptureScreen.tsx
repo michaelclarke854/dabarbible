@@ -150,6 +150,23 @@ const ScriptureScreen = ({
         const data = await res.json();
         if (data.verses) {
           setVerses(data.verses.map((v: any) => ({ verse: v.verse, text: v.text.trim() })));
+
+          // Probe which other versions have data for this book (check verse 1)
+          const probeRef = `${bookQuery}+${chapter}:1`;
+          const probeResults = await Promise.allSettled(
+            VERSIONS.map(async (ver) => {
+              if (ver === version) return { ver, ok: true };
+              const r = await fetch(
+                `https://${projectId}.supabase.co/functions/v1/bible-proxy?ref=${encodeURIComponent(probeRef)}&translation=${VERSION_API_MAP[ver]}`
+              );
+              const d = await r.json();
+              return { ver, ok: !!d.text?.trim() };
+            })
+          );
+          const available = probeResults
+            .filter((r) => r.status === "fulfilled" && r.value.ok)
+            .map((r) => (r as PromiseFulfilledResult<{ ver: BibleVersion; ok: boolean }>).value.ver);
+          setAvailableChapterVersions(available.length > 0 ? available : [version]);
         } else {
           toast.error("Could not load chapter.");
         }
