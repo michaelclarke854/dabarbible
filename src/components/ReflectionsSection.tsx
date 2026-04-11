@@ -124,7 +124,7 @@ const ReflectionsSection = ({ latestPrompt, stirPrompt, onStirConsumed }: { late
   // Full-screen writing experience
   if (isWriting) {
     return (
-      <div className="fixed inset-0 z-40 bg-parchment flex flex-col">
+      <div className="fixed inset-0 z-40 bg-background flex flex-col">
         <div className="flex items-center justify-between px-6 py-4">
           <button
             onClick={closeWriting}
