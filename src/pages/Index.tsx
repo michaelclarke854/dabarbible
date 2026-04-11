@@ -360,7 +360,7 @@ const Index = () => {
             </button>
           ) : null}
         </div>
-      </div>
+      </div>}
 
       <AuthModal
         isOpen={showAuthModal}
