@@ -125,11 +125,11 @@ const PricingPage = () => {
         ← Back
       </button>
 
-      <h1 className="font-serif text-3xl text-foreground tracking-wide text-center mb-2">
-        Choose Your Path
-      </h1>
+      <p className="font-serif text-2xl text-foreground tracking-wide text-center mb-2">
+        What are you carrying today?
+      </p>
       <p className="font-body text-sm text-muted-foreground text-center mb-12">
-        Dabar · Free · Personal $6.99/mo · Family $12.99/mo · Community $99/mo
+        Choose the path that meets you where you are.
       </p>
 
       <div className="space-y-6">

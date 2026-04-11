@@ -11,10 +11,10 @@ const BlogIndex = () => {
       </Link>
 
       <h1 className="font-serif text-3xl md:text-4xl text-foreground tracking-wide mb-2">
-        Wisdom & Scripture
+        What are you carrying today?
       </h1>
       <p className="font-body text-sm text-muted-foreground mb-10">
-        Biblical guidance for what you're carrying today.
+        Scripture that meets you where you are.
       </p>
 
       <div className="w-12 h-px bg-gold mb-10" />
