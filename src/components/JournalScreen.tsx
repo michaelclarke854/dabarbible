@@ -13,8 +13,8 @@ interface WisdomEntry {
 
 type JournalTab = "voice" | "reflections";
 
-const JournalScreen = () => {
-  const [activeTab, setActiveTab] = useState<JournalTab>("voice");
+const JournalScreen = ({ stirPrompt, onStirConsumed }: { stirPrompt?: string | null; onStirConsumed?: () => void }) => {
+  const [activeTab, setActiveTab] = useState<JournalTab>(stirPrompt ? "reflections" : "voice");
   const [search, setSearch] = useState("");
   const [expandedId, setExpandedId] = useState<string | null>(null);
 
@@ -75,7 +75,7 @@ const JournalScreen = () => {
       </div>
 
       {activeTab === "reflections" ? (
-        <ReflectionsSection latestPrompt={latestPrompt} />
+        <ReflectionsSection latestPrompt={latestPrompt} stirPrompt={stirPrompt} onStirConsumed={onStirConsumed} />
       ) : (
         <>
           <input
