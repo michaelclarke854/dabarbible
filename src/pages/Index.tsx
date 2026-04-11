@@ -8,6 +8,7 @@ import ResponseScreen from "@/components/ResponseScreen";
 import JournalScreen from "@/components/JournalScreen";
 import AuthModal from "@/components/AuthModal";
 import LanguageSettings from "@/components/LanguageSettings";
+import OnboardingScreen from "@/components/OnboardingScreen";
 import type { User } from "@supabase/supabase-js";
 
 type Tab = "ask" | "journal";
