@@ -22,6 +22,16 @@ Deno.serve(async (req: Request) => {
 
     const apiUrl = `https://bible-api.com/${encodeURIComponent(ref)}?translation=${encodeURIComponent(translation)}`;
     const response = await fetch(apiUrl);
+
+    if (!response.ok) {
+      const body = await response.text();
+      console.error(`Bible API error: ${response.status} - ${body}`);
+      return new Response(
+        JSON.stringify({ error: `Bible API returned ${response.status}`, text: null }),
+        { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
     const data = await response.json();
 
     return new Response(JSON.stringify(data), {
@@ -29,9 +39,10 @@ Deno.serve(async (req: Request) => {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   } catch (error) {
+    console.error("Bible proxy error:", error);
     return new Response(
-      JSON.stringify({ error: "Failed to fetch from Bible API" }),
-      { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      JSON.stringify({ error: "Failed to fetch from Bible API", text: null }),
+      { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   }
 });
