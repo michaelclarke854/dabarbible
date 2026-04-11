@@ -81,12 +81,34 @@ export type Database = {
           },
         ]
       }
+      language_waitlist: {
+        Row: {
+          created_at: string
+          email: string
+          id: string
+          language_code: string
+        }
+        Insert: {
+          created_at?: string
+          email: string
+          id?: string
+          language_code: string
+        }
+        Update: {
+          created_at?: string
+          email?: string
+          id?: string
+          language_code?: string
+        }
+        Relationships: []
+      }
       profiles: {
         Row: {
           age_group: string | null
           created_at: string
           date_of_birth: string | null
           id: string
+          language_preference: string
           updated_at: string
           user_id: string
         }
@@ -95,6 +117,7 @@ export type Database = {
           created_at?: string
           date_of_birth?: string | null
           id?: string
+          language_preference?: string
           updated_at?: string
           user_id: string
         }
@@ -103,6 +126,7 @@ export type Database = {
           created_at?: string
           date_of_birth?: string | null
           id?: string
+          language_preference?: string
           updated_at?: string
           user_id?: string
         }
