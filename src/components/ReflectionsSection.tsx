@@ -19,16 +19,40 @@ const FALLBACK_PROMPTS = [
   "What scripture has stayed with you this week and why?",
 ];
 
-const ReflectionsSection = ({ latestPrompt }: { latestPrompt?: string }) => {
+const ReflectionsSection = ({ latestPrompt, stirPrompt, onStirConsumed }: { latestPrompt?: string; stirPrompt?: string | null; onStirConsumed?: () => void }) => {
   const [isWriting, setIsWriting] = useState(false);
   const [currentEntry, setCurrentEntry] = useState<ReflectionEntry | null>(null);
   const [body, setBody] = useState("");
   const [title, setTitle] = useState("");
   const [search, setSearch] = useState("");
   const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const hasOpenedStir = useRef(false);
   const queryClient = useQueryClient();
 
-  const prompt = latestPrompt || FALLBACK_PROMPTS[Math.floor(Math.random() * FALLBACK_PROMPTS.length)];
+  const prompt = stirPrompt || latestPrompt || FALLBACK_PROMPTS[Math.floor(Math.random() * FALLBACK_PROMPTS.length)];
+
+  // Auto-open writing mode when stirPrompt is provided
+  useEffect(() => {
+    if (stirPrompt && !hasOpenedStir.current && !isWriting) {
+      hasOpenedStir.current = true;
+      // Create a new entry with the threshold question as the writing prompt
+      (async () => {
+        const { data: { user } } = await supabase.auth.getUser();
+        if (!user) return;
+        const { data, error } = await supabase
+          .from("reflection_entries")
+          .insert({ user_id: user.id, body: "", writing_prompt: stirPrompt })
+          .select()
+          .single();
+        if (error || !data) return;
+        setCurrentEntry(data as unknown as ReflectionEntry);
+        setBody("");
+        setTitle("");
+        setIsWriting(true);
+        onStirConsumed?.();
+      })();
+    }
+  }, [stirPrompt, isWriting, onStirConsumed]);
 
   const { data: entries = [], isLoading } = useQuery({
     queryKey: ["reflections"],

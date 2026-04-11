@@ -40,6 +40,7 @@ const Index = () => {
   } | null>(null);
   const [authModal, setAuthModal] = useState<{ open: boolean; message?: string }>({ open: false });
   const [needsDob, setNeedsDob] = useState(false);
+  const [stirPrompt, setStirPrompt] = useState<string | null>(null);
 
   const fetchUserData = useCallback(async (userId: string) => {
     // Fetch age group
@@ -257,12 +258,21 @@ const Index = () => {
               scriptures={currentResponse.scriptures}
               onAskAgain={() => { setScreen("ask"); setCurrentResponse(null); }}
               onReflect={reflectOnThis}
+              onStir={(thresholdQ) => {
+                // Save to journal first, then open reflections with the threshold question
+                reflectOnThis().then(() => {
+                  if (!user) return;
+                  if (planType === "free") return;
+                  setStirPrompt(thresholdQ);
+                  setTab("journal");
+                });
+              }}
               isSaving={isSaving}
               isSaved={isSaved}
             />
           ) : null
         ) : (
-          <JournalScreen />
+          <JournalScreen stirPrompt={stirPrompt} onStirConsumed={() => setStirPrompt(null)} />
         )}
       </main>
 
