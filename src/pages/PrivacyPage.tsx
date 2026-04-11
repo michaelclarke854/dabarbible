@@ -75,7 +75,7 @@ const PrivacyPage = () => (
         <h2 className="font-serif text-lg text-foreground tracking-wide mb-3">Contact</h2>
         <p>
           If you have questions about how your data is handled, reach out at{" "}
-          <a href="mailto:privacy@dabar.app" className="text-gold hover:underline">privacy@dabar.app</a>.
+          <a href="mailto:privacy@dabarbible.com" className="text-gold hover:underline">privacy@dabarbible.com</a>.
         </p>
       </section>
     </div>

@@ -96,7 +96,7 @@ const TermsPage = () => (
         <h2 className="font-serif text-lg text-foreground tracking-wide mb-3">Contact</h2>
         <p>
           Questions about these terms? Reach us at{" "}
-          <a href="mailto:support@dabar.app" className="text-gold hover:underline">support@dabar.app</a>.
+          <a href="mailto:support@dabarbible.com" className="text-gold hover:underline">support@dabarbible.com</a>.
         </p>
       </section>
     </div>
