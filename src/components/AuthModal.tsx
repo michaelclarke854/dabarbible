@@ -204,8 +204,8 @@ const AuthModal = ({ isOpen, onClose, onSignedUp, onDobSubmitted, message, dobOn
   // DOB-only mode for existing users (e.g. Google OAuth)
   if (dobOnly) {
     return (
-      <div className="fixed inset-0 z-50 flex items-center justify-center bg-ink/40 backdrop-blur-sm px-6">
-        <div className="bg-parchment rounded-sm shadow-xl max-w-sm w-full p-8 relative">
+      <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm px-6">
+        <div className="bg-card rounded-sm shadow-xl max-w-sm w-full p-8 relative border border-border">
           {message && (
             <p className="font-serif text-sm text-foreground/80 text-center mb-6 leading-relaxed">
               {message}
@@ -228,8 +228,8 @@ const AuthModal = ({ isOpen, onClose, onSignedUp, onDobSubmitted, message, dobOn
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-ink/40 backdrop-blur-sm px-6">
-      <div className="bg-parchment rounded-sm shadow-xl max-w-sm w-full p-8 relative max-h-[90vh] overflow-y-auto">
+      <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm px-6">
+        <div className="bg-card rounded-sm shadow-xl max-w-sm w-full p-8 relative max-h-[90vh] overflow-y-auto border border-border">
         <button
           onClick={onClose}
           className="absolute top-4 right-4 text-muted-foreground hover:text-foreground text-lg"

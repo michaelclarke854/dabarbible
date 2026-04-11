@@ -16,13 +16,7 @@ const CtaButton = ({
   <div className="flex flex-col items-center">
     <button
       onClick={onClick}
-      className="font-serif tracking-widest text-sm uppercase px-10 py-4 rounded-sm transition-all duration-300 hover:shadow-[0_0_18px_rgba(196,151,58,0.35)] w-auto"
-      style={{
-        backgroundColor: "#0F0D0A",
-        color: "#C4973A",
-        border: "1px solid rgba(196,151,58,0.4)",
-        animation: "cta-border-glow 3s ease-in-out infinite",
-      }}
+      className="font-serif tracking-widest text-sm uppercase px-10 py-4 rounded-sm transition-all duration-300 hover:shadow-[0_0_18px_rgba(196,151,58,0.35)] w-auto bg-gold text-primary-foreground border border-gold/40 animate-golden-pulse"
     >
       {text}
     </button>
@@ -47,13 +41,6 @@ const OnboardingScreen = ({ onBegin }: OnboardingScreenProps) => {
       }`}
     >
       <div className="flex flex-col items-center px-6 pt-16 md:pt-24 flex-1">
-      {/* Glow keyframe */}
-      <style>{`
-        @keyframes cta-border-glow {
-          0%, 100% { box-shadow: 0 0 8px rgba(196,151,58,0.15); }
-          50% { box-shadow: 0 0 20px rgba(196,151,58,0.35); }
-        }
-      `}</style>
 
       {/* Hero */}
       <div className="text-center mb-10">
@@ -168,17 +155,11 @@ const OnboardingScreen = ({ onBegin }: OnboardingScreenProps) => {
           {/* Scripture */}
           <div className="mb-5">
             <p className="font-serif text-xs text-gold tracking-wide uppercase mb-2">The Scripture</p>
-            <div
-              className="rounded-sm p-5"
-              style={{
-                borderLeft: "4px solid #C4973A",
-                backgroundColor: "#EDE8DC",
-              }}
-            >
-              <p className="font-serif text-xs tracking-widest uppercase mb-3" style={{ color: "#C4973A" }}>
+            <div className="rounded-sm p-5 bg-scripture-card border-l-4 border-gold">
+              <p className="font-serif text-xs tracking-widest uppercase mb-3 text-gold">
                 Proverbs 3:5–6
               </p>
-              <p className="font-['Playfair_Display'] italic text-foreground/85 leading-relaxed" style={{ fontSize: "18px" }}>
+              <p className="font-['Playfair_Display'] italic text-foreground/85 leading-relaxed text-lg">
                 "Trust in the LORD with all thine heart; and lean not unto thine own understanding. In all thy ways acknowledge him, and he shall direct thy paths."
               </p>
             </div>
@@ -195,7 +176,7 @@ const OnboardingScreen = ({ onBegin }: OnboardingScreenProps) => {
           {/* Threshold Question */}
           <div className="mb-6">
             <p className="font-serif text-xs text-gold tracking-wide uppercase mb-2">The Threshold Question</p>
-            <p className="font-['Playfair_Display'] italic leading-relaxed" style={{ color: "#C4973A", fontSize: "16px" }}>
+            <p className="font-['Playfair_Display'] italic leading-relaxed text-gold-light text-base">
               What would it look like to release this decision into the hands that were guiding you before you ever made it?
             </p>
           </div>
@@ -213,7 +194,7 @@ const OnboardingScreen = ({ onBegin }: OnboardingScreenProps) => {
 
         {/* 4. Privacy Section */}
         <div className="text-center py-4">
-          <p className="font-serif text-foreground tracking-wide" style={{ fontSize: "26px" }}>
+          <p className="font-serif text-foreground tracking-wide text-2xl">
             Your words stay yours.
           </p>
           <p className="font-body text-sm text-muted-foreground leading-relaxed mt-4 max-w-sm mx-auto">
@@ -244,10 +225,7 @@ const OnboardingScreen = ({ onBegin }: OnboardingScreenProps) => {
       </div>{/* end centered content wrapper */}
 
       {/* 6. Footer */}
-      <footer
-        className="w-full py-10 px-6"
-        style={{ backgroundColor: "#0F0D0A" }}
-      >
+      <footer className="w-full py-10 px-6 bg-nav">
         <div className="max-w-md mx-auto text-center space-y-6">
           {/* App Store badges */}
           <div className="flex items-center justify-center gap-4">
@@ -260,7 +238,7 @@ const OnboardingScreen = ({ onBegin }: OnboardingScreenProps) => {
           </div>
 
           {/* Links */}
-          <div className="flex items-center justify-center gap-4 text-xs font-body" style={{ color: "rgba(196,151,58,0.7)" }}>
+          <div className="flex items-center justify-center gap-4 text-xs font-body text-gold/70">
             <a href="/pricing" className="hover:text-gold transition-colors">Pricing</a>
             <span>·</span>
             <a href="/privacy" className="hover:text-gold transition-colors">Privacy Policy</a>
@@ -269,7 +247,7 @@ const OnboardingScreen = ({ onBegin }: OnboardingScreenProps) => {
           </div>
 
           {/* Brand mark */}
-          <p className="font-serif text-sm tracking-widest" style={{ color: "#C4973A" }}>
+          <p className="font-serif text-sm tracking-widest text-gold">
             Dabar — The word that finds you.
           </p>
         </div>
