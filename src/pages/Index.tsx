@@ -13,7 +13,6 @@ import { parseScriptureRef } from "@/data/kjvBooks";
 const JournalScreen = lazy(() => import("@/components/JournalScreen"));
 const ScriptureScreen = lazy(() => import("@/components/ScriptureScreen"));
 const LanguageSettings = lazy(() => import("@/components/LanguageSettings"));
-import { parseScriptureRef } from "@/data/kjvBooks";
 import type { User } from "@supabase/supabase-js";
 
 type Tab = "ask" | "scripture" | "journal";
