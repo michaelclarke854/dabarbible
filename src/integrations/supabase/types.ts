@@ -178,6 +178,7 @@ export type Database = {
           is_suspended: boolean | null
           language_preference: string
           plan: string
+          preferred_bible_version: string
           previous_role: string | null
           role: string
           role_changed_at: string | null
@@ -199,6 +200,7 @@ export type Database = {
           is_suspended?: boolean | null
           language_preference?: string
           plan?: string
+          preferred_bible_version?: string
           previous_role?: string | null
           role?: string
           role_changed_at?: string | null
@@ -220,6 +222,7 @@ export type Database = {
           is_suspended?: boolean | null
           language_preference?: string
           plan?: string
+          preferred_bible_version?: string
           previous_role?: string | null
           role?: string
           role_changed_at?: string | null
@@ -328,6 +331,7 @@ export type Database = {
           user_id: string
           verse_number: number
           verse_text: string
+          version: string
         }
         Insert: {
           book: string
@@ -338,6 +342,7 @@ export type Database = {
           user_id: string
           verse_number: number
           verse_text: string
+          version?: string
         }
         Update: {
           book?: string
@@ -348,6 +353,7 @@ export type Database = {
           user_id?: string
           verse_number?: number
           verse_text?: string
+          version?: string
         }
         Relationships: [
           {
