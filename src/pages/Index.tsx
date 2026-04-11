@@ -237,6 +237,16 @@ const Index = () => {
       setAuthModal({ open: true, message: "Sign in to access the Scripture companion." });
       return;
     }
+    if (newTab === "history" && !user) {
+      setAuthModal({ open: true, message: "Sign in to view your history." });
+      return;
+    }
+    if (newTab === "history" && !hasFullAccess) {
+      toast("History requires a Personal plan or above.", {
+        action: { label: "View Plans", onClick: () => navigate("/pricing") },
+      });
+      return;
+    }
     if (newTab === "journal" && !user) {
       setAuthModal({ open: true, message: "Sign in to view your journal." });
       return;
