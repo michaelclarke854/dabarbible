@@ -58,7 +58,7 @@ const OnboardingScreen = ({ onBegin }: OnboardingScreenProps) => {
       {/* 1. Hero CTA */}
       <CtaButton
         text="Ask your first question — free"
-        subtext="No account required."
+        subtext="Try free for 30 days — no card needed."
         onClick={onBegin}
       />
 
@@ -127,7 +127,7 @@ const OnboardingScreen = ({ onBegin }: OnboardingScreenProps) => {
         <div className="pt-4">
           <CtaButton
             text="Begin seeking"
-            subtext="Your first question is free. No credit card."
+            subtext="30 days free. No credit card. Cancel anytime."
             onClick={onBegin}
           />
         </div>
@@ -202,7 +202,7 @@ const OnboardingScreen = ({ onBegin }: OnboardingScreenProps) => {
           </p>
           <div className="mt-6">
             <CtaButton
-              text="Try it now — one free question"
+              text="Start your free trial"
               subtext=""
               onClick={onBegin}
             />
