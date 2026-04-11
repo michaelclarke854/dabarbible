@@ -10,7 +10,10 @@ interface ResponseScreenProps {
   onStir: (thresholdQuestion: string) => void;
   isSaving: boolean;
   isSaved: boolean;
-  onScriptureRef?: (ref: string) => void;
+  onScriptureRef?: (ref: string, version?: string) => void;
+  userId?: string;
+  profileVersion?: string;
+  onProfileVersionChanged?: (v: string) => void;
 }
 
 const ResponseScreen = ({
