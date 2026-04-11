@@ -14,6 +14,7 @@ const BlogIndex = lazy(() => import("./pages/BlogIndex.tsx"));
 const BlogArticle = lazy(() => import("./pages/BlogArticle.tsx"));
 const PrivacyPage = lazy(() => import("./pages/PrivacyPage.tsx"));
 const TermsPage = lazy(() => import("./pages/TermsPage.tsx"));
+const AdminDashboard = lazy(() => import("./pages/AdminDashboard.tsx"));
 const NotFound = lazy(() => import("./pages/NotFound.tsx"));
 
 const queryClient = new QueryClient();
@@ -38,6 +39,7 @@ const App = () => (
             <Route path="/blog/:slug" element={<BlogArticle />} />
             <Route path="/privacy" element={<PrivacyPage />} />
             <Route path="/terms" element={<TermsPage />} />
+            <Route path="/admin" element={<AdminDashboard />} />
             {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
             <Route path="*" element={<NotFound />} />
           </Routes>
