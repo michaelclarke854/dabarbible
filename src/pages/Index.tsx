@@ -38,7 +38,7 @@ const PageSpinner = () => (
 
 const Index = () => {
   const navigate = useNavigate();
-  const { user, role, plan, isSuspended, ageGroup, hasFullAccess, isBeta, isAdmin, languagePreference, setLanguagePreference, loading: authLoading } = useAuth();
+  const { user, role, plan, isSuspended, ageGroup, hasFullAccess, isBeta, isAdmin, languagePreference, setLanguagePreference, refreshProfile, loading: authLoading } = useAuth();
 
   const [needsDob, setNeedsDob] = useState(false);
   const [tab, setTab] = useState<Tab>("ask");
@@ -406,7 +406,7 @@ const Index = () => {
         onClose={() => {}}
         dobOnly
         userId={user?.id}
-        onDobSubmitted={() => {}}
+        onDobSubmitted={() => refreshProfile()}
         message="So your experience feels right for where you are in life."
       />
     </div>
