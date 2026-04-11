@@ -8,31 +8,15 @@ const corsHeaders = {
 };
 
 const ADULT_CRISIS_KEYWORDS = [
-  "suicide",
-  "self-harm",
-  "kill myself",
-  "hurt myself",
-  "end my life",
-  "don't want to live",
-  "dont want to live",
-  "want to die",
+  "suicide", "self-harm", "kill myself", "hurt myself", "end my life",
+  "don't want to live", "dont want to live", "want to die",
 ];
 
 const YOUTH_CRISIS_KEYWORDS = [
   ...ADULT_CRISIS_KEYWORDS,
-  "loneliness",
-  "lonely",
-  "worthless",
-  "worthlessness",
-  "hopeless",
-  "hopelessness",
-  "not belonging",
-  "don't belong",
-  "dont belong",
-  "no one cares",
-  "nobody cares",
-  "i don't matter",
-  "i dont matter",
+  "loneliness", "lonely", "worthless", "worthlessness", "hopeless", "hopelessness",
+  "not belonging", "don't belong", "dont belong", "no one cares", "nobody cares",
+  "i don't matter", "i dont matter",
 ];
 
 const CRISIS_RESPONSE = {
@@ -40,6 +24,64 @@ const CRISIS_RESPONSE = {
     "This burden is heavier than words. Please reach out to someone who can truly be with you: call or text 988 (Suicide & Crisis Lifeline) or speak with a pastor or counselor today.",
   scriptures: [],
 };
+
+const ALL_THEMES = [
+  "anxiety", "purpose", "relationships", "grief",
+  "identity", "decisions", "family", "work", "faith",
+] as const;
+
+const THEME_KEYWORDS: Record<string, string[]> = {
+  anxiety: ["anxious", "anxiety", "worried", "worry", "fear", "afraid", "nervous", "panic", "stress", "stressed", "overwhelm", "restless", "dread", "uneasy"],
+  purpose: ["purpose", "meaning", "calling", "direction", "why am i", "point of life", "destiny", "mission", "significance", "path"],
+  relationships: ["relationship", "marriage", "friend", "friendship", "partner", "spouse", "dating", "love", "trust", "betrayal", "conflict", "forgiveness"],
+  grief: ["grief", "loss", "death", "died", "mourning", "miss them", "miss him", "miss her", "passing", "gone", "funeral", "bereavement"],
+  identity: ["identity", "who am i", "self-worth", "worth", "belong", "belonging", "confidence", "insecure", "shame", "enough"],
+  decisions: ["decision", "decide", "choice", "choose", "right path", "wrong choice", "uncertain", "crossroads", "option", "should i"],
+  family: ["family", "parent", "mother", "father", "child", "children", "sibling", "brother", "sister", "son", "daughter", "parenting"],
+  work: ["work", "job", "career", "boss", "coworker", "workplace", "employment", "fired", "promotion", "burnout", "vocation"],
+  faith: ["faith", "doubt", "believe", "prayer", "pray", "god", "church", "spiritual", "worship", "scripture", "bible", "sin"],
+};
+
+function detectThemes(text: string): { theme: string; confidence: number }[] {
+  const lower = text.toLowerCase();
+  const results: { theme: string; confidence: number }[] = [];
+  for (const theme of ALL_THEMES) {
+    const keywords = THEME_KEYWORDS[theme];
+    let hits = 0;
+    for (const kw of keywords) {
+      if (lower.includes(kw)) hits++;
+    }
+    if (hits > 0) {
+      const confidence = Math.min(hits / 3, 1.0);
+      results.push({ theme, confidence: Math.round(confidence * 100) / 100 });
+    }
+  }
+  return results.sort((a, b) => b.confidence - a.confidence).slice(0, 3);
+}
+
+function buildPatternContext(patterns: { theme: string; occurrence: number; first_seen: string }[]): string {
+  if (!patterns || patterns.length === 0) return "";
+
+  const lines = patterns
+    .filter((p) => p.occurrence >= 2)
+    .sort((a, b) => b.occurrence - a.occurrence)
+    .slice(0, 3)
+    .map((p) => {
+      const daysSince = Math.floor(
+        (Date.now() - new Date(p.first_seen).getTime()) / (1000 * 60 * 60 * 24)
+      );
+      if (p.occurrence >= 5) {
+        return `This person has carried the weight of [${p.theme}] for some time now — it has surfaced repeatedly over ${daysSince} days. In your Mirror, acknowledge the long-carried nature of this burden without referencing numbers or counts.`;
+      }
+      if (p.occurrence >= 3) {
+        return `The theme of [${p.theme}] has returned again. Speak to the recurring nature of this struggle with tenderness — they keep coming back to this.`;
+      }
+      return `[${p.theme}] has appeared before. Be aware this is not the first time they've brought this forward.`;
+    });
+
+  if (lines.length === 0) return "";
+  return `\n\nUSER PATTERN CONTEXT:\n${lines.join("\n")}`;
+}
 
 const BASE_SYSTEM_PROMPT = `You are the unified voice of biblical wisdom — drawing from the teachings of the prophets (Moses, Isaiah, Elijah, Daniel, Jeremiah), the disciples (Peter, Paul, John, James), and Jesus. You do not roleplay as a single figure. You speak as a chorus of scripture, distilling ancient wisdom for a modern person's real daily challenge. Your sole scriptural source is the King James Version (KJV) of the Bible.
 
@@ -97,9 +139,9 @@ const AGE_LAYERS: Record<string, string> = {
   adult: `\n\nADDITIONAL CONTEXT: The person asking is an adult (23+). Speak with the full weight and depth of scriptural wisdom. You may engage with more complex theological dimensions when the question warrants it.`,
 };
 
-function getSystemPrompt(ageGroup: string | null): string {
+function getSystemPrompt(ageGroup: string | null, patternContext: string): string {
   const layer = ageGroup && AGE_LAYERS[ageGroup] ? AGE_LAYERS[ageGroup] : AGE_LAYERS["adult"];
-  return BASE_SYSTEM_PROMPT + layer;
+  return BASE_SYSTEM_PROMPT + layer + patternContext;
 }
 
 function getCrisisKeywords(ageGroup: string | null): string[] {
@@ -124,28 +166,33 @@ serve(async (req) => {
       );
     }
 
+    const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
+    const supabaseKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+    const supabase = createClient(supabaseUrl, supabaseKey);
+
     // Validate ageGroup server-side if userId provided
     let validatedAgeGroup = ageGroup || null;
+    let userPatterns: { theme: string; occurrence: number; first_seen: string }[] = [];
+
     if (userId) {
-      const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
-      const supabaseKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
-      const supabase = createClient(supabaseUrl, supabaseKey);
-      const { data: profile } = await supabase
-        .from("profiles")
-        .select("age_group")
-        .eq("user_id", userId)
-        .single();
-      if (profile?.age_group) {
-        validatedAgeGroup = profile.age_group;
+      const [profileResult, patternsResult] = await Promise.all([
+        supabase.from("profiles").select("age_group").eq("user_id", userId).single(),
+        supabase.from("user_patterns").select("theme, occurrence, first_seen").eq("user_id", userId),
+      ]);
+      if (profileResult.data?.age_group) {
+        validatedAgeGroup = profileResult.data.age_group;
+      }
+      if (patternsResult.data) {
+        userPatterns = patternsResult.data;
       }
     }
 
-    // Crisis keyword check with age-sensitive thresholds
+    // Crisis keyword check
     const crisisKeywords = getCrisisKeywords(validatedAgeGroup);
     const lowerQuestion = question.toLowerCase();
     for (const keyword of crisisKeywords) {
       if (lowerQuestion.includes(keyword)) {
-        await logSession(userId, question, CRISIS_RESPONSE.response, []);
+        await logSession(supabase, userId, question, CRISIS_RESPONSE.response, []);
         return new Response(JSON.stringify(CRISIS_RESPONSE), {
           headers: { ...corsHeaders, "Content-Type": "application/json" },
         });
@@ -157,7 +204,8 @@ serve(async (req) => {
       throw new Error("LOVABLE_API_KEY is not configured");
     }
 
-    const systemPrompt = getSystemPrompt(validatedAgeGroup);
+    const patternContext = buildPatternContext(userPatterns);
+    const systemPrompt = getSystemPrompt(validatedAgeGroup, patternContext);
 
     const aiResponse = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
       method: "POST",
@@ -204,10 +252,48 @@ serve(async (req) => {
     }
     const scriptures = scriptureBlocks.map((s) => s.reference);
 
-    // Remove [SCRIPTURE] blocks from response text for clean storage, but keep inline
     const responseText = fullText.trim();
 
-    await logSession(userId, question, responseText, scriptures);
+    // Log session and get session ID
+    const sessionId = await logSession(supabase, userId, question, responseText, scriptures);
+
+    // Detect themes from question + response and update patterns
+    if (userId && sessionId) {
+      const detectedThemes = detectThemes(question + " " + responseText);
+      if (detectedThemes.length > 0) {
+        // Insert session_themes
+        await supabase.from("session_themes").insert(
+          detectedThemes.map((t) => ({
+            session_id: sessionId,
+            theme: t.theme,
+            confidence: t.confidence,
+          }))
+        );
+
+        // Upsert user_patterns
+        for (const t of detectedThemes) {
+          const { data: existing } = await supabase
+            .from("user_patterns")
+            .select("id, occurrence")
+            .eq("user_id", userId)
+            .eq("theme", t.theme)
+            .single();
+
+          if (existing) {
+            await supabase
+              .from("user_patterns")
+              .update({ occurrence: existing.occurrence + 1, last_seen: new Date().toISOString() })
+              .eq("id", existing.id);
+          } else {
+            await supabase.from("user_patterns").insert({
+              user_id: userId,
+              theme: t.theme,
+              occurrence: 1,
+            });
+          }
+        }
+      }
+    }
 
     return new Response(
       JSON.stringify({ response: responseText, scriptures }),
@@ -223,23 +309,26 @@ serve(async (req) => {
 });
 
 async function logSession(
+  supabase: ReturnType<typeof createClient>,
   userId: string | null,
   question: string,
   response: string,
   scriptures: string[]
-) {
+): Promise<string | null> {
   try {
-    const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
-    const supabaseKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
-    const supabase = createClient(supabaseUrl, supabaseKey);
-
-    await supabase.from("wisdom_sessions").insert({
-      user_id: userId || null,
-      question,
-      response,
-      scripture_refs: scriptures,
-    });
+    const { data } = await supabase
+      .from("wisdom_sessions")
+      .insert({
+        user_id: userId || null,
+        question,
+        response,
+        scripture_refs: scriptures,
+      })
+      .select("id")
+      .single();
+    return data?.id || null;
   } catch (err) {
     console.error("Failed to log session:", err);
+    return null;
   }
 }
