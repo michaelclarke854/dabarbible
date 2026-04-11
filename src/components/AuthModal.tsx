@@ -61,7 +61,7 @@ const AuthModal = ({ isOpen, onClose, onSignedUp, onDobSubmitted, message, dobOn
     }
     const age = getAgeYears(dob);
     if (age < 13) {
-      setDobError("You must be at least 13 years old to use The Voice. Please ask a parent or guardian for guidance.");
+      setDobError("The Voice is designed for ages 13 and up. Ask a parent or guardian to create a Family Account — they can set up access for you from their account.");
       return;
     }
 
@@ -100,7 +100,7 @@ const AuthModal = ({ isOpen, onClose, onSignedUp, onDobSubmitted, message, dobOn
         }
         const age = getAgeYears(dob);
         if (age < 13) {
-          setDobError("You must be at least 13 years old to use The Voice. Please ask a parent or guardian for guidance.");
+          setDobError("The Voice is designed for ages 13 and up. Ask a parent or guardian to create a Family Account — they can set up access for you from their account.");
           setLoading(false);
           return;
         }
