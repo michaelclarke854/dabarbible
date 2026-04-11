@@ -255,7 +255,17 @@ const Index = () => {
   return (
     <div className="min-h-screen flex flex-col">
       <main className="flex-1 pb-20">
-        {tab === "ask" ? (
+        {showLanguageSettings && user ? (
+          <LanguageSettings
+            userId={user.id}
+            currentLanguage={languagePreference}
+            onLanguageChanged={(lang) => {
+              setLanguagePreference(lang);
+              setShowLanguageSettings(false);
+            }}
+            onBack={() => setShowLanguageSettings(false)}
+          />
+        ) : tab === "ask" ? (
           screen === "ask" ? (
             <AskScreen onSeekWisdom={seekWisdom} isLoading={isLoading} />
           ) : currentResponse ? (
@@ -266,7 +276,6 @@ const Index = () => {
               onAskAgain={() => { setScreen("ask"); setCurrentResponse(null); }}
               onReflect={reflectOnThis}
               onStir={(thresholdQ) => {
-                // Save to journal first, then open reflections with the threshold question
                 reflectOnThis().then(() => {
                   if (!user) return;
                   if (planType === "free") return;
@@ -317,18 +326,28 @@ const Index = () => {
             Upgrade
           </button>
         )}
-        <div className="flex-1" />
-        {user ? (
-          <button
-            onClick={async () => {
-              await supabase.auth.signOut();
-              toast.success("Signed out.");
-            }}
-            className="text-xs font-body text-muted-foreground hover:text-foreground transition-colors"
-          >
-            Sign out
-          </button>
-        ) : null}
+        <div className="flex items-center gap-3">
+          {user && (
+            <button
+              onClick={() => setShowLanguageSettings(true)}
+              className="text-muted-foreground hover:text-gold transition-colors"
+              title="Language"
+            >
+              <Globe size={16} />
+            </button>
+          )}
+          {user ? (
+            <button
+              onClick={async () => {
+                await supabase.auth.signOut();
+                toast.success("Signed out.");
+              }}
+              className="text-xs font-body text-muted-foreground hover:text-foreground transition-colors"
+            >
+              Sign out
+            </button>
+          ) : null}
+        </div>
       </div>
 
       <AuthModal
