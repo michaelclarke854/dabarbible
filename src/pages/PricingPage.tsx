@@ -1,6 +1,10 @@
+import { useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { supabase } from "@/integrations/supabase/client";
+import { toast } from "sonner";
 
 interface PricingTier {
+  key: string;
   name: string;
   price: string;
   studentPrice?: string;
@@ -8,10 +12,12 @@ interface PricingTier {
   features: string[];
   cta: string;
   highlighted?: boolean;
+  hasAnnual?: boolean;
 }
 
 const tiers: PricingTier[] = [
   {
+    key: "free",
     name: "Free",
     price: "Free",
     description: "Begin seeking.",
@@ -19,6 +25,7 @@ const tiers: PricingTier[] = [
     cta: "Get Started",
   },
   {
+    key: "personal",
     name: "Personal",
     price: "$6.99/mo",
     studentPrice: "$4.99/mo",
@@ -30,8 +37,10 @@ const tiers: PricingTier[] = [
     ],
     cta: "Start Personal",
     highlighted: true,
+    hasAnnual: true,
   },
   {
+    key: "family",
     name: "Family",
     price: "$12.99/mo",
     description: "For those who seek together.",
@@ -41,8 +50,10 @@ const tiers: PricingTier[] = [
       "Each journal is fully private",
     ],
     cta: "Start Family",
+    hasAnnual: true,
   },
   {
+    key: "community",
     name: "Community",
     price: "$99/mo",
     description: "For churches, ministries, and schools.",
@@ -57,6 +68,53 @@ const tiers: PricingTier[] = [
 
 const PricingPage = () => {
   const navigate = useNavigate();
+  const [loadingPlan, setLoadingPlan] = useState<string | null>(null);
+  const [showAnnual, setShowAnnual] = useState<Record<string, boolean>>({});
+
+  const handleCheckout = async (planKey: string, hasAnnual: boolean) => {
+    if (planKey === "free") {
+      navigate("/");
+      return;
+    }
+
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session) {
+      toast.error("Please sign in first.");
+      return;
+    }
+
+    // Check if student
+    const { data: profile } = await supabase
+      .from("profiles" as any)
+      .select("age_group")
+      .eq("user_id", session.user.id)
+      .single();
+    const isStudent = ["youth", "young_adult"].includes((profile as any)?.age_group || "");
+
+    const cycle = showAnnual[planKey] ? "annual" : "monthly";
+
+    setLoadingPlan(planKey);
+    try {
+      const { data, error } = await supabase.functions.invoke("create-checkout", {
+        body: {
+          planKey,
+          cycle,
+          userId: session.user.id,
+          email: session.user.email,
+          isStudent,
+          returnUrl: window.location.origin,
+        },
+      });
+
+      if (error) throw error;
+      if (data?.error) throw new Error(data.error);
+      if (data?.url) window.location.href = data.url;
+    } catch (err: any) {
+      toast.error(err.message || "Could not start checkout.");
+    } finally {
+      setLoadingPlan(null);
+    }
+  };
 
   return (
     <div className="min-h-screen px-6 py-12 max-w-3xl mx-auto">
@@ -77,11 +135,9 @@ const PricingPage = () => {
       <div className="space-y-6">
         {tiers.map((tier) => (
           <div
-            key={tier.name}
+            key={tier.key}
             className={`p-6 rounded-sm border transition-all ${
-              tier.highlighted
-                ? "border-gold bg-gold/5"
-                : "border-border"
+              tier.highlighted ? "border-gold bg-gold/5" : "border-border"
             }`}
           >
             <div className="flex items-baseline justify-between mb-2">
@@ -98,7 +154,7 @@ const PricingPage = () => {
             <p className="font-body text-sm text-muted-foreground mb-4">
               {tier.description}
             </p>
-            <ul className="space-y-2 mb-6">
+            <ul className="space-y-2 mb-4">
               {tier.features.map((feature, i) => (
                 <li key={i} className="font-body text-sm text-foreground/80 flex items-start gap-2">
                   <span className="text-gold mt-0.5">·</span>
@@ -106,14 +162,33 @@ const PricingPage = () => {
                 </li>
               ))}
             </ul>
+
+            {tier.hasAnnual && (
+              <label className="flex items-center gap-2 mb-4 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={showAnnual[tier.key] || false}
+                  onChange={() =>
+                    setShowAnnual((prev) => ({ ...prev, [tier.key]: !prev[tier.key] }))
+                  }
+                  className="accent-gold"
+                />
+                <span className="font-body text-xs text-muted-foreground">
+                  Annual billing (save ~30%)
+                </span>
+              </label>
+            )}
+
             <button
-              className={`w-full font-serif text-sm tracking-widest uppercase py-3 rounded-sm transition-all ${
+              onClick={() => handleCheckout(tier.key, !!tier.hasAnnual)}
+              disabled={loadingPlan === tier.key}
+              className={`w-full font-serif text-sm tracking-widest uppercase py-3 rounded-sm transition-all disabled:opacity-50 ${
                 tier.highlighted
                   ? "bg-gold text-primary-foreground hover:bg-gold-dark"
                   : "border border-border text-foreground hover:border-gold"
               }`}
             >
-              {tier.cta}
+              {loadingPlan === tier.key ? "…" : tier.cta}
             </button>
           </div>
         ))}
@@ -122,7 +197,12 @@ const PricingPage = () => {
       <div className="text-center mt-12 pt-8 border-t border-border">
         <p className="font-body text-xs text-muted-foreground">
           Gift a year of wisdom —{" "}
-          <button className="text-gold hover:underline">$59.99/year</button>
+          <button
+            onClick={() => handleCheckout("gift", false)}
+            className="text-gold hover:underline"
+          >
+            $59.99/year
+          </button>
         </p>
       </div>
     </div>
