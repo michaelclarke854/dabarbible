@@ -60,9 +60,11 @@ const ReflectionsSection = ({ latestPrompt }: { latestPrompt?: string }) => {
   }, [isWriting, currentEntry, autoSave]);
 
   const startNewEntry = async () => {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return;
     const { data, error } = await supabase
-      .from("reflection_entries" as any)
-      .insert({ body: "", writing_prompt: prompt } as any)
+      .from("reflection_entries")
+      .insert({ user_id: user.id, body: "", writing_prompt: prompt })
       .select()
       .single();
     if (error) return;
