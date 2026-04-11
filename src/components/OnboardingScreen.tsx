@@ -16,7 +16,7 @@ const CtaButton = ({
   <div className="flex flex-col items-center">
     <button
       onClick={onClick}
-      className="font-serif tracking-widest text-sm uppercase px-10 py-4 rounded-sm transition-all duration-300 hover:shadow-[0_0_18px_rgba(196,151,58,0.35)]"
+      className="font-serif tracking-widest text-sm uppercase px-10 py-4 rounded-sm transition-all duration-300 hover:shadow-[0_0_18px_rgba(196,151,58,0.35)] w-auto"
       style={{
         backgroundColor: "#0F0D0A",
         color: "#C4973A",
