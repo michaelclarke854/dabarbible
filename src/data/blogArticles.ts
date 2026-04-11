@@ -96,7 +96,7 @@ So, when the 3 AM moments come, and inevitably they will, you don't have to face
 
 Remember, "Be careful for nothing." Don’t let worry consume you. Instead, turn to the One who knows you, loves you, and is stronger than any storm you face. Cast your burden upon Him, for He will sustain you. He is with you, He will strengthen you, He will help you. Let His comforts delight your soul, and His good Word lift the heaviness from your heart. This journey of trust is not always easy, but it is always worthwhile.
 
-If these words have resonated with you, if you long for more of God's wisdom to navigate the complexities of life, we invite you to explore the Dabar app. Dabar offers a rich, immersive experience with KJV scripture, bringing ancient truths to modern hearts. Find comfort, guidance, and peace through the the living word of God.`,
+If these words have resonated with you, if you long for more of God's wisdom to navigate the complexities of life, we invite you to explore the Dabar app. Dabar offers a rich, immersive experience with KJV scripture, bringing ancient truths to modern hearts. Find comfort, guidance, and peace through the living word of God.`,
   },
   {
     slug: "what-does-the-bible-say-about-feeling-lost",
@@ -840,7 +840,7 @@ Consider the difference in approach. In a devotional, you immerse yourself in th
 
 So, as you reflect on the unique struggles and blessings of your *specific* day, consider this:
 
-What singular, pressing question burdens your heart right now? What specific counsel do you yearn for from the the living counsel of God's Word? Is there a particular decision weighing on you, a relationship causing distress, a personal failing you long to overcome, or a spiritual truth you deeply desire to understand more profoundly *for your own life*?
+What singular, pressing question burdens your heart right now? What specific counsel do you yearn for from the living counsel of God's Word? Is there a particular decision weighing on you, a relationship causing distress, a personal failing you long to overcome, or a spiritual truth you deeply desire to understand more profoundly *for your own life*?
 
 Instead of merely observing scripture from a distance, or finding general comfort, imagine engaging with it directly, asking the very questions that stir your soul. What truth, what promise, what instruction, what comfort do you need to hear directly from the KJV Bible, tailored specifically to the unique contours of *your* current moment?
 
