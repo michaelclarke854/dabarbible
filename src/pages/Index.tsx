@@ -1,6 +1,8 @@
 import { useState, useEffect, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import { useNavigate } from "react-router-dom";
+import { Home, BookOpen } from "lucide-react";
 import AskScreen from "@/components/AskScreen";
 import ResponseScreen from "@/components/ResponseScreen";
 import JournalScreen from "@/components/JournalScreen";
@@ -10,26 +12,22 @@ import type { User } from "@supabase/supabase-js";
 type Tab = "ask" | "journal";
 type Screen = "ask" | "response";
 
-const FREE_QUESTION_LIMIT = 3;
+const GUEST_LIMIT = 3;
+const FREE_DAILY_LIMIT = 3;
 const STORAGE_KEY = "the-voice-questions-used";
 
-const getQuestionsUsed = (): number => {
-  try {
-    return parseInt(localStorage.getItem(STORAGE_KEY) || "0", 10);
-  } catch {
-    return 0;
-  }
+const getGuestQuestionsUsed = (): number => {
+  try { return parseInt(localStorage.getItem(STORAGE_KEY) || "0", 10); } catch { return 0; }
 };
-
-const incrementQuestionsUsed = () => {
-  try {
-    localStorage.setItem(STORAGE_KEY, String(getQuestionsUsed() + 1));
-  } catch {}
+const incrementGuestQuestions = () => {
+  try { localStorage.setItem(STORAGE_KEY, String(getGuestQuestionsUsed() + 1)); } catch {}
 };
 
 const Index = () => {
+  const navigate = useNavigate();
   const [user, setUser] = useState<User | null>(null);
   const [ageGroup, setAgeGroup] = useState<string | null>(null);
+  const [planType, setPlanType] = useState<string>("free");
   const [tab, setTab] = useState<Tab>("ask");
   const [screen, setScreen] = useState<Screen>("ask");
   const [isLoading, setIsLoading] = useState(false);
@@ -40,28 +38,38 @@ const Index = () => {
     response: string;
     scriptures: string[];
   } | null>(null);
-  const [authModal, setAuthModal] = useState<{
-    open: boolean;
-    message?: string;
-  }>({ open: false });
+  const [authModal, setAuthModal] = useState<{ open: boolean; message?: string }>({ open: false });
   const [needsDob, setNeedsDob] = useState(false);
 
-  const fetchAgeGroup = useCallback(async (userId: string) => {
-    const { data } = await supabase
+  const fetchUserData = useCallback(async (userId: string) => {
+    // Fetch age group
+    const { data: profile } = await supabase
       .from("profiles" as any)
       .select("age_group")
       .eq("user_id", userId)
       .single();
-    const ag = (data as any)?.age_group;
+    const ag = (profile as any)?.age_group;
     if (ag) {
       setAgeGroup(ag);
       setNeedsDob(false);
       if (ag === "minor") {
         toast.error("The Voice is designed for ages 13 and up. Ask a parent or guardian to create a Family Account.");
         await supabase.auth.signOut();
+        return;
       }
     } else {
       setNeedsDob(true);
+    }
+
+    // Fetch subscription
+    const { data: sub } = await supabase
+      .from("subscriptions" as any)
+      .select("plan_type")
+      .eq("user_id", userId)
+      .eq("status", "active")
+      .single();
+    if ((sub as any)?.plan_type) {
+      setPlanType((sub as any).plan_type);
     }
   }, []);
 
@@ -70,31 +78,81 @@ const Index = () => {
       (_event, session) => {
         const u = session?.user ?? null;
         setUser(u);
-        if (u) fetchAgeGroup(u.id);
-        else { setAgeGroup(null); setNeedsDob(false); }
+        if (u) fetchUserData(u.id);
+        else { setAgeGroup(null); setNeedsDob(false); setPlanType("free"); }
       }
     );
     supabase.auth.getSession().then(({ data: { session } }) => {
       const u = session?.user ?? null;
       setUser(u);
-      if (u) fetchAgeGroup(u.id);
+      if (u) fetchUserData(u.id);
     });
     return () => subscription.unsubscribe();
-  }, [fetchAgeGroup]);
+  }, [fetchUserData]);
+
+  const checkDailyLimit = useCallback(async (): Promise<boolean> => {
+    if (!user) return true; // guests use localStorage limit
+    if (planType !== "free") return true; // paid users unlimited
+
+    const today = new Date().toISOString().split("T")[0];
+    const { data } = await supabase
+      .from("usage_daily" as any)
+      .select("question_count")
+      .eq("user_id", user.id)
+      .eq("date", today)
+      .single();
+
+    const count = (data as any)?.question_count ?? 0;
+    if (count >= FREE_DAILY_LIMIT) {
+      toast("You've reached your 3 daily questions.", {
+        description: "Upgrade for unlimited wisdom.",
+        action: { label: "View Plans", onClick: () => navigate("/pricing") },
+      });
+      return false;
+    }
+    return true;
+  }, [user, planType, navigate]);
+
+  const incrementDailyUsage = useCallback(async () => {
+    if (!user) return;
+    const today = new Date().toISOString().split("T")[0];
+    const { data: existing } = await supabase
+      .from("usage_daily" as any)
+      .select("id, question_count")
+      .eq("user_id", user.id)
+      .eq("date", today)
+      .single();
+
+    if (existing) {
+      await supabase
+        .from("usage_daily" as any)
+        .update({ question_count: ((existing as any).question_count || 0) + 1 } as any)
+        .eq("id", (existing as any).id);
+    } else {
+      await supabase
+        .from("usage_daily" as any)
+        .insert({ user_id: user.id, date: today, question_count: 1 } as any);
+    }
+  }, [user]);
 
   const seekWisdom = useCallback(
     async (question: string) => {
-      if (!user && getQuestionsUsed() >= FREE_QUESTION_LIMIT) {
+      // Guest limit
+      if (!user && getGuestQuestionsUsed() >= GUEST_LIMIT) {
         setAuthModal({
           open: true,
-          message: "Your words are worth keeping. Create a free account to save your reflections and continue seeking.",
+          message: "Your words are worth keeping. Create a free account to continue seeking — and to save what you've received.",
         });
         return;
       }
 
-      if (user && needsDob) {
-        return; // DOB modal is showing
+      // Daily limit for free users
+      if (user) {
+        const canAsk = await checkDailyLimit();
+        if (!canAsk) return;
       }
+
+      if (user && needsDob) return;
 
       setIsLoading(true);
       setIsSaved(false);
@@ -114,14 +172,15 @@ const Index = () => {
         });
         setScreen("response");
 
-        if (!user) incrementQuestionsUsed();
+        if (!user) incrementGuestQuestions();
+        else await incrementDailyUsage();
       } catch (err: any) {
         toast.error(err.message || "Could not seek wisdom at this time.");
       } finally {
         setIsLoading(false);
       }
     },
-    [user, ageGroup, needsDob]
+    [user, ageGroup, needsDob, checkDailyLimit, incrementDailyUsage]
   );
 
   const reflectOnThis = useCallback(async () => {
@@ -132,6 +191,14 @@ const Index = () => {
       });
       return;
     }
+
+    if (planType === "free") {
+      toast("Journal requires a Personal plan or above.", {
+        action: { label: "View Plans", onClick: () => navigate("/pricing") },
+      });
+      return;
+    }
+
     if (!currentResponse) return;
 
     setIsSaving(true);
@@ -157,11 +224,17 @@ const Index = () => {
     } finally {
       setIsSaving(false);
     }
-  }, [user, currentResponse]);
+  }, [user, currentResponse, planType, navigate]);
 
   const handleTabChange = (newTab: Tab) => {
     if (newTab === "journal" && !user) {
       setAuthModal({ open: true, message: "Sign in to view your journal." });
+      return;
+    }
+    if (newTab === "journal" && planType === "free") {
+      toast("Journal requires a Personal plan or above.", {
+        action: { label: "View Plans", onClick: () => navigate("/pricing") },
+      });
       return;
     }
     setTab(newTab);
@@ -173,7 +246,7 @@ const Index = () => {
 
   return (
     <div className="min-h-screen flex flex-col">
-      <main className="flex-1">
+      <main className="flex-1 pb-20">
         {tab === "ask" ? (
           screen === "ask" ? (
             <AskScreen onSeekWisdom={seekWisdom} isLoading={isLoading} />
@@ -193,54 +266,67 @@ const Index = () => {
         )}
       </main>
 
-      <nav className="fixed bottom-0 left-0 right-0 bg-parchment/95 backdrop-blur-sm border-t border-border">
+      {/* Bottom Navigation */}
+      <nav className="fixed bottom-0 left-0 right-0 bg-parchment/95 backdrop-blur-sm border-t border-border z-30">
         <div className="flex max-w-lg mx-auto">
           <button
             onClick={() => handleTabChange("ask")}
-            className={`flex-1 py-4 text-center font-serif text-xs tracking-widest uppercase transition-colors ${
+            className={`flex-1 py-3 flex flex-col items-center gap-1 transition-colors ${
               tab === "ask" ? "text-gold" : "text-muted-foreground"
             }`}
           >
-            Ask
+            <Home size={18} strokeWidth={1.5} />
+            <span className="font-serif text-[10px] tracking-widest uppercase">Ask</span>
           </button>
           <button
             onClick={() => handleTabChange("journal")}
-            className={`flex-1 py-4 text-center font-serif text-xs tracking-widest uppercase transition-colors ${
+            className={`flex-1 py-3 flex flex-col items-center gap-1 transition-colors ${
               tab === "journal" ? "text-gold" : "text-muted-foreground"
             }`}
           >
-            Journal
+            <BookOpen size={18} strokeWidth={1.5} />
+            <span className="font-serif text-[10px] tracking-widest uppercase">Journal</span>
           </button>
         </div>
       </nav>
 
-      {user && (
-        <button
-          onClick={async () => {
-            await supabase.auth.signOut();
-            toast.success("Signed out.");
-          }}
-          className="fixed top-4 right-4 text-xs font-body text-muted-foreground hover:text-foreground transition-colors"
-        >
-          Sign out
-        </button>
-      )}
+      {/* Top bar */}
+      <div className="fixed top-0 left-0 right-0 z-20 flex justify-between items-center px-4 py-3">
+        {user && planType === "free" && (
+          <button
+            onClick={() => navigate("/pricing")}
+            className="text-[10px] font-body tracking-wider uppercase text-gold hover:text-gold-dark transition-colors border border-gold/30 px-3 py-1 rounded-sm"
+          >
+            Upgrade
+          </button>
+        )}
+        <div className="flex-1" />
+        {user ? (
+          <button
+            onClick={async () => {
+              await supabase.auth.signOut();
+              toast.success("Signed out.");
+            }}
+            className="text-xs font-body text-muted-foreground hover:text-foreground transition-colors"
+          >
+            Sign out
+          </button>
+        ) : null}
+      </div>
 
-      {/* Auth modal for signup/signin */}
       <AuthModal
         isOpen={showAuthModal}
         onClose={() => setAuthModal({ open: false })}
-        onSignedUp={() => { if (user) fetchAgeGroup(user.id); }}
+        onSignedUp={() => { if (user) fetchUserData(user.id); }}
         message={authModal.message}
       />
 
-      {/* DOB-only modal for Google OAuth users without DOB */}
       <AuthModal
         isOpen={showDobModal}
-        onClose={() => {}} // Can't dismiss — DOB is required
+        onClose={() => {}}
         dobOnly
         userId={user?.id}
-        onDobSubmitted={() => { if (user) fetchAgeGroup(user.id); }}
+        onDobSubmitted={() => { if (user) fetchUserData(user.id); }}
         message="So your experience feels right for where you are in life."
       />
     </div>
