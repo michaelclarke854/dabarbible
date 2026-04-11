@@ -16,12 +16,14 @@ interface AuthContextValue {
   isSuspended: boolean;
   ageGroup: string | null;
   languagePreference: string;
+  preferredBibleVersion: string;
   isAdmin: boolean;
   isBeta: boolean;
   hasFullAccess: boolean;
   loading: boolean;
   refreshProfile: () => Promise<void>;
   setLanguagePreference: (lang: string) => void;
+  setPreferredBibleVersion: (v: string) => void;
 }
 
 const AuthContext = createContext<AuthContextValue | null>(null);
@@ -38,12 +40,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [isSuspended, setIsSuspended] = useState(false);
   const [ageGroup, setAgeGroup] = useState<string | null>(null);
   const [languagePreference, setLanguagePreference] = useState("en");
+  const [preferredBibleVersion, setPreferredBibleVersion] = useState("KJV");
   const [loading, setLoading] = useState(true);
 
   const fetchProfile = useCallback(async (userId: string) => {
     const { data: profile } = await supabase
       .from("profiles")
-      .select("role, plan, is_suspended, age_group, language_preference")
+      .select("role, plan, is_suspended, age_group, language_preference, preferred_bible_version")
       .eq("user_id", userId)
       .single();
 
@@ -53,6 +56,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setIsSuspended(profile.is_suspended || false);
       setAgeGroup(profile.age_group || null);
       setLanguagePreference(profile.language_preference || "en");
+      setPreferredBibleVersion((profile as any).preferred_bible_version || "KJV");
     }
   }, []);
 
