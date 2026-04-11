@@ -6,6 +6,7 @@ interface ResponseScreenProps {
   scriptures: string[];
   onAskAgain: () => void;
   onReflect: () => void;
+  onStir: (thresholdQuestion: string) => void;
   isSaving: boolean;
   isSaved: boolean;
 }
@@ -24,7 +25,6 @@ function parseResponse(response: string): ContentBlock[] {
   let match;
 
   while ((match = regex.exec(response)) !== null) {
-    // Text before this scripture block
     const before = response.slice(lastIndex, match.index).trim();
     if (before) {
       before.split("\n").filter((l) => l.trim()).forEach((line) => {
@@ -40,7 +40,6 @@ function parseResponse(response: string): ContentBlock[] {
     lastIndex = match.index + match[0].length;
   }
 
-  // Remaining text after last scripture block
   const remaining = response.slice(lastIndex).trim();
   if (remaining) {
     remaining.split("\n").filter((l) => l.trim()).forEach((line) => {
@@ -51,17 +50,29 @@ function parseResponse(response: string): ContentBlock[] {
   return blocks;
 }
 
+function extractThresholdQuestion(blocks: ContentBlock[]): string | null {
+  // The threshold question is typically the last text block ending with "?"
+  for (let i = blocks.length - 1; i >= 0; i--) {
+    if (blocks[i].type === "text" && blocks[i].content.trim().endsWith("?")) {
+      return blocks[i].content.trim();
+    }
+  }
+  return null;
+}
+
 const ResponseScreen = ({
   question,
   response,
   scriptures,
   onAskAgain,
   onReflect,
+  onStir,
   isSaving,
   isSaved,
 }: ResponseScreenProps) => {
   const [visibleBlocks, setVisibleBlocks] = useState(0);
   const blocks = useMemo(() => parseResponse(response), [response]);
+  const thresholdQuestion = useMemo(() => extractThresholdQuestion(blocks), [blocks]);
 
   useEffect(() => {
     setVisibleBlocks(0);
@@ -113,20 +124,31 @@ const ResponseScreen = ({
       </div>
 
       {visibleBlocks >= blocks.length && (
-        <div className="animate-fade-in-up flex flex-col sm:flex-row gap-4 pt-4">
-          <button
-            onClick={onReflect}
-            disabled={isSaving || isSaved}
-            className="font-body text-sm tracking-wide px-6 py-3 border border-gold text-gold rounded-sm transition-all hover:bg-gold hover:text-primary-foreground disabled:opacity-50"
-          >
-            {isSaved ? "Saved to journal" : isSaving ? "Saving…" : "Reflect on this"}
-          </button>
-          <button
-            onClick={onAskAgain}
-            className="font-body text-sm tracking-wide px-6 py-3 text-muted-foreground hover:text-foreground transition-colors"
-          >
-            Ask Again
-          </button>
+        <div className="animate-fade-in-up flex flex-col gap-3 pt-4">
+          <div className="flex flex-col sm:flex-row gap-3">
+            <button
+              onClick={onReflect}
+              disabled={isSaving || isSaved}
+              className="font-body text-sm tracking-wide px-6 py-3 border border-gold text-gold rounded-sm transition-all hover:bg-gold hover:text-primary-foreground disabled:opacity-50"
+            >
+              {isSaved ? "Saved to journal" : isSaving ? "Saving…" : "Save to Journal"}
+            </button>
+            <button
+              onClick={onAskAgain}
+              className="font-body text-sm tracking-wide px-6 py-3 text-muted-foreground hover:text-foreground transition-colors"
+            >
+              Ask Again
+            </button>
+          </div>
+
+          {thresholdQuestion && (
+            <button
+              onClick={() => onStir(thresholdQuestion)}
+              className="mt-2 font-['Playfair_Display'] italic text-sm text-gold/80 hover:text-gold transition-colors text-left leading-relaxed"
+            >
+              "What did this stir in you?" →
+            </button>
+          )}
         </div>
       )}
     </div>
