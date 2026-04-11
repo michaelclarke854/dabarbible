@@ -1,0 +1,1 @@
+DROP TYPE public.age_group CASCADE;

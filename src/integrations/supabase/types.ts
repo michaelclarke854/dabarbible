@@ -16,25 +16,25 @@ export type Database = {
     Tables: {
       profiles: {
         Row: {
-          age_group: Database["public"]["Enums"]["age_group"] | null
+          age_group: string
           created_at: string
-          date_of_birth: string | null
+          date_of_birth: string
           id: string
           updated_at: string
           user_id: string
         }
         Insert: {
-          age_group?: Database["public"]["Enums"]["age_group"] | null
+          age_group: string
           created_at?: string
-          date_of_birth?: string | null
+          date_of_birth: string
           id?: string
           updated_at?: string
           user_id: string
         }
         Update: {
-          age_group?: Database["public"]["Enums"]["age_group"] | null
+          age_group?: string
           created_at?: string
-          date_of_birth?: string | null
+          date_of_birth?: string
           id?: string
           updated_at?: string
           user_id?: string
@@ -76,13 +76,10 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      calculate_age_group: {
-        Args: { dob: string }
-        Returns: Database["public"]["Enums"]["age_group"]
-      }
+      calculate_age_group: { Args: { dob: string }; Returns: string }
     }
     Enums: {
-      age_group: "minor" | "youth" | "young_adult" | "adult"
+      [_ in never]: never
     }
     CompositeTypes: {
       [_ in never]: never
@@ -209,8 +206,6 @@ export type CompositeTypes<
 
 export const Constants = {
   public: {
-    Enums: {
-      age_group: ["minor", "youth", "young_adult", "adult"],
-    },
+    Enums: {},
   },
 } as const
