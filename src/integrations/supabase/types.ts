@@ -14,6 +14,73 @@ export type Database = {
   }
   public: {
     Tables: {
+      community_members: {
+        Row: {
+          community_id: string
+          id: string
+          joined_at: string
+          role: string
+          user_id: string
+        }
+        Insert: {
+          community_id: string
+          id?: string
+          joined_at?: string
+          role?: string
+          user_id: string
+        }
+        Update: {
+          community_id?: string
+          id?: string
+          joined_at?: string
+          role?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "community_members_community_id_fkey"
+            columns: ["community_id"]
+            isOneToOne: false
+            referencedRelation: "subscriptions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      family_members: {
+        Row: {
+          family_id: string
+          id: string
+          invited_at: string | null
+          joined_at: string | null
+          role: string
+          user_id: string
+        }
+        Insert: {
+          family_id: string
+          id?: string
+          invited_at?: string | null
+          joined_at?: string | null
+          role?: string
+          user_id: string
+        }
+        Update: {
+          family_id?: string
+          id?: string
+          invited_at?: string | null
+          joined_at?: string | null
+          role?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "family_members_family_id_fkey"
+            columns: ["family_id"]
+            isOneToOne: false
+            referencedRelation: "subscriptions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       profiles: {
         Row: {
           age_group: string
@@ -38,6 +105,87 @@ export type Database = {
           id?: string
           updated_at?: string
           user_id?: string
+        }
+        Relationships: []
+      }
+      reflection_entries: {
+        Row: {
+          body: string
+          created_at: string
+          id: string
+          title: string | null
+          updated_at: string
+          user_id: string
+          writing_prompt: string | null
+        }
+        Insert: {
+          body: string
+          created_at?: string
+          id?: string
+          title?: string | null
+          updated_at?: string
+          user_id: string
+          writing_prompt?: string | null
+        }
+        Update: {
+          body?: string
+          created_at?: string
+          id?: string
+          title?: string | null
+          updated_at?: string
+          user_id?: string
+          writing_prompt?: string | null
+        }
+        Relationships: []
+      }
+      subscriptions: {
+        Row: {
+          billing_cycle: string | null
+          created_at: string
+          id: string
+          plan_type: string
+          status: string
+          stripe_subscription_id: string | null
+          user_id: string
+        }
+        Insert: {
+          billing_cycle?: string | null
+          created_at?: string
+          id?: string
+          plan_type?: string
+          status?: string
+          stripe_subscription_id?: string | null
+          user_id: string
+        }
+        Update: {
+          billing_cycle?: string | null
+          created_at?: string
+          id?: string
+          plan_type?: string
+          status?: string
+          stripe_subscription_id?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
+      usage_daily: {
+        Row: {
+          date: string
+          id: string
+          question_count: number
+          user_id: string | null
+        }
+        Insert: {
+          date?: string
+          id?: string
+          question_count?: number
+          user_id?: string | null
+        }
+        Update: {
+          date?: string
+          id?: string
+          question_count?: number
+          user_id?: string | null
         }
         Relationships: []
       }
@@ -77,6 +225,14 @@ export type Database = {
     }
     Functions: {
       calculate_age_group: { Args: { dob: string }; Returns: string }
+      is_community_admin: {
+        Args: { _community_id: string; _user_id: string }
+        Returns: boolean
+      }
+      is_family_owner: {
+        Args: { _family_id: string; _user_id: string }
+        Returns: boolean
+      }
     }
     Enums: {
       [_ in never]: never
