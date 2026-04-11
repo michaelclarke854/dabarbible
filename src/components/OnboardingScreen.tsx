@@ -42,10 +42,11 @@ const OnboardingScreen = ({ onBegin }: OnboardingScreenProps) => {
 
   return (
     <div
-      className={`min-h-screen flex flex-col items-center px-6 py-16 md:py-24 transition-opacity duration-1000 ${
+      className={`min-h-screen flex flex-col transition-opacity duration-1000 overflow-x-hidden ${
         visible ? "opacity-100" : "opacity-0"
       }`}
     >
+      <div className="flex flex-col items-center px-6 pt-16 md:pt-24 flex-1">
       {/* Glow keyframe */}
       <style>{`
         @keyframes cta-border-glow {
@@ -240,10 +241,11 @@ const OnboardingScreen = ({ onBegin }: OnboardingScreenProps) => {
           </p>
         </div>
       </div>
+      </div>{/* end centered content wrapper */}
 
       {/* 6. Footer */}
       <footer
-        className="w-full mt-8 py-10 px-6"
+        className="w-full py-10 px-6"
         style={{ backgroundColor: "#0F0D0A" }}
       >
         <div className="max-w-md mx-auto text-center space-y-6">
