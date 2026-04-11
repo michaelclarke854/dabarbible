@@ -6,12 +6,11 @@ interface AskScreenProps {
 }
 
 const SOUL_PROMPTS = [
-  "I don't know if I'm making the right decision…",
-  "I'm afraid of what's ahead…",
-  "I keep failing at the same thing…",
-  "I feel unseen by the people closest to me…",
-  "I don't know how to forgive this…",
-  "I'm carrying something I haven't told anyone…",
+  "I don't know if I'm making the right decision...",
+  "I'm afraid of what's ahead...",
+  "I keep failing at the same thing...",
+  "I'm struggling with someone I love...",
+  "I don't know what I'm supposed to do with my life...",
 ];
 
 const AskScreen = ({ onSeekWisdom, isLoading }: AskScreenProps) => {
@@ -29,7 +28,7 @@ const AskScreen = ({ onSeekWisdom, isLoading }: AskScreenProps) => {
         setPromptIndex((prev) => (prev + 1) % SOUL_PROMPTS.length);
         setPromptVisible(true);
       }, 600);
-    }, 5000);
+    }, 4000);
     return () => {
       if (intervalRef.current) clearInterval(intervalRef.current);
     };
@@ -77,9 +76,10 @@ const AskScreen = ({ onSeekWisdom, isLoading }: AskScreenProps) => {
         {!question && !isLoading && (
           <button
             onClick={handlePromptTap}
-            className={`w-full text-center font-['Playfair_Display'] italic text-sm text-muted-foreground/50 hover:text-muted-foreground transition-all duration-500 mb-6 ${
+            className={`w-full text-center font-['Playfair_Display'] italic text-gold hover:text-gold-dark transition-all duration-500 mb-6 ${
               promptVisible ? "opacity-100" : "opacity-0"
             }`}
+            style={{ fontSize: '12px' }}
           >
             "{SOUL_PROMPTS[promptIndex]}"
           </button>
