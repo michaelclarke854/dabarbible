@@ -227,7 +227,7 @@ const Index = () => {
     if (!user) {
       setAuthModal({
         open: true,
-        message: "Create an account to save this reflection to your journal.",
+        message: "Create a free account to save this reflection — 30 days free, no card needed.",
       });
       return;
     }
@@ -280,11 +280,11 @@ const Index = () => {
       return;
     }
     if (newTab === "scripture" && !user) {
-      setAuthModal({ open: true, message: "Sign in to access the Scripture companion." });
+      setAuthModal({ open: true, message: "Create a free account to access the full Scripture companion — 30 days free, no card needed." });
       return;
     }
     if (newTab === "history" && !user) {
-      setAuthModal({ open: true, message: "Sign in to view your history." });
+      setAuthModal({ open: true, message: "Create a free account to view your history — 30 days free, no card needed." });
       return;
     }
     if (newTab === "history" && !hasFullAccess) {
@@ -294,7 +294,7 @@ const Index = () => {
       return;
     }
     if (newTab === "journal" && !user) {
-      setAuthModal({ open: true, message: "Sign in to view your journal." });
+      setAuthModal({ open: true, message: "Create a free account to keep your journal — 30 days free, no card needed." });
       return;
     }
     if (newTab === "journal" && !hasFullAccess) {
