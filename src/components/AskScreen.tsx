@@ -1,16 +1,49 @@
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 
 interface AskScreenProps {
   onSeekWisdom: (question: string) => void;
   isLoading: boolean;
 }
 
+const SOUL_PROMPTS = [
+  "I don't know if I'm making the right decision…",
+  "I'm afraid of what's ahead…",
+  "I keep failing at the same thing…",
+  "I feel unseen by the people closest to me…",
+  "I don't know how to forgive this…",
+  "I'm carrying something I haven't told anyone…",
+];
+
 const AskScreen = ({ onSeekWisdom, isLoading }: AskScreenProps) => {
   const [question, setQuestion] = useState("");
+  const [promptIndex, setPromptIndex] = useState(() =>
+    Math.floor(Math.random() * SOUL_PROMPTS.length)
+  );
+  const [promptVisible, setPromptVisible] = useState(true);
+  const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  useEffect(() => {
+    intervalRef.current = setInterval(() => {
+      setPromptVisible(false);
+      setTimeout(() => {
+        setPromptIndex((prev) => (prev + 1) % SOUL_PROMPTS.length);
+        setPromptVisible(true);
+      }, 600);
+    }, 5000);
+    return () => {
+      if (intervalRef.current) clearInterval(intervalRef.current);
+    };
+  }, []);
 
   const handleSubmit = () => {
     if (question.trim() && !isLoading) {
       onSeekWisdom(question.trim());
+    }
+  };
+
+  const handlePromptTap = () => {
+    if (!isLoading) {
+      setQuestion(SOUL_PROMPTS[promptIndex]);
     }
   };
 
@@ -39,7 +72,19 @@ const AskScreen = ({ onSeekWisdom, isLoading }: AskScreenProps) => {
             }
           }}
         />
-        <div className="w-full h-px bg-border mb-8" />
+        <div className="w-full h-px bg-border mb-4" />
+
+        {!question && !isLoading && (
+          <button
+            onClick={handlePromptTap}
+            className={`w-full text-center font-['Playfair_Display'] italic text-sm text-muted-foreground/50 hover:text-muted-foreground transition-all duration-500 mb-6 ${
+              promptVisible ? "opacity-100" : "opacity-0"
+            }`}
+          >
+            "{SOUL_PROMPTS[promptIndex]}"
+          </button>
+        )}
+        {(question || isLoading) && <div className="mb-6" />}
       </div>
 
       <button
