@@ -34,12 +34,13 @@ const TermsPage = () => (
       </section>
 
       <section>
-        <h2 className="font-serif text-lg text-foreground tracking-wide mb-3">Accounts</h2>
+        <h2 className="font-serif text-lg text-foreground tracking-wide mb-3">Accounts and trials</h2>
         <p>
-39:           Creating an account is optional for your first question. After that, an account
-40:           is required. You are responsible for keeping your login credentials secure. One person
-41:           per account — do not share access.
-42:         </p>
+          New accounts receive a 30-day free trial with full access. No credit card
+          is required to start a trial. After 30 days, accounts continue on
+          the free plan unless upgraded. You are responsible for keeping your login
+          credentials secure. One person per account — do not share access.
+        </p>
       </section>
 
       <section>
