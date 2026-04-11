@@ -57,7 +57,7 @@ const Index = () => {
       setAgeGroup(ag);
       setNeedsDob(false);
       if (ag === "minor") {
-        toast.error("You must be at least 13 years old to use The Voice.");
+        toast.error("The Voice is designed for ages 13 and up. Ask a parent or guardian to create a Family Account.");
         await supabase.auth.signOut();
       }
     } else {
