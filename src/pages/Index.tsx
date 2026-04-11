@@ -40,7 +40,7 @@ const PageSpinner = () => (
 
 const Index = () => {
   const navigate = useNavigate();
-  const { user, role, plan, isSuspended, ageGroup, hasFullAccess, isBeta, isAdmin, languagePreference, setLanguagePreference, refreshProfile, loading: authLoading } = useAuth();
+  const { user, role, plan, isSuspended, ageGroup, hasFullAccess, isBeta, isAdmin, languagePreference, setLanguagePreference, preferredBibleVersion, setPreferredBibleVersion, refreshProfile, loading: authLoading } = useAuth();
 
   const [needsDob, setNeedsDob] = useState(false);
   const [tab, setTab] = useState<Tab>("ask");
@@ -60,7 +60,7 @@ const Index = () => {
   const [hasOnboarded, setHasOnboarded] = useState(() => {
     try { return localStorage.getItem(ONBOARDING_KEY) === "true"; } catch { return false; }
   });
-  const [scriptureDeepLink, setScriptureDeepLink] = useState<{ book: string; chapter: number; verse: number } | null>(null);
+  const [scriptureDeepLink, setScriptureDeepLink] = useState<{ book: string; chapter: number; verse: number; version?: string } | null>(null);
 
   // Redirect suspended users
   useEffect(() => {
@@ -218,13 +218,13 @@ const Index = () => {
     }
   }, [user, currentResponse, hasFullAccess, navigate]);
 
-  const handleScriptureDeepLink = useCallback((ref: string) => {
+  const handleScriptureDeepLink = useCallback((ref: string, version?: string) => {
     const parsed = parseScriptureRef(ref);
     if (parsed) {
-      setScriptureDeepLink(parsed);
+      setScriptureDeepLink({ ...parsed, version: version || preferredBibleVersion });
       setTab("scripture");
     }
-  }, []);
+  }, [preferredBibleVersion]);
 
   const handleTabChange = (newTab: Tab) => {
     if (newTab === "scripture" && !hasFullAccess && user) {
@@ -307,14 +307,19 @@ const Index = () => {
               isSaving={isSaving}
               isSaved={isSaved}
               onScriptureRef={handleScriptureDeepLink}
+              userId={user?.id}
+              profileVersion={preferredBibleVersion}
+              onProfileVersionChanged={(v) => setPreferredBibleVersion(v)}
             />
           ) : null
         ) : tab === "scripture" ? (
           <Suspense fallback={<PageSpinner />}>
             <ScriptureScreen
               user={user}
-              deepLink={scriptureDeepLink}
+              deepLink={scriptureDeepLink as any}
               onDeepLinkConsumed={() => setScriptureDeepLink(null)}
+              profileVersion={preferredBibleVersion as any}
+              onProfileVersionChanged={(v) => setPreferredBibleVersion(v)}
             />
           </Suspense>
         ) : tab === "history" ? (

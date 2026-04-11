@@ -10,7 +10,10 @@ interface ResponseScreenProps {
   onStir: (thresholdQuestion: string) => void;
   isSaving: boolean;
   isSaved: boolean;
-  onScriptureRef?: (ref: string) => void;
+  onScriptureRef?: (ref: string, version?: string) => void;
+  userId?: string;
+  profileVersion?: string;
+  onProfileVersionChanged?: (v: string) => void;
 }
 
 const ResponseScreen = ({
@@ -23,6 +26,9 @@ const ResponseScreen = ({
   isSaving,
   isSaved,
   onScriptureRef,
+  userId,
+  profileVersion,
+  onProfileVersionChanged,
 }: ResponseScreenProps) => {
   const [visibleBlocks, setVisibleBlocks] = useState(0);
   const blocks = useMemo(() => parseResponse(response), [response]);
@@ -63,6 +69,9 @@ const ResponseScreen = ({
               <ScriptureCard
                 block={block}
                 onScriptureRef={onScriptureRef}
+                userId={userId}
+                profileDefault={profileVersion}
+                onDefaultChanged={onProfileVersionChanged}
               />
             ) : (
               <p className="font-serif text-lg md:text-xl leading-relaxed text-foreground">
