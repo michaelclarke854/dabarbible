@@ -36,10 +36,10 @@ const TermsPage = () => (
       <section>
         <h2 className="font-serif text-lg text-foreground tracking-wide mb-3">Accounts</h2>
         <p>
-          Creating an account is optional for your first three questions. After that, an account
-          is required. You are responsible for keeping your login credentials secure. One person
-          per account — do not share access.
-        </p>
+39:           Creating an account is optional for your first question. After that, an account
+40:           is required. You are responsible for keeping your login credentials secure. One person
+41:           per account — do not share access.
+42:         </p>
       </section>
 
       <section>
