@@ -62,7 +62,7 @@ const AskScreen = ({ onSeekWisdom, isLoading }: AskScreenProps) => {
           value={question}
           onChange={(e) => setQuestion(e.target.value)}
           placeholder="What are you carrying today?"
-          className="w-full min-h-[160px] bg-transparent border-none outline-none resize-none text-lg font-body text-foreground placeholder:text-muted-foreground/60 leading-relaxed p-4 focus:ring-0"
+          className="w-full min-h-[160px] bg-input border-none outline-none resize-none text-lg font-body text-foreground placeholder:text-muted-foreground/60 leading-relaxed p-4 focus:ring-0 rounded-sm"
           disabled={isLoading}
           onKeyDown={(e) => {
             if (e.key === "Enter" && !e.shiftKey) {
