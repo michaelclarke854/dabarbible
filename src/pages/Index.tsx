@@ -14,6 +14,7 @@ import { useAuth } from "@/contexts/AuthContext";
 const JournalScreen = lazy(() => import("@/components/JournalScreen"));
 const ScriptureScreen = lazy(() => import("@/components/ScriptureScreen"));
 const LanguageSettings = lazy(() => import("@/components/LanguageSettings"));
+const PrivacySettings = lazy(() => import("@/components/PrivacySettings"));
 
 type Tab = "ask" | "scripture" | "journal";
 type Screen = "ask" | "response";
@@ -54,6 +55,7 @@ const Index = () => {
   const [authModal, setAuthModal] = useState<{ open: boolean; message?: string }>({ open: false });
   const [stirPrompt, setStirPrompt] = useState<string | null>(null);
   const [showLanguageSettings, setShowLanguageSettings] = useState(false);
+  const [showPrivacySettings, setShowPrivacySettings] = useState(false);
   const [hasOnboarded, setHasOnboarded] = useState(() => {
     try { return localStorage.getItem(ONBOARDING_KEY) === "true"; } catch { return false; }
   });
