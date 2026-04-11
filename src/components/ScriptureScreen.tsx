@@ -535,9 +535,8 @@ const ScriptureScreen = ({
                 {isExpanded && (
                   <div className="ml-8 mt-2">
                     <div className="flex items-center gap-1.5 flex-wrap">
-                      {VERSIONS.map((ver) => {
+                      {VERSIONS.filter((ver) => !!verseVersionCache[v.verse]?.[ver] || ver === currentVerseVersion).map((ver) => {
                         const isActive = ver === currentVerseVersion;
-                        const hasCache = !!verseVersionCache[v.verse]?.[ver];
                         return (
                           <button
                             key={ver}
@@ -546,13 +545,10 @@ const ScriptureScreen = ({
                               if (ver === currentVerseVersion) return;
                               setVerseActiveVersion((prev) => ({ ...prev, [v.verse]: ver }));
                             }}
-                            disabled={!hasCache && ver !== currentVerseVersion}
                             className={`font-serif-display text-[0.6rem] tracking-[0.08em] uppercase px-2 py-[3px] rounded-[4px] border transition-all duration-200 ${
                               isActive
                                 ? "bg-gold text-[#0D0B08] border-gold"
-                                : hasCache
-                                ? "bg-[rgba(196,151,58,0.08)] text-[rgba(196,151,58,0.5)] border-[rgba(196,151,58,0.15)] hover:bg-[rgba(196,151,58,0.14)] hover:text-[rgba(196,151,58,0.7)] cursor-pointer"
-                                : "bg-[rgba(196,151,58,0.04)] text-[rgba(196,151,58,0.25)] border-[rgba(196,151,58,0.08)] cursor-wait"
+                                : "bg-[rgba(196,151,58,0.08)] text-[rgba(196,151,58,0.5)] border-[rgba(196,151,58,0.15)] hover:bg-[rgba(196,151,58,0.14)] hover:text-[rgba(196,151,58,0.7)] cursor-pointer"
                             }`}
                           >
                             {ver}
