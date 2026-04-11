@@ -285,17 +285,30 @@ serve(async (req) => {
     // Validate ageGroup server-side if userId provided
     let validatedAgeGroup = ageGroup || null;
     let userPatterns: { theme: string; occurrence: number; first_seen: string }[] = [];
+    let userRole = "free";
 
     if (userId) {
       const [profileResult, patternsResult] = await Promise.all([
-        supabase.from("profiles").select("age_group, language_preference").eq("user_id", userId).single(),
+        supabase.from("profiles").select("age_group, language_preference, role").eq("user_id", userId).single(),
         supabase.from("user_patterns").select("theme, occurrence, first_seen").eq("user_id", userId),
       ]);
       if (profileResult.data?.age_group) {
         validatedAgeGroup = profileResult.data.age_group;
       }
+      if (profileResult.data?.role) {
+        userRole = profileResult.data.role;
+      }
       if (patternsResult.data) {
         userPatterns = patternsResult.data;
+      }
+
+      // Rate limit check for authenticated users
+      const { allowed, remaining } = await checkRateLimit(supabase, userId, userRole);
+      if (!allowed) {
+        return new Response(
+          JSON.stringify({ error: "You've asked many questions recently. Please wait a while before continuing." }),
+          { status: 429, headers: { ...corsHeaders, "Content-Type": "application/json", "X-RateLimit-Remaining": "0" } }
+        );
       }
     }
 
@@ -317,7 +330,7 @@ serve(async (req) => {
     }
 
     const patternContext = buildPatternContext(userPatterns);
-    const systemPrompt = getSystemPrompt(validatedAgeGroup, patternContext, language, scriptureVersion);
+    const systemPrompt = getSystemPrompt(validatedAgeGroup, patternContext, safeLang, safeVersion);
 
     const aiResponse = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
       method: "POST",
