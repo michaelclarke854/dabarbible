@@ -40,13 +40,57 @@ serve(async (req) => {
 
     const stripe = new Stripe(stripeKey, { apiVersion: "2024-12-18.acacia" });
 
-    const { planKey, cycle, userId, email, isStudent, returnUrl } = await req.json();
+    const body = await req.json();
+
+    // Input validation
+    const planKey = typeof body.planKey === "string" ? body.planKey.trim() : "";
+    const cycle = typeof body.cycle === "string" ? body.cycle.trim() : "monthly";
+    const userId = typeof body.userId === "string" ? body.userId.trim() : "";
+    const email = typeof body.email === "string" ? body.email.trim() : "";
+    const isStudent = body.isStudent === true;
+    const returnUrl = typeof body.returnUrl === "string" ? body.returnUrl.trim() : "";
 
     if (!planKey || !userId || !email) {
       return new Response(
         JSON.stringify({ error: "Missing required fields" }),
         { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
+    }
+
+    // Validate email format
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email)) {
+      return new Response(
+        JSON.stringify({ error: "Invalid email format" }),
+        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    // Validate cycle
+    if (!["monthly", "annual"].includes(cycle)) {
+      return new Response(
+        JSON.stringify({ error: "Invalid billing cycle" }),
+        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    // Validate returnUrl (only allow lovable.app domains or empty)
+    const allowedOrigins = ["lovable.app"];
+    if (returnUrl) {
+      try {
+        const urlObj = new URL(returnUrl);
+        if (!allowedOrigins.some(origin => urlObj.hostname.endsWith(origin))) {
+          return new Response(
+            JSON.stringify({ error: "Invalid return URL" }),
+            { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+          );
+        }
+      } catch {
+        return new Response(
+          JSON.stringify({ error: "Invalid return URL format" }),
+          { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
     }
 
     // Determine price
