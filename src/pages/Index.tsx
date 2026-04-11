@@ -420,6 +420,12 @@ const Index = () => {
         onDobSubmitted={() => refreshProfile()}
         message="So your experience feels right for where you are in life."
       />
+
+      {showPrivacySettings && user && (
+        <Suspense fallback={null}>
+          <PrivacySettings userId={user.id} onClose={() => setShowPrivacySettings(false)} />
+        </Suspense>
+      )}
     </div>
   );
 };
