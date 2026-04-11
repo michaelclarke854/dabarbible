@@ -185,6 +185,10 @@ export type Database = {
           role_changed_by: string | null
           suspended_at: string | null
           suspended_by: string | null
+          trial_converted: boolean
+          trial_ends_at: string | null
+          trial_nudge_sent: Json
+          trial_started_at: string | null
           updated_at: string
           user_id: string
         }
@@ -207,6 +211,10 @@ export type Database = {
           role_changed_by?: string | null
           suspended_at?: string | null
           suspended_by?: string | null
+          trial_converted?: boolean
+          trial_ends_at?: string | null
+          trial_nudge_sent?: Json
+          trial_started_at?: string | null
           updated_at?: string
           user_id: string
         }
@@ -229,6 +237,10 @@ export type Database = {
           role_changed_by?: string | null
           suspended_at?: string | null
           suspended_by?: string | null
+          trial_converted?: boolean
+          trial_ends_at?: string | null
+          trial_nudge_sent?: Json
+          trial_started_at?: string | null
           updated_at?: string
           user_id?: string
         }
@@ -555,6 +567,7 @@ export type Database = {
       wisdom_sessions: {
         Row: {
           created_at: string
+          expires_at: string | null
           flagged: boolean
           id: string
           question: string
@@ -565,6 +578,7 @@ export type Database = {
         }
         Insert: {
           created_at?: string
+          expires_at?: string | null
           flagged?: boolean
           id?: string
           question: string
@@ -575,6 +589,7 @@ export type Database = {
         }
         Update: {
           created_at?: string
+          expires_at?: string | null
           flagged?: boolean
           id?: string
           question?: string

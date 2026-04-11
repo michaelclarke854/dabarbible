@@ -20,8 +20,8 @@ const tiers: PricingTier[] = [
     key: "free",
     name: "Free",
     price: "Free",
-    description: "Begin seeking.",
-    features: ["3 questions per day", "No journal persistence"],
+    description: "Start with a 30-day free trial. After that, $6.99/month or continue on the free plan.",
+    features: ["30-day free trial with full access", "After trial: 3 questions per day", "No journal persistence on free plan"],
     cta: "Get Started",
   },
   {
