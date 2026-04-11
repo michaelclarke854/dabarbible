@@ -14,6 +14,24 @@ export type Database = {
   }
   public: {
     Tables: {
+      app_config: {
+        Row: {
+          key: string
+          updated_at: string
+          value: string | null
+        }
+        Insert: {
+          key: string
+          updated_at?: string
+          value?: string | null
+        }
+        Update: {
+          key?: string
+          updated_at?: string
+          value?: string | null
+        }
+        Relationships: []
+      }
       community_members: {
         Row: {
           community_id: string
@@ -45,6 +63,27 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      crisis_events: {
+        Row: {
+          age_group: string | null
+          id: string
+          keyword: string
+          routed_at: string
+        }
+        Insert: {
+          age_group?: string | null
+          id?: string
+          keyword: string
+          routed_at?: string
+        }
+        Update: {
+          age_group?: string | null
+          id?: string
+          keyword?: string
+          routed_at?: string
+        }
+        Relationships: []
       }
       family_members: {
         Row: {
@@ -262,6 +301,33 @@ export type Database = {
         }
         Relationships: []
       }
+      system_prompts: {
+        Row: {
+          content: Json
+          created_at: string
+          created_by: string | null
+          id: string
+          is_active: boolean
+          version: string
+        }
+        Insert: {
+          content?: Json
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          is_active?: boolean
+          version: string
+        }
+        Update: {
+          content?: Json
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          is_active?: boolean
+          version?: string
+        }
+        Relationships: []
+      }
       usage_daily: {
         Row: {
           date: string
@@ -310,6 +376,24 @@ export type Database = {
         }
         Relationships: []
       }
+      user_roles: {
+        Row: {
+          id: string
+          role: Database["public"]["Enums"]["app_role"]
+          user_id: string
+        }
+        Insert: {
+          id?: string
+          role: Database["public"]["Enums"]["app_role"]
+          user_id: string
+        }
+        Update: {
+          id?: string
+          role?: Database["public"]["Enums"]["app_role"]
+          user_id?: string
+        }
+        Relationships: []
+      }
       verse_annotations: {
         Row: {
           created_at: string
@@ -348,6 +432,7 @@ export type Database = {
       wisdom_sessions: {
         Row: {
           created_at: string
+          flagged: boolean
           id: string
           question: string
           response: string
@@ -357,6 +442,7 @@ export type Database = {
         }
         Insert: {
           created_at?: string
+          flagged?: boolean
           id?: string
           question: string
           response: string
@@ -366,6 +452,7 @@ export type Database = {
         }
         Update: {
           created_at?: string
+          flagged?: boolean
           id?: string
           question?: string
           response?: string
@@ -381,6 +468,13 @@ export type Database = {
     }
     Functions: {
       calculate_age_group: { Args: { dob: string }; Returns: string }
+      has_role: {
+        Args: {
+          _role: Database["public"]["Enums"]["app_role"]
+          _user_id: string
+        }
+        Returns: boolean
+      }
       is_community_admin: {
         Args: { _community_id: string; _user_id: string }
         Returns: boolean
@@ -391,7 +485,7 @@ export type Database = {
       }
     }
     Enums: {
-      [_ in never]: never
+      app_role: "admin" | "moderator" | "user"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -518,6 +612,8 @@ export type CompositeTypes<
 
 export const Constants = {
   public: {
-    Enums: {},
+    Enums: {
+      app_role: ["admin", "moderator", "user"],
+    },
   },
 } as const
