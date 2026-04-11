@@ -16,22 +16,25 @@ export type Database = {
     Tables: {
       profiles: {
         Row: {
+          age_group: string
           created_at: string
-          date_of_birth: string | null
+          date_of_birth: string
           id: string
           updated_at: string
           user_id: string
         }
         Insert: {
+          age_group: string
           created_at?: string
-          date_of_birth?: string | null
+          date_of_birth: string
           id?: string
           updated_at?: string
           user_id: string
         }
         Update: {
+          age_group?: string
           created_at?: string
-          date_of_birth?: string | null
+          date_of_birth?: string
           id?: string
           updated_at?: string
           user_id?: string
@@ -73,7 +76,7 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      calculate_age_group: { Args: { dob: string }; Returns: string }
     }
     Enums: {
       [_ in never]: never
