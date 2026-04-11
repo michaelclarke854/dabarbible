@@ -1,7 +1,8 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { useAdminAuth } from "@/hooks/useAdminAuth";
+import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
+import UserEditDrawer from "@/components/UserEditDrawer";
 import {
   LayoutDashboard, Users, CreditCard, MessageSquare,
   Flag, AlertTriangle, FileText, Settings, LogOut
@@ -34,8 +35,6 @@ function DashboardTab() {
       ]);
 
       const questionsToday = (usage || []).reduce((s, r) => s + (r.question_count || 0), 0);
-
-      // Rough MRR calc
       const prices: Record<string, number> = { personal: 3.99, family: 9.99, community: 24.99 };
       const mrr = (subs || []).reduce((s, r) => {
         const p = prices[r.plan_type] || 0;
@@ -66,7 +65,7 @@ function DashboardTab() {
 }
 
 // ─── Users ─────────────────────────────
-function UsersTab() {
+function UsersTab({ callerRole, onEditUser }: { callerRole: string; onEditUser: (id: string) => void }) {
   const [users, setUsers] = useState<any[]>([]);
   const [search, setSearch] = useState("");
   const [planFilter, setPlanFilter] = useState("all");
@@ -77,25 +76,15 @@ function UsersTab() {
     (async () => {
       const { data: profiles } = await supabase
         .from("profiles")
-        .select("user_id, created_at, age_group, language_preference")
+        .select("user_id, created_at, age_group, role, plan, is_suspended")
         .range(page * PAGE_SIZE, (page + 1) * PAGE_SIZE - 1)
         .order("created_at", { ascending: false });
-
-      if (!profiles) return;
-
-      const userIds = profiles.map((p) => p.user_id);
-      const { data: subs } = await supabase
-        .from("subscriptions")
-        .select("user_id, plan_type, status")
-        .in("user_id", userIds);
-
-      const subMap = Object.fromEntries((subs || []).map((s) => [s.user_id, s]));
-      setUsers(profiles.map((p) => ({ ...p, subscription: subMap[p.user_id] })));
+      setUsers(profiles || []);
     })();
   }, [page]);
 
   const filtered = users.filter((u) => {
-    if (planFilter !== "all" && u.subscription?.plan_type !== planFilter) return false;
+    if (planFilter !== "all" && u.plan !== planFilter) return false;
     if (search && !u.user_id.includes(search)) return false;
     return true;
   });
@@ -103,17 +92,10 @@ function UsersTab() {
   return (
     <div className="space-y-4">
       <div className="flex gap-3">
-        <input
-          placeholder="Search by user ID..."
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-          className="bg-input border border-border rounded-sm px-3 py-2 text-sm text-foreground flex-1 placeholder:text-muted-foreground"
-        />
-        <select
-          value={planFilter}
-          onChange={(e) => setPlanFilter(e.target.value)}
-          className="bg-input border border-border rounded-sm px-3 py-2 text-sm text-foreground"
-        >
+        <input placeholder="Search by user ID..." value={search} onChange={(e) => setSearch(e.target.value)}
+          className="bg-input border border-border rounded-sm px-3 py-2 text-sm text-foreground flex-1 placeholder:text-muted-foreground" />
+        <select value={planFilter} onChange={(e) => setPlanFilter(e.target.value)}
+          className="bg-input border border-border rounded-sm px-3 py-2 text-sm text-foreground">
           <option value="all">All Plans</option>
           <option value="free">Free</option>
           <option value="personal">Personal</option>
@@ -128,9 +110,10 @@ function UsersTab() {
             <tr className="border-b border-border text-muted-foreground text-xs uppercase tracking-wider">
               <th className="text-left py-3 px-2">User ID</th>
               <th className="text-left py-3 px-2">Joined</th>
-              <th className="text-left py-3 px-2">Age Group</th>
+              <th className="text-left py-3 px-2">Role</th>
               <th className="text-left py-3 px-2">Plan</th>
               <th className="text-left py-3 px-2">Status</th>
+              <th className="text-left py-3 px-2"></th>
             </tr>
           </thead>
           <tbody>
@@ -138,11 +121,23 @@ function UsersTab() {
               <tr key={u.user_id} className="border-b border-border/50 hover:bg-secondary/50">
                 <td className="py-3 px-2 text-foreground font-mono text-xs">{u.user_id.slice(0, 8)}…</td>
                 <td className="py-3 px-2 text-muted-foreground">{new Date(u.created_at).toLocaleDateString()}</td>
-                <td className="py-3 px-2 text-muted-foreground">{u.age_group || "—"}</td>
                 <td className="py-3 px-2">
-                  <span className="text-gold font-serif text-xs uppercase">{u.subscription?.plan_type || "free"}</span>
+                  <span className={`font-serif text-xs uppercase ${u.role === "super_admin" ? "text-gold" : u.role === "beta" ? "text-gold-light" : "text-muted-foreground"}`}>
+                    {u.role}
+                  </span>
                 </td>
-                <td className="py-3 px-2 text-muted-foreground">{u.subscription?.status || "active"}</td>
+                <td className="py-3 px-2 text-gold font-serif text-xs uppercase">{u.plan}</td>
+                <td className="py-3 px-2">
+                  <span className={`text-xs ${u.is_suspended ? "text-destructive" : "text-green-500"}`}>
+                    {u.is_suspended ? "Suspended" : "Active"}
+                  </span>
+                </td>
+                <td className="py-3 px-2">
+                  <button onClick={() => onEditUser(u.user_id)}
+                    className="text-gold text-xs hover:text-gold-light transition-colors">
+                    Edit
+                  </button>
+                </td>
               </tr>
             ))}
           </tbody>
@@ -173,10 +168,8 @@ function SubscriptionsTab() {
       setBreakdown(counts);
 
       const { data: recentSubs } = await supabase
-        .from("subscriptions")
-        .select("user_id, plan_type, status, created_at")
-        .order("created_at", { ascending: false })
-        .limit(10);
+        .from("subscriptions").select("user_id, plan_type, status, created_at")
+        .order("created_at", { ascending: false }).limit(10);
       setRecent(recentSubs || []);
     })();
   }, []);
@@ -191,7 +184,6 @@ function SubscriptionsTab() {
           </div>
         ))}
       </div>
-
       <div>
         <h3 className="font-serif text-gold text-sm uppercase tracking-widest mb-3">Recent Events</h3>
         <div className="space-y-2">
@@ -217,12 +209,7 @@ function MonitorTab() {
       const { data } = await supabase.from("session_themes").select("theme");
       const counts: Record<string, number> = {};
       (data || []).forEach((t) => { counts[t.theme] = (counts[t.theme] || 0) + 1; });
-      setThemes(
-        Object.entries(counts)
-          .map(([theme, count]) => ({ theme, count }))
-          .sort((a, b) => b.count - a.count)
-          .slice(0, 20)
-      );
+      setThemes(Object.entries(counts).map(([theme, count]) => ({ theme, count })).sort((a, b) => b.count - a.count).slice(0, 20));
     })();
   }, []);
 
@@ -230,9 +217,7 @@ function MonitorTab() {
 
   return (
     <div className="space-y-3">
-      <p className="text-muted-foreground text-xs mb-4">
-        Aggregated themes across all sessions — no individual user data shown.
-      </p>
+      <p className="text-muted-foreground text-xs mb-4">Aggregated themes — no individual user data shown.</p>
       {themes.map((t) => (
         <div key={t.theme} className="flex items-center gap-3">
           <span className="text-foreground text-sm w-40 truncate font-body">{t.theme}</span>
@@ -253,12 +238,9 @@ function FlaggedTab() {
 
   useEffect(() => {
     (async () => {
-      const { data } = await supabase
-        .from("wisdom_sessions")
-        .select("id, question, created_at")
-        .eq("flagged", true)
-        .order("created_at", { ascending: false })
-        .limit(50);
+      const { data } = await supabase.from("wisdom_sessions")
+        .select("id, question, created_at").eq("flagged", true)
+        .order("created_at", { ascending: false }).limit(50);
       setSessions(data || []);
     })();
   }, []);
@@ -282,20 +264,15 @@ function CrisisTab() {
 
   useEffect(() => {
     (async () => {
-      const { data } = await supabase
-        .from("crisis_events")
-        .select("*")
-        .order("routed_at", { ascending: false })
-        .limit(50);
+      const { data } = await supabase.from("crisis_events").select("*")
+        .order("routed_at", { ascending: false }).limit(50);
       setEvents(data || []);
     })();
   }, []);
 
   return (
     <div className="space-y-3">
-      <p className="text-muted-foreground text-xs mb-4">
-        Crisis keyword triggers — no user identity stored.
-      </p>
+      <p className="text-muted-foreground text-xs mb-4">Crisis keyword triggers — no user identity stored.</p>
       {events.map((e) => (
         <div key={e.id} className="flex items-center justify-between bg-card border border-border rounded-sm px-4 py-3">
           <span className="text-destructive font-body text-sm font-medium">{e.keyword}</span>
@@ -314,65 +291,43 @@ function PromptsTab() {
   const [newVersion, setNewVersion] = useState("");
   const [newContent, setNewContent] = useState("");
 
-  useEffect(() => {
-    (async () => {
-      const { data } = await supabase
-        .from("system_prompts")
-        .select("*")
-        .order("created_at", { ascending: false });
-      setPrompts(data || []);
-    })();
-  }, []);
+  const refresh = async () => {
+    const { data } = await supabase.from("system_prompts").select("*").order("created_at", { ascending: false });
+    setPrompts(data || []);
+  };
+
+  useEffect(() => { refresh(); }, []);
 
   const createPrompt = async () => {
     if (!newVersion || !newContent) return;
     try {
       const content = JSON.parse(newContent);
       const { data: { user } } = await supabase.auth.getUser();
-      await supabase.from("system_prompts").insert({
-        version: newVersion,
-        content,
-        created_by: user?.id,
-      });
-      setNewVersion("");
-      setNewContent("");
-      // Refresh
-      const { data } = await supabase.from("system_prompts").select("*").order("created_at", { ascending: false });
-      setPrompts(data || []);
+      await supabase.from("system_prompts").insert({ version: newVersion, content, created_by: user?.id });
+      setNewVersion(""); setNewContent("");
+      refresh();
     } catch { /* invalid JSON */ }
   };
 
   const activatePrompt = async (id: string) => {
-    // Deactivate all, then activate this one
     await supabase.from("system_prompts").update({ is_active: false }).neq("id", "");
     await supabase.from("system_prompts").update({ is_active: true }).eq("id", id);
-    const { data } = await supabase.from("system_prompts").select("*").order("created_at", { ascending: false });
-    setPrompts(data || []);
+    refresh();
   };
 
   return (
     <div className="space-y-6">
       <div className="bg-card border border-border rounded-sm p-4 space-y-3">
         <p className="font-serif text-gold text-xs uppercase tracking-widest">New Prompt Version</p>
-        <input
-          placeholder="Version (e.g. v2.1)"
-          value={newVersion}
-          onChange={(e) => setNewVersion(e.target.value)}
-          className="bg-input border border-border rounded-sm px-3 py-2 text-sm text-foreground w-full placeholder:text-muted-foreground"
-        />
-        <textarea
-          placeholder='Content as JSON (e.g. {"mirror": "...", "scripture": "..."})'
-          value={newContent}
-          onChange={(e) => setNewContent(e.target.value)}
-          rows={6}
-          className="bg-input border border-border rounded-sm px-3 py-2 text-sm text-foreground w-full placeholder:text-muted-foreground font-mono resize-none"
-        />
+        <input placeholder="Version (e.g. v2.1)" value={newVersion} onChange={(e) => setNewVersion(e.target.value)}
+          className="bg-input border border-border rounded-sm px-3 py-2 text-sm text-foreground w-full placeholder:text-muted-foreground" />
+        <textarea placeholder='Content as JSON' value={newContent} onChange={(e) => setNewContent(e.target.value)} rows={6}
+          className="bg-input border border-border rounded-sm px-3 py-2 text-sm text-foreground w-full placeholder:text-muted-foreground font-mono resize-none" />
         <button onClick={createPrompt}
           className="bg-gold text-primary-foreground font-serif text-xs uppercase tracking-widest px-6 py-2 rounded-sm hover:bg-gold-light transition-colors">
           Save Version
         </button>
       </div>
-
       <div className="space-y-3">
         {prompts.map((p) => (
           <div key={p.id} className={`bg-card border rounded-sm p-4 ${p.is_active ? "border-gold" : "border-border"}`}>
@@ -380,12 +335,7 @@ function PromptsTab() {
               <span className="font-serif text-foreground text-sm">{p.version}</span>
               <div className="flex items-center gap-3">
                 {p.is_active && <span className="text-gold text-xs font-serif uppercase">Active</span>}
-                {!p.is_active && (
-                  <button onClick={() => activatePrompt(p.id)}
-                    className="text-gold text-xs hover:text-gold-light transition-colors">
-                    Activate
-                  </button>
-                )}
+                {!p.is_active && <button onClick={() => activatePrompt(p.id)} className="text-gold text-xs hover:text-gold-light transition-colors">Activate</button>}
                 <span className="text-muted-foreground text-xs">{new Date(p.created_at).toLocaleDateString()}</span>
               </div>
             </div>
@@ -405,20 +355,18 @@ function SettingsTab() {
   const [newKey, setNewKey] = useState("");
   const [newValue, setNewValue] = useState("");
 
-  useEffect(() => {
-    (async () => {
-      const { data } = await supabase.from("app_config").select("*").order("key");
-      setConfigs((data || []) as { key: string; value: string }[]);
-    })();
-  }, []);
+  const refresh = async () => {
+    const { data } = await supabase.from("app_config").select("*").order("key");
+    setConfigs((data || []) as { key: string; value: string }[]);
+  };
+
+  useEffect(() => { refresh(); }, []);
 
   const saveConfig = async () => {
     if (!newKey) return;
     await supabase.from("app_config").upsert({ key: newKey, value: newValue, updated_at: new Date().toISOString() });
-    setNewKey("");
-    setNewValue("");
-    const { data } = await supabase.from("app_config").select("*").order("key");
-    setConfigs((data || []) as { key: string; value: string }[]);
+    setNewKey(""); setNewValue("");
+    refresh();
   };
 
   return (
@@ -426,25 +374,14 @@ function SettingsTab() {
       <div className="bg-card border border-border rounded-sm p-4 space-y-3">
         <p className="font-serif text-gold text-xs uppercase tracking-widest">Add / Update Config</p>
         <div className="flex gap-3">
-          <input
-            placeholder="Key"
-            value={newKey}
-            onChange={(e) => setNewKey(e.target.value)}
-            className="bg-input border border-border rounded-sm px-3 py-2 text-sm text-foreground flex-1 placeholder:text-muted-foreground"
-          />
-          <input
-            placeholder="Value"
-            value={newValue}
-            onChange={(e) => setNewValue(e.target.value)}
-            className="bg-input border border-border rounded-sm px-3 py-2 text-sm text-foreground flex-1 placeholder:text-muted-foreground"
-          />
+          <input placeholder="Key" value={newKey} onChange={(e) => setNewKey(e.target.value)}
+            className="bg-input border border-border rounded-sm px-3 py-2 text-sm text-foreground flex-1 placeholder:text-muted-foreground" />
+          <input placeholder="Value" value={newValue} onChange={(e) => setNewValue(e.target.value)}
+            className="bg-input border border-border rounded-sm px-3 py-2 text-sm text-foreground flex-1 placeholder:text-muted-foreground" />
           <button onClick={saveConfig}
-            className="bg-gold text-primary-foreground font-serif text-xs uppercase tracking-widest px-6 py-2 rounded-sm hover:bg-gold-light transition-colors whitespace-nowrap">
-            Save
-          </button>
+            className="bg-gold text-primary-foreground font-serif text-xs uppercase tracking-widest px-6 py-2 rounded-sm hover:bg-gold-light transition-colors whitespace-nowrap">Save</button>
         </div>
       </div>
-
       <div className="space-y-2">
         {configs.map((c) => (
           <div key={c.key} className="flex items-center justify-between bg-card border border-border/50 rounded-sm px-4 py-3">
@@ -461,8 +398,9 @@ function SettingsTab() {
 // ─── Main Admin Page ─────────────────────────────
 export default function AdminDashboard() {
   const navigate = useNavigate();
-  const { user, isAdmin, loading } = useAdminAuth();
+  const { user, role, isAdmin, loading } = useAuth();
   const [activeTab, setActiveTab] = useState<AdminTab>("dashboard");
+  const [editingUserId, setEditingUserId] = useState<string | null>(null);
 
   useEffect(() => {
     if (!loading && (!user || !isAdmin)) {
@@ -487,7 +425,7 @@ export default function AdminDashboard() {
 
   const tabContent: Record<AdminTab, JSX.Element> = {
     dashboard: <DashboardTab />,
-    users: <UsersTab />,
+    users: <UsersTab callerRole={role} onEditUser={(id) => setEditingUserId(id)} />,
     subscriptions: <SubscriptionsTab />,
     monitor: <MonitorTab />,
     flagged: <FlaggedTab />,
@@ -498,30 +436,22 @@ export default function AdminDashboard() {
 
   return (
     <div className="min-h-screen bg-background flex">
-      {/* Sidebar */}
       <aside className="w-56 bg-card border-r border-border flex flex-col">
         <div className="p-6 border-b border-border">
           <h1 className="font-serif text-xl text-gold tracking-widest">DABAR</h1>
           <p className="text-muted-foreground text-xs font-body mt-1">Admin Console</p>
         </div>
-
         <nav className="flex-1 py-4">
           {tabs.map((t) => (
-            <button
-              key={t.id}
-              onClick={() => setActiveTab(t.id)}
+            <button key={t.id} onClick={() => setActiveTab(t.id)}
               className={`w-full flex items-center gap-3 px-6 py-3 text-sm font-body transition-colors ${
-                activeTab === t.id
-                  ? "text-gold bg-secondary border-r-2 border-gold"
-                  : "text-muted-foreground hover:text-foreground hover:bg-secondary/50"
-              }`}
-            >
+                activeTab === t.id ? "text-gold bg-secondary border-r-2 border-gold" : "text-muted-foreground hover:text-foreground hover:bg-secondary/50"
+              }`}>
               <t.icon className="w-4 h-4" />
               {t.label}
             </button>
           ))}
         </nav>
-
         <div className="p-4 border-t border-border">
           <button onClick={handleLogout}
             className="flex items-center gap-2 text-muted-foreground text-sm hover:text-foreground transition-colors w-full">
@@ -531,7 +461,6 @@ export default function AdminDashboard() {
         </div>
       </aside>
 
-      {/* Main content */}
       <main className="flex-1 p-8 overflow-y-auto">
         <div className="max-w-5xl">
           <h2 className="font-serif text-2xl text-foreground tracking-wide mb-6">
@@ -540,6 +469,15 @@ export default function AdminDashboard() {
           {tabContent[activeTab]}
         </div>
       </main>
+
+      {editingUserId && (
+        <UserEditDrawer
+          userId={editingUserId}
+          callerRole={role}
+          onClose={() => setEditingUserId(null)}
+          onUpdated={() => {}}
+        />
+      )}
     </div>
   );
 }

@@ -2,18 +2,18 @@ import { useState, useEffect, useCallback, lazy, Suspense } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { useNavigate } from "react-router-dom";
-import { Flame, BookOpen, Globe, BookText } from "lucide-react";
+import { Flame, BookOpen, Globe, BookText, Lock } from "lucide-react";
 import AskScreen from "@/components/AskScreen";
 import ResponseScreen from "@/components/ResponseScreen";
 import AuthModal from "@/components/AuthModal";
 import OnboardingScreen from "@/components/OnboardingScreen";
+import BetaFeedbackButton from "@/components/BetaFeedbackButton";
 import { parseScriptureRef } from "@/data/kjvBooks";
+import { useAuth } from "@/contexts/AuthContext";
 
-// Lazy-loaded: only fetched when user navigates to these tabs
 const JournalScreen = lazy(() => import("@/components/JournalScreen"));
 const ScriptureScreen = lazy(() => import("@/components/ScriptureScreen"));
 const LanguageSettings = lazy(() => import("@/components/LanguageSettings"));
-import type { User } from "@supabase/supabase-js";
 
 type Tab = "ask" | "scripture" | "journal";
 type Screen = "ask" | "response";
@@ -30,11 +30,17 @@ const incrementGuestQuestions = () => {
   try { localStorage.setItem(STORAGE_KEY, String(getGuestQuestionsUsed() + 1)); } catch {}
 };
 
+const PageSpinner = () => (
+  <div className="min-h-screen flex items-center justify-center">
+    <div className="w-6 h-6 border-2 border-gold/30 border-t-gold rounded-full animate-spin" />
+  </div>
+);
+
 const Index = () => {
   const navigate = useNavigate();
-  const [user, setUser] = useState<User | null>(null);
-  const [ageGroup, setAgeGroup] = useState<string | null>(null);
-  const [planType, setPlanType] = useState<string>("free");
+  const { user, role, plan, isSuspended, ageGroup, hasFullAccess, isBeta, isAdmin, languagePreference, setLanguagePreference, loading: authLoading } = useAuth();
+
+  const [needsDob, setNeedsDob] = useState(false);
   const [tab, setTab] = useState<Tab>("ask");
   const [screen, setScreen] = useState<Screen>("ask");
   const [isLoading, setIsLoading] = useState(false);
@@ -46,69 +52,40 @@ const Index = () => {
     scriptures: string[];
   } | null>(null);
   const [authModal, setAuthModal] = useState<{ open: boolean; message?: string }>({ open: false });
-  const [needsDob, setNeedsDob] = useState(false);
   const [stirPrompt, setStirPrompt] = useState<string | null>(null);
-  const [languagePreference, setLanguagePreference] = useState("en");
   const [showLanguageSettings, setShowLanguageSettings] = useState(false);
   const [hasOnboarded, setHasOnboarded] = useState(() => {
     try { return localStorage.getItem(ONBOARDING_KEY) === "true"; } catch { return false; }
   });
   const [scriptureDeepLink, setScriptureDeepLink] = useState<{ book: string; chapter: number; verse: number } | null>(null);
 
-  const fetchUserData = useCallback(async (userId: string) => {
-    const { data: profile } = await supabase
-      .from("profiles")
-      .select("age_group, language_preference")
-      .eq("user_id", userId)
-      .single();
-    const ag = profile?.age_group;
-    const lp = profile?.language_preference;
-    if (ag) {
-      setAgeGroup(ag);
-      setNeedsDob(false);
-      if (ag === "minor") {
-        toast.error("Dabar is designed for ages 13 and up. Ask a parent or guardian to create a Family Account.");
-        await supabase.auth.signOut();
-        return;
-      }
-    } else {
-      setNeedsDob(true);
-    }
-    if (lp) {
-      setLanguagePreference(lp);
-    }
-
-    const { data: sub } = await supabase
-      .from("subscriptions")
-      .select("plan_type")
-      .eq("user_id", userId)
-      .eq("status", "active")
-      .single();
-    if (sub?.plan_type) {
-      setPlanType(sub.plan_type);
-    }
-  }, []);
-
+  // Redirect suspended users
   useEffect(() => {
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      (_event, session) => {
-        const u = session?.user ?? null;
-        setUser(u);
-        if (u) fetchUserData(u.id);
-        else { setAgeGroup(null); setNeedsDob(false); setPlanType("free"); }
-      }
-    );
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      const u = session?.user ?? null;
-      setUser(u);
-      if (u) fetchUserData(u.id);
-    });
-    return () => subscription.unsubscribe();
-  }, [fetchUserData]);
+    if (!authLoading && isSuspended) {
+      navigate("/suspended", { replace: true });
+    }
+  }, [authLoading, isSuspended, navigate]);
+
+  // Check if DOB is needed
+  useEffect(() => {
+    if (user && !ageGroup && !authLoading) {
+      setNeedsDob(true);
+    } else {
+      setNeedsDob(false);
+    }
+  }, [user, ageGroup, authLoading]);
+
+  // Minor check
+  useEffect(() => {
+    if (ageGroup === "minor" && user) {
+      toast.error("Dabar is designed for ages 13 and up. Ask a parent or guardian to create a Family Account.");
+      supabase.auth.signOut();
+    }
+  }, [ageGroup, user]);
 
   const checkDailyLimit = useCallback(async (): Promise<boolean> => {
     if (!user) return true;
-    if (planType !== "free") return true;
+    if (hasFullAccess) return true;
 
     const today = new Date().toISOString().split("T")[0];
     const { data } = await supabase
@@ -127,7 +104,7 @@ const Index = () => {
       return false;
     }
     return true;
-  }, [user, planType, navigate]);
+  }, [user, hasFullAccess, navigate]);
 
   const incrementDailyUsage = useCallback(async () => {
     if (!user) return;
@@ -205,14 +182,12 @@ const Index = () => {
       });
       return;
     }
-
-    if (planType === "free") {
+    if (!hasFullAccess) {
       toast("Journal requires a Personal plan or above.", {
         action: { label: "View Plans", onClick: () => navigate("/pricing") },
       });
       return;
     }
-
     if (!currentResponse) return;
 
     setIsSaving(true);
@@ -238,7 +213,7 @@ const Index = () => {
     } finally {
       setIsSaving(false);
     }
-  }, [user, currentResponse, planType, navigate]);
+  }, [user, currentResponse, hasFullAccess, navigate]);
 
   const handleScriptureDeepLink = useCallback((ref: string) => {
     const parsed = parseScriptureRef(ref);
@@ -249,11 +224,21 @@ const Index = () => {
   }, []);
 
   const handleTabChange = (newTab: Tab) => {
-    if ((newTab === "journal") && !user) {
+    if (newTab === "scripture" && !hasFullAccess && user) {
+      toast("Scripture tab requires a paid plan.", {
+        action: { label: "View Plans", onClick: () => navigate("/pricing") },
+      });
+      return;
+    }
+    if (newTab === "scripture" && !user) {
+      setAuthModal({ open: true, message: "Sign in to access the Scripture companion." });
+      return;
+    }
+    if (newTab === "journal" && !user) {
       setAuthModal({ open: true, message: "Sign in to view your journal." });
       return;
     }
-    if (newTab === "journal" && planType === "free") {
+    if (newTab === "journal" && !hasFullAccess) {
       toast("Journal requires a Personal plan or above.", {
         action: { label: "View Plans", onClick: () => navigate("/pricing") },
       });
@@ -277,7 +262,7 @@ const Index = () => {
             }}
           />
         ) : showLanguageSettings && user ? (
-          <Suspense fallback={<div className="min-h-screen flex items-center justify-center"><div className="w-6 h-6 border-2 border-gold/30 border-t-gold rounded-full animate-spin" /></div>}>
+          <Suspense fallback={<PageSpinner />}>
             <LanguageSettings
               userId={user.id}
               currentLanguage={languagePreference}
@@ -301,7 +286,7 @@ const Index = () => {
               onStir={(thresholdQ) => {
                 reflectOnThis().then(() => {
                   if (!user) return;
-                  if (planType === "free") return;
+                  if (!hasFullAccess) return;
                   setStirPrompt(thresholdQ);
                   setTab("journal");
                 });
@@ -312,7 +297,7 @@ const Index = () => {
             />
           ) : null
         ) : tab === "scripture" ? (
-          <Suspense fallback={<div className="min-h-screen flex items-center justify-center"><div className="w-6 h-6 border-2 border-gold/30 border-t-gold rounded-full animate-spin" /></div>}>
+          <Suspense fallback={<PageSpinner />}>
             <ScriptureScreen
               user={user}
               deepLink={scriptureDeepLink}
@@ -320,7 +305,7 @@ const Index = () => {
             />
           </Suspense>
         ) : (
-          <Suspense fallback={<div className="min-h-screen flex items-center justify-center"><div className="w-6 h-6 border-2 border-gold/30 border-t-gold rounded-full animate-spin" /></div>}>
+          <Suspense fallback={<PageSpinner />}>
             <JournalScreen stirPrompt={stirPrompt} onStirConsumed={() => setStirPrompt(null)} />
           </Suspense>
         )}
@@ -344,7 +329,7 @@ const Index = () => {
               tab === "scripture" ? "text-gold" : "text-muted-foreground"
             }`}
           >
-            <BookText size={18} strokeWidth={1.5} />
+            {!hasFullAccess && user ? <Lock size={18} strokeWidth={1.5} /> : <BookText size={18} strokeWidth={1.5} />}
             <span className="font-serif text-[10px] tracking-widest uppercase">Scripture</span>
           </button>
           <button
@@ -353,7 +338,7 @@ const Index = () => {
               tab === "journal" ? "text-gold" : "text-muted-foreground"
             }`}
           >
-            <BookOpen size={18} strokeWidth={1.5} />
+            {!hasFullAccess && user ? <Lock size={18} strokeWidth={1.5} /> : <BookOpen size={18} strokeWidth={1.5} />}
             <span className="font-serif text-[10px] tracking-widest uppercase">Journal</span>
           </button>
         </div>
@@ -361,15 +346,28 @@ const Index = () => {
 
       {/* Top bar */}
       {(hasOnboarded || user) && <div className="fixed top-0 left-0 right-0 z-20 flex justify-between items-center px-4 py-3">
-        {user && planType === "free" && (
-          <button
-            onClick={() => navigate("/pricing")}
-            className="text-[10px] font-body tracking-wider uppercase text-gold hover:text-gold-dark transition-colors border border-gold/30 px-3 py-1 rounded-sm"
-          >
-            Upgrade
-          </button>
-        )}
+        <div className="flex items-center gap-2">
+          {user && !hasFullAccess && (
+            <button
+              onClick={() => navigate("/pricing")}
+              className="text-[10px] font-body tracking-wider uppercase text-gold hover:text-gold-dark transition-colors border border-gold/30 px-3 py-1 rounded-sm"
+            >
+              Upgrade
+            </button>
+          )}
+          {isBeta && (
+            <span className="text-[10px] font-serif text-gold bg-gold/10 px-2 py-0.5 rounded">β Beta</span>
+          )}
+        </div>
         <div className="flex items-center gap-3">
+          {isAdmin && (
+            <button
+              onClick={() => navigate("/admin")}
+              className="text-[10px] font-body tracking-wider uppercase text-gold hover:text-gold-light transition-colors"
+            >
+              Admin
+            </button>
+          )}
           {user && (
             <button
               onClick={() => setShowLanguageSettings(true)}
@@ -393,10 +391,13 @@ const Index = () => {
         </div>
       </div>}
 
+      {/* Beta feedback button */}
+      <BetaFeedbackButton />
+
       <AuthModal
         isOpen={showAuthModal}
         onClose={() => setAuthModal({ open: false })}
-        onSignedUp={() => { if (user) fetchUserData(user.id); }}
+        onSignedUp={() => {}}
         message={authModal.message}
       />
 
@@ -405,7 +406,7 @@ const Index = () => {
         onClose={() => {}}
         dobOnly
         userId={user?.id}
-        onDobSubmitted={() => { if (user) fetchUserData(user.id); }}
+        onDobSubmitted={() => {}}
         message="So your experience feels right for where you are in life."
       />
     </div>
