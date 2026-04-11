@@ -240,6 +240,7 @@ const OnboardingScreen = ({ onBegin }: OnboardingScreenProps) => {
             — Jeremiah 23:29 (KJV)
           </p>
         </div>
+      </div>
       </div>{/* end centered content wrapper */}
 
       {/* 6. Footer */}
