@@ -585,6 +585,7 @@ export type Database = {
     }
     Functions: {
       calculate_age_group: { Args: { dob: string }; Returns: string }
+      cleanup_deleted_reflections: { Args: never; Returns: undefined }
       get_user_role: { Args: { _user_id: string }; Returns: string }
       has_role: {
         Args: {
