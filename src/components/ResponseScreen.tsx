@@ -26,6 +26,9 @@ const ResponseScreen = ({
   isSaving,
   isSaved,
   onScriptureRef,
+  userId,
+  profileVersion,
+  onProfileVersionChanged,
 }: ResponseScreenProps) => {
   const [visibleBlocks, setVisibleBlocks] = useState(0);
   const blocks = useMemo(() => parseResponse(response), [response]);
