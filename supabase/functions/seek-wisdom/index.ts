@@ -139,9 +139,54 @@ const AGE_LAYERS: Record<string, string> = {
   adult: `\n\nADDITIONAL CONTEXT: The person asking is an adult (23+). Speak with the full weight and depth of scriptural wisdom. You may engage with more complex theological dimensions when the question warrants it.`,
 };
 
-function getSystemPrompt(ageGroup: string | null, patternContext: string): string {
+// Scripture version config — ready for multilingual expansion
+const SCRIPTURE_VERSIONS: Record<string, { name: string; instruction: string }> = {
+  KJV: {
+    name: "King James Version",
+    instruction: "Your sole scriptural source is the King James Version (KJV) of the Bible.",
+  },
+  RV1960: {
+    name: "Reina Valera 1960",
+    instruction: "Tu única fuente escritural es la Reina Valera 1960. Cita los versículos exactamente como aparecen en esa versión.",
+  },
+  ARA: {
+    name: "Almeida Revista e Atualizada",
+    instruction: "Sua única fonte escritural é a Almeida Revista e Atualizada (ARA). Cite os versículos exatamente como aparecem nessa versão.",
+  },
+};
+
+const LANGUAGE_INSTRUCTIONS: Record<string, string> = {
+  en: "Respond entirely in English.",
+  es: "Responde completamente en español. Usa un tono poético y reverente similar al castellano clásico.",
+  pt: "Responda completamente em português. Use um tom poético e reverente.",
+  ko: "전체 응답을 한국어로 작성하세요. 경건하고 시적인 어조를 사용하세요.",
+  fr: "Répondez entièrement en français. Utilisez un ton poétique et révérencieux.",
+};
+
+function getSystemPrompt(
+  ageGroup: string | null,
+  patternContext: string,
+  language: string = "en",
+  scriptureVersion: string = "KJV"
+): string {
   const layer = ageGroup && AGE_LAYERS[ageGroup] ? AGE_LAYERS[ageGroup] : AGE_LAYERS["adult"];
-  return BASE_SYSTEM_PROMPT + layer + patternContext;
+  const langInstruction = LANGUAGE_INSTRUCTIONS[language] || LANGUAGE_INSTRUCTIONS["en"];
+  const versionConfig = SCRIPTURE_VERSIONS[scriptureVersion] || SCRIPTURE_VERSIONS["KJV"];
+  
+  // Replace the KJV instruction in the base prompt with the appropriate version
+  let prompt = BASE_SYSTEM_PROMPT;
+  if (scriptureVersion !== "KJV") {
+    prompt = prompt.replace(
+      "Your sole scriptural source is the King James Version (KJV) of the Bible.",
+      versionConfig.instruction
+    );
+    prompt = prompt.replace(
+      "Use the language and cadence of the KJV — its beauty and weight are part of the authority.",
+      `Use the language and cadence of the ${versionConfig.name} — its beauty and weight are part of the authority.`
+    );
+  }
+  
+  return prompt + layer + patternContext + `\n\n${langInstruction}`;
 }
 
 function getCrisisKeywords(ageGroup: string | null): string[] {
@@ -157,7 +202,7 @@ serve(async (req) => {
   }
 
   try {
-    const { question, userId, ageGroup } = await req.json();
+    const { question, userId, ageGroup, language = "en", scriptureVersion = "KJV" } = await req.json();
 
     if (!question || typeof question !== "string" || question.trim().length === 0) {
       return new Response(
