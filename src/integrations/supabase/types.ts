@@ -14,7 +14,36 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      wisdom_sessions: {
+        Row: {
+          created_at: string
+          id: string
+          question: string
+          response: string
+          saved_to_journal: boolean | null
+          scripture_refs: string[] | null
+          user_id: string | null
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          question: string
+          response: string
+          saved_to_journal?: boolean | null
+          scripture_refs?: string[] | null
+          user_id?: string | null
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          question?: string
+          response?: string
+          saved_to_journal?: boolean | null
+          scripture_refs?: string[] | null
+          user_id?: string | null
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
