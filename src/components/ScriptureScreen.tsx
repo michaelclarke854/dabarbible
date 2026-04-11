@@ -73,6 +73,7 @@ const ScriptureScreen = ({
   const [verseActiveVersion, setVerseActiveVersion] = useState<Record<number, BibleVersion>>({});
   const [sheetOpen, setSheetOpen] = useState(false);
   const [chapterLoading, setChapterLoading] = useState(false);
+  const [availableChapterVersions, setAvailableChapterVersions] = useState<BibleVersion[]>(VERSIONS.slice() as BibleVersion[]);
 
   // Annotations
   const [annotations, setAnnotations] = useState<Record<string, AnnotationData>>({});
@@ -149,6 +150,23 @@ const ScriptureScreen = ({
         const data = await res.json();
         if (data.verses) {
           setVerses(data.verses.map((v: any) => ({ verse: v.verse, text: v.text.trim() })));
+
+          // Probe which other versions have data for this book (check verse 1)
+          const probeRef = `${bookQuery}+${chapter}:1`;
+          const probeResults = await Promise.allSettled(
+            VERSIONS.map(async (ver) => {
+              if (ver === version) return { ver, ok: true };
+              const r = await fetch(
+                `https://${projectId}.supabase.co/functions/v1/bible-proxy?ref=${encodeURIComponent(probeRef)}&translation=${VERSION_API_MAP[ver]}`
+              );
+              const d = await r.json();
+              return { ver, ok: !!d.text?.trim() };
+            })
+          );
+          const available = probeResults
+            .filter((r) => r.status === "fulfilled" && r.value.ok)
+            .map((r) => (r as PromiseFulfilledResult<{ ver: BibleVersion; ok: boolean }>).value.ver);
+          setAvailableChapterVersions(available.length > 0 ? available : [version]);
         } else {
           toast.error("Could not load chapter.");
         }
@@ -193,19 +211,22 @@ const ScriptureScreen = ({
       [activeChapterVersion]: current?.text || "",
     };
 
-    // Fetch other versions in parallel
+    // Fetch other versions in parallel — only cache versions that return data
     const others = VERSIONS.filter((v) => v !== activeChapterVersion);
     const projectId = import.meta.env.VITE_SUPABASE_PROJECT_ID;
     const results = await Promise.allSettled(
       others.map(async (ver) => {
         const res = await fetch(`https://${projectId}.supabase.co/functions/v1/bible-proxy?ref=${encodeURIComponent(ref)}&translation=${VERSION_API_MAP[ver]}`);
         const data = await res.json();
-        return { ver, text: data.text?.trim() || `[${ver} not available]` };
+        const text = data.text?.trim();
+        return { ver, text: text || null };
       })
     );
 
     results.forEach((r) => {
-      if (r.status === "fulfilled") cache[r.value.ver] = r.value.text;
+      if (r.status === "fulfilled" && r.value.text) {
+        cache[r.value.ver] = r.value.text;
+      }
     });
 
     setVerseVersionCache((prev) => ({ ...prev, [verseNum]: cache }));
@@ -532,9 +553,8 @@ const ScriptureScreen = ({
                 {isExpanded && (
                   <div className="ml-8 mt-2">
                     <div className="flex items-center gap-1.5 flex-wrap">
-                      {VERSIONS.map((ver) => {
+                      {VERSIONS.filter((ver) => !!verseVersionCache[v.verse]?.[ver] || ver === currentVerseVersion).map((ver) => {
                         const isActive = ver === currentVerseVersion;
-                        const hasCache = !!verseVersionCache[v.verse]?.[ver];
                         return (
                           <button
                             key={ver}
@@ -543,13 +563,10 @@ const ScriptureScreen = ({
                               if (ver === currentVerseVersion) return;
                               setVerseActiveVersion((prev) => ({ ...prev, [v.verse]: ver }));
                             }}
-                            disabled={!hasCache && ver !== currentVerseVersion}
                             className={`font-serif-display text-[0.6rem] tracking-[0.08em] uppercase px-2 py-[3px] rounded-[4px] border transition-all duration-200 ${
                               isActive
                                 ? "bg-gold text-[#0D0B08] border-gold"
-                                : hasCache
-                                ? "bg-[rgba(196,151,58,0.08)] text-[rgba(196,151,58,0.5)] border-[rgba(196,151,58,0.15)] hover:bg-[rgba(196,151,58,0.14)] hover:text-[rgba(196,151,58,0.7)] cursor-pointer"
-                                : "bg-[rgba(196,151,58,0.04)] text-[rgba(196,151,58,0.25)] border-[rgba(196,151,58,0.08)] cursor-wait"
+                                : "bg-[rgba(196,151,58,0.08)] text-[rgba(196,151,58,0.5)] border-[rgba(196,151,58,0.15)] hover:bg-[rgba(196,151,58,0.14)] hover:text-[rgba(196,151,58,0.7)] cursor-pointer"
                             }`}
                           >
                             {ver}
@@ -586,6 +603,7 @@ const ScriptureScreen = ({
         chapter={selectedChapter || 0}
         onSelectVersion={handleChapterVersionSwitch}
         onSetDefault={() => setAsProfileDefault(activeChapterVersion)}
+        availableVersions={availableChapterVersions}
       />
     </div>
   );

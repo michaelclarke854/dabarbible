@@ -11,6 +11,7 @@ interface ChapterVersionSheetProps {
   chapter: number;
   onSelectVersion: (v: BibleVersion) => void;
   onSetDefault: () => void;
+  availableVersions?: BibleVersion[];
 }
 
 const ChapterVersionSheet = ({
@@ -22,8 +23,10 @@ const ChapterVersionSheet = ({
   chapter,
   onSelectVersion,
   onSetDefault,
+  availableVersions,
 }: ChapterVersionSheetProps) => {
   const sheetRef = useRef<HTMLDivElement>(null);
+  const versionsToShow = availableVersions || (VERSIONS.slice() as BibleVersion[]);
 
   useEffect(() => {
     if (!open) return;
@@ -59,7 +62,7 @@ const ChapterVersionSheet = ({
         </p>
 
         <div className="space-y-1">
-          {VERSIONS.map((v) => {
+          {versionsToShow.map((v) => {
             const isActive = v === activeVersion;
             const label = VERSION_LABELS[v];
             return (
