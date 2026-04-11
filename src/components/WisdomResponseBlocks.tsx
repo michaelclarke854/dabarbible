@@ -52,11 +52,18 @@ export function extractThresholdQuestion(blocks: ContentBlock[]): string | null 
 export const ScriptureCard = ({
   block,
   onScriptureRef,
+  userId,
+  profileDefault,
+  onDefaultChanged,
 }: {
   block: ContentBlock;
-  onScriptureRef?: (ref: string) => void;
+  onScriptureRef?: (ref: string, version?: string) => void;
+  userId?: string;
+  profileDefault?: string;
+  onDefaultChanged?: (version: string) => void;
 }) => {
   const [displayText, setDisplayText] = useState(block.verseText || "");
+  const [activeVersion, setActiveVersion] = useState(profileDefault || "KJV");
 
   return (
     <div className="my-6 pl-4 border-l-4 border-gold bg-scripture-card rounded-sm p-4">
@@ -64,15 +71,21 @@ export const ScriptureCard = ({
         "{displayText}"
       </p>
       <button
-        onClick={() => block.reference && onScriptureRef?.(block.reference)}
+        onClick={() => block.reference && onScriptureRef?.(block.reference, activeVersion)}
         className="text-gold font-serif text-sm tracking-wide mt-2 hover:text-gold-light transition-colors cursor-pointer inline-flex items-center gap-1"
       >
         — {block.reference} ↗
       </button>
       <ScriptureVersionPills
+        profileDefault={(profileDefault || "KJV") as any}
         reference={block.reference || ""}
         initialText={block.verseText || ""}
-        onVersionChange={(_version, text) => setDisplayText(text)}
+        userId={userId}
+        onVersionChange={(version, text) => {
+          setDisplayText(text);
+          setActiveVersion(version);
+        }}
+        onDefaultChanged={onDefaultChanged as any}
       />
     </div>
   );
