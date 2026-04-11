@@ -243,8 +243,8 @@ const OnboardingScreen = ({ onBegin }: OnboardingScreenProps) => {
 
       {/* 6. Footer */}
       <footer
-        className="w-full mt-8 py-10 px-6"
-        style={{ backgroundColor: "#0F0D0A" }}
+        className="w-screen mt-8 py-10 px-6"
+        style={{ backgroundColor: "#0F0D0A", marginLeft: "calc(-50vw + 50%)", marginRight: "calc(-50vw + 50%)", width: "100vw" }}
       >
         <div className="max-w-md mx-auto text-center space-y-6">
           {/* App Store badges */}
