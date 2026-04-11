@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useMemo } from "react";
 
 interface ResponseScreenProps {
   question: string;
@@ -10,6 +10,47 @@ interface ResponseScreenProps {
   isSaved: boolean;
 }
 
+interface ContentBlock {
+  type: "text" | "scripture";
+  content: string;
+  reference?: string;
+  verseText?: string;
+}
+
+function parseResponse(response: string): ContentBlock[] {
+  const blocks: ContentBlock[] = [];
+  const regex = /\[SCRIPTURE\]\s*\nreference:\s*(.+)\ntext:\s*(.+)\n\[\/SCRIPTURE\]/g;
+  let lastIndex = 0;
+  let match;
+
+  while ((match = regex.exec(response)) !== null) {
+    // Text before this scripture block
+    const before = response.slice(lastIndex, match.index).trim();
+    if (before) {
+      before.split("\n").filter((l) => l.trim()).forEach((line) => {
+        blocks.push({ type: "text", content: line.trim() });
+      });
+    }
+    blocks.push({
+      type: "scripture",
+      content: match[0],
+      reference: match[1].trim(),
+      verseText: match[2].trim(),
+    });
+    lastIndex = match.index + match[0].length;
+  }
+
+  // Remaining text after last scripture block
+  const remaining = response.slice(lastIndex).trim();
+  if (remaining) {
+    remaining.split("\n").filter((l) => l.trim()).forEach((line) => {
+      blocks.push({ type: "text", content: line.trim() });
+    });
+  }
+
+  return blocks;
+}
+
 const ResponseScreen = ({
   question,
   response,
@@ -19,14 +60,14 @@ const ResponseScreen = ({
   isSaving,
   isSaved,
 }: ResponseScreenProps) => {
-  const [visibleLines, setVisibleLines] = useState(0);
-  const lines = response.split("\n").filter((l) => l.trim());
+  const [visibleBlocks, setVisibleBlocks] = useState(0);
+  const blocks = useMemo(() => parseResponse(response), [response]);
 
   useEffect(() => {
-    setVisibleLines(0);
+    setVisibleBlocks(0);
     const interval = setInterval(() => {
-      setVisibleLines((prev) => {
-        if (prev >= lines.length) {
+      setVisibleBlocks((prev) => {
+        if (prev >= blocks.length) {
           clearInterval(interval);
           return prev;
         }
@@ -34,7 +75,7 @@ const ResponseScreen = ({
       });
     }, 400);
     return () => clearInterval(interval);
-  }, [response, lines.length]);
+  }, [response, blocks.length]);
 
   return (
     <div className="min-h-[calc(100vh-80px)] px-6 py-12 max-w-2xl mx-auto">
@@ -45,31 +86,33 @@ const ResponseScreen = ({
       <div className="w-8 h-px bg-gold mb-8" />
 
       <div className="space-y-4 mb-8">
-        {lines.map((line, i) => (
-          <p
+        {blocks.map((block, i) => (
+          <div
             key={i}
-            className={`font-serif text-lg md:text-xl leading-relaxed text-foreground transition-all duration-700 ${
-              i < visibleLines ? "opacity-100 translate-y-0" : "opacity-0 translate-y-2"
+            className={`transition-all duration-700 ${
+              i < visibleBlocks ? "opacity-100 translate-y-0" : "opacity-0 translate-y-2"
             }`}
             style={{ transitionDelay: `${i * 100}ms` }}
           >
-            {line}
-          </p>
+            {block.type === "scripture" ? (
+              <div className="my-6 pl-4 border-l-2 border-gold/40">
+                <p className="font-serif text-base md:text-lg leading-relaxed text-foreground/90 italic">
+                  "{block.verseText}"
+                </p>
+                <p className="text-gold font-serif text-sm tracking-wide mt-2">
+                  — {block.reference}
+                </p>
+              </div>
+            ) : (
+              <p className="font-serif text-lg md:text-xl leading-relaxed text-foreground">
+                {block.content}
+              </p>
+            )}
+          </div>
         ))}
       </div>
 
-      {scriptures.length > 0 && visibleLines >= lines.length && (
-        <div className="animate-fade-in-up mb-12">
-          <div className="w-8 h-px bg-gold mb-4" />
-          {scriptures.map((ref, i) => (
-            <p key={i} className="text-gold font-serif text-sm tracking-wide mb-1">
-              — {ref}
-            </p>
-          ))}
-        </div>
-      )}
-
-      {visibleLines >= lines.length && (
+      {visibleBlocks >= blocks.length && (
         <div className="animate-fade-in-up flex flex-col sm:flex-row gap-4 pt-4">
           <button
             onClick={onReflect}

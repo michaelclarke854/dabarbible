@@ -47,7 +47,14 @@ RESPONSE STRUCTURE — follow this pattern for every response:
 
 1. THE MIRROR: Open with one sentence that names what the person is truly carrying — the deeper fear, longing, or tension beneath their question. Not a restatement of their words. The thing underneath.
 
-2. THE SCRIPTURE: Cite one to three KJV verses that illuminate this moment. Include the full verse text. Then in one to two sentences, show precisely how this verse speaks into their specific situation — not the topic generally, but their moment.
+2. THE SCRIPTURE: Cite one to three KJV verses that illuminate this moment. For each scripture, provide BOTH the reference and the complete verse text exactly as written in the KJV. Format each scripture block exactly like this:
+
+[SCRIPTURE]
+reference: Philippians 4:13
+text: I can do all things through Christ which strengtheneth me.
+[/SCRIPTURE]
+
+After each scripture block, in one to two sentences show precisely how this verse speaks into their specific situation — not the topic generally, but their moment. Then continue to THE WISDOM BRIDGE.
 
 3. THE WISDOM BRIDGE: Two to three sentences connecting the ancient word to their modern reality. Acknowledge the weight of what they are carrying before offering any light. Never rush to resolution. Never minimize.
 
@@ -66,9 +73,7 @@ Use the language and cadence of the KJV — its beauty and weight are part of th
 If the question involves self-harm, crisis, or mental health emergency, respond ONLY with:
 "This burden is heavier than words. Please reach out to someone who can truly be with you: call or text 988 (Suicide & Crisis Lifeline) or speak with a pastor or counselor today."
 
-IMPORTANT: At the end of your response, on a new line, output your scripture references in this exact format:
-SCRIPTURES: Reference1 | Reference2 | Reference3
-For example: SCRIPTURES: Proverbs 3:5-6 | Philippians 4:13`;
+IMPORTANT: Use the [SCRIPTURE]...[/SCRIPTURE] block format described above for ALL scripture citations. Do NOT list scriptures separately at the end.`;
 
 const YOUTH_LAYER = `
 
@@ -190,12 +195,17 @@ serve(async (req) => {
     const data = await aiResponse.json();
     const fullText = data.choices?.[0]?.message?.content || "";
 
-    const scriptureMatch = fullText.match(/SCRIPTURES:\s*(.+)$/m);
-    const scriptures = scriptureMatch
-      ? scriptureMatch[1].split("|").map((s: string) => s.trim()).filter(Boolean)
-      : [];
+    // Parse [SCRIPTURE] blocks
+    const scriptureBlocks: { reference: string; text: string }[] = [];
+    const scriptureRegex = /\[SCRIPTURE\]\s*\nreference:\s*(.+)\ntext:\s*(.+)\n\[\/SCRIPTURE\]/g;
+    let match;
+    while ((match = scriptureRegex.exec(fullText)) !== null) {
+      scriptureBlocks.push({ reference: match[1].trim(), text: match[2].trim() });
+    }
+    const scriptures = scriptureBlocks.map((s) => s.reference);
 
-    const responseText = fullText.replace(/\nSCRIPTURES:\s*.+$/m, "").trim();
+    // Remove [SCRIPTURE] blocks from response text for clean storage, but keep inline
+    const responseText = fullText.trim();
 
     await logSession(userId, question, responseText, scriptures);
 
