@@ -603,6 +603,7 @@ const ScriptureScreen = ({
         chapter={selectedChapter || 0}
         onSelectVersion={handleChapterVersionSwitch}
         onSetDefault={() => setAsProfileDefault(activeChapterVersion)}
+        availableVersions={availableChapterVersions}
       />
     </div>
   );
