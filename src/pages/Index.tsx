@@ -20,7 +20,7 @@ const PrivacySettings = lazy(() => import("@/components/PrivacySettings"));
 type Tab = "ask" | "scripture" | "history" | "journal";
 type Screen = "ask" | "response";
 
-const GUEST_LIMIT = 3;
+const GUEST_LIMIT = 1;
 const FREE_DAILY_LIMIT = 3;
 const STORAGE_KEY = "dabar-questions-used";
 const ONBOARDING_KEY = "dabar-onboarded";
@@ -136,7 +136,7 @@ const Index = () => {
       if (!user && getGuestQuestionsUsed() >= GUEST_LIMIT) {
         setAuthModal({
           open: true,
-          message: "Your words are worth keeping. Create a free account to continue seeking — and to save what you've received.",
+          message: "Your first question was free. Create an account to keep seeking — and to save what you've received.",
         });
         return;
       }
@@ -181,7 +181,7 @@ const Index = () => {
     if (!user) {
       setAuthModal({
         open: true,
-        message: "Create a free account to save this reflection to your journal.",
+        message: "Create an account to save this reflection to your journal.",
       });
       return;
     }
