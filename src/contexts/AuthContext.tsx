@@ -101,12 +101,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     isSuspended,
     ageGroup,
     languagePreference,
+    preferredBibleVersion,
     isAdmin: role === "super_admin" || role === "admin",
     isBeta: role === "beta",
     hasFullAccess: FULL_ACCESS_ROLES.includes(role),
     loading,
     refreshProfile,
     setLanguagePreference,
+    setPreferredBibleVersion,
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
