@@ -301,7 +301,7 @@ const ScriptureScreen = ({ user, deepLink, onDeepLinkConsumed, onViewResponse }:
                 key={v.verse}
                 ref={el => { verseRefs.current[v.verse] = el; }}
                 className={`group flex gap-3 py-2 px-3 rounded-sm transition-colors ${
-                  isHighlighted ? "bg-gold/10 border-l-2 border-gold" : "border-l-2 border-transparent"
+                  isHighlighted ? "bg-gold/10 border-l-4 border-gold" : "border-l-4 border-transparent"
                 }`}
               >
                 <span className="font-serif text-[11px] text-gold/70 pt-1 select-none min-w-[1.5rem] text-right">

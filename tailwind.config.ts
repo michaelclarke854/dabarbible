@@ -32,6 +32,8 @@ export default {
           DEFAULT: "hsl(var(--parchment))",
           dark: "hsl(var(--parchment-dark))",
         },
+        nav: "hsl(var(--nav))",
+        "scripture-card": "hsl(var(--scripture-card))",
         ink: "hsl(var(--ink))",
         primary: {
           DEFAULT: "hsl(var(--primary))",

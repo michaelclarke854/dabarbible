@@ -107,13 +107,13 @@ const ResponseScreen = ({
             style={{ transitionDelay: `${i * 100}ms` }}
           >
             {block.type === "scripture" ? (
-              <div className="my-6 pl-4 border-l-2 border-gold/40">
+              <div className="my-6 pl-4 border-l-4 border-gold bg-scripture-card rounded-sm p-4">
                 <p className="font-serif text-base md:text-lg leading-relaxed text-foreground/90 italic">
                   "{block.verseText}"
                 </p>
                 <button
                   onClick={() => block.reference && onScriptureRef?.(block.reference)}
-                  className="text-gold font-serif text-sm tracking-wide mt-2 hover:text-gold-dark transition-colors cursor-pointer inline-flex items-center gap-1"
+                  className="text-gold font-serif text-sm tracking-wide mt-2 hover:text-gold-light transition-colors cursor-pointer inline-flex items-center gap-1"
                 >
                   — {block.reference} ↗
                 </button>
@@ -148,7 +148,7 @@ const ResponseScreen = ({
           {thresholdQuestion && (
             <button
               onClick={() => onStir(thresholdQuestion)}
-              className="mt-2 font-['Playfair_Display'] italic text-sm text-gold/80 hover:text-gold transition-colors text-left leading-relaxed"
+              className="mt-2 font-['Playfair_Display'] italic text-sm text-gold-light hover:text-gold transition-colors text-left leading-relaxed"
             >
               "What did this stir in you?" →
             </button>

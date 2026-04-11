@@ -327,7 +327,7 @@ const Index = () => {
       </main>
 
       {/* Bottom Navigation */}
-      {(hasOnboarded || user) && <nav className="fixed bottom-0 left-0 right-0 bg-parchment/95 backdrop-blur-sm border-t border-border z-30">
+      {(hasOnboarded || user) && <nav className="fixed bottom-0 left-0 right-0 bg-nav/95 backdrop-blur-sm border-t border-gold/15 z-30">
         <div className="flex max-w-lg mx-auto">
           <button
             onClick={() => handleTabChange("ask")}

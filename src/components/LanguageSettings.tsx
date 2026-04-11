@@ -142,7 +142,7 @@ const LanguageSettings = ({
       {/* Waitlist modal */}
       {waitlistLang && selectedComingSoon && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-ink/50 backdrop-blur-sm px-6">
-          <div className="bg-parchment border border-border rounded-sm p-8 max-w-sm w-full shadow-xl">
+          <div className="bg-card border border-border rounded-sm p-8 max-w-sm w-full shadow-xl">
             <p className="font-serif text-lg text-foreground leading-relaxed mb-2">
               We're bringing Dabar to{" "}
               <span className="text-gold">{selectedComingSoon.nativeLabel}</span> soon.
