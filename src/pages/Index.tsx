@@ -307,6 +307,9 @@ const Index = () => {
               isSaving={isSaving}
               isSaved={isSaved}
               onScriptureRef={handleScriptureDeepLink}
+              userId={user?.id}
+              profileVersion={preferredBibleVersion}
+              onProfileVersionChanged={(v) => setPreferredBibleVersion(v)}
             />
           ) : null
         ) : tab === "scripture" ? (
