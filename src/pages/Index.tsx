@@ -259,7 +259,7 @@ const Index = () => {
 
   return (
     <div className="min-h-screen flex flex-col">
-      <main className="flex-1 pb-20">
+      <main className={`flex-1 ${hasOnboarded || user ? "pb-20" : ""}`}>
         {!hasOnboarded && !user ? (
           <OnboardingScreen
             onBegin={() => {
