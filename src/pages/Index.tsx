@@ -13,6 +13,7 @@ import { useAuth } from "@/contexts/AuthContext";
 
 const JournalScreen = lazy(() => import("@/components/JournalScreen"));
 const ScriptureScreen = lazy(() => import("@/components/ScriptureScreen"));
+const HistoryScreen = lazy(() => import("@/components/HistoryScreen"));
 const LanguageSettings = lazy(() => import("@/components/LanguageSettings"));
 const PrivacySettings = lazy(() => import("@/components/PrivacySettings"));
 
