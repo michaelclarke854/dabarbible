@@ -29,6 +29,7 @@ const incrementQuestionsUsed = () => {
 
 const Index = () => {
   const [user, setUser] = useState<User | null>(null);
+  const [ageGroup, setAgeGroup] = useState<string | null>(null);
   const [tab, setTab] = useState<Tab>("ask");
   const [screen, setScreen] = useState<Screen>("ask");
   const [isLoading, setIsLoading] = useState(false);
@@ -43,27 +44,56 @@ const Index = () => {
     open: boolean;
     message?: string;
   }>({ open: false });
+  const [needsDob, setNeedsDob] = useState(false);
+
+  const fetchAgeGroup = useCallback(async (userId: string) => {
+    const { data } = await supabase
+      .from("profiles" as any)
+      .select("age_group")
+      .eq("user_id", userId)
+      .single();
+    const ag = (data as any)?.age_group;
+    if (ag) {
+      setAgeGroup(ag);
+      setNeedsDob(false);
+      if (ag === "minor") {
+        toast.error("You must be at least 13 years old to use The Voice.");
+        await supabase.auth.signOut();
+      }
+    } else {
+      setNeedsDob(true);
+    }
+  }, []);
 
   useEffect(() => {
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      (_event, session) => setUser(session?.user ?? null)
+      (_event, session) => {
+        const u = session?.user ?? null;
+        setUser(u);
+        if (u) fetchAgeGroup(u.id);
+        else { setAgeGroup(null); setNeedsDob(false); }
+      }
     );
     supabase.auth.getSession().then(({ data: { session } }) => {
-      setUser(session?.user ?? null);
+      const u = session?.user ?? null;
+      setUser(u);
+      if (u) fetchAgeGroup(u.id);
     });
     return () => subscription.unsubscribe();
-  }, []);
+  }, [fetchAgeGroup]);
 
   const seekWisdom = useCallback(
     async (question: string) => {
-      // Check free limit for guests
       if (!user && getQuestionsUsed() >= FREE_QUESTION_LIMIT) {
         setAuthModal({
           open: true,
-          message:
-            "Your words are worth keeping. Create a free account to save your reflections and continue seeking.",
+          message: "Your words are worth keeping. Create a free account to save your reflections and continue seeking.",
         });
         return;
+      }
+
+      if (user && needsDob) {
+        return; // DOB modal is showing
       }
 
       setIsLoading(true);
@@ -71,7 +101,7 @@ const Index = () => {
 
       try {
         const { data, error } = await supabase.functions.invoke("seek-wisdom", {
-          body: { question, userId: user?.id || null },
+          body: { question, userId: user?.id || null, ageGroup: ageGroup || null },
         });
 
         if (error) throw error;
@@ -91,15 +121,14 @@ const Index = () => {
         setIsLoading(false);
       }
     },
-    [user]
+    [user, ageGroup, needsDob]
   );
 
   const reflectOnThis = useCallback(async () => {
     if (!user) {
       setAuthModal({
         open: true,
-        message:
-          "Create a free account to save this reflection to your journal.",
+        message: "Create a free account to save this reflection to your journal.",
       });
       return;
     }
@@ -107,7 +136,6 @@ const Index = () => {
 
     setIsSaving(true);
     try {
-      // Find the most recent session matching this question/response
       const { data: sessions } = await supabase
         .from("wisdom_sessions")
         .select("id")
@@ -140,6 +168,9 @@ const Index = () => {
     if (newTab === "ask") setScreen("ask");
   };
 
+  const showAuthModal = authModal.open && !needsDob;
+  const showDobModal = needsDob && !!user;
+
   return (
     <div className="min-h-screen flex flex-col">
       <main className="flex-1">
@@ -151,10 +182,7 @@ const Index = () => {
               question={currentResponse.question}
               response={currentResponse.response}
               scriptures={currentResponse.scriptures}
-              onAskAgain={() => {
-                setScreen("ask");
-                setCurrentResponse(null);
-              }}
+              onAskAgain={() => { setScreen("ask"); setCurrentResponse(null); }}
               onReflect={reflectOnThis}
               isSaving={isSaving}
               isSaved={isSaved}
@@ -165,7 +193,6 @@ const Index = () => {
         )}
       </main>
 
-      {/* Bottom Navigation */}
       <nav className="fixed bottom-0 left-0 right-0 bg-parchment/95 backdrop-blur-sm border-t border-border">
         <div className="flex max-w-lg mx-auto">
           <button
@@ -187,7 +214,6 @@ const Index = () => {
         </div>
       </nav>
 
-      {/* User auth indicator */}
       {user && (
         <button
           onClick={async () => {
@@ -200,10 +226,22 @@ const Index = () => {
         </button>
       )}
 
+      {/* Auth modal for signup/signin */}
       <AuthModal
-        isOpen={authModal.open}
+        isOpen={showAuthModal}
         onClose={() => setAuthModal({ open: false })}
+        onSignedUp={() => { if (user) fetchAgeGroup(user.id); }}
         message={authModal.message}
+      />
+
+      {/* DOB-only modal for Google OAuth users without DOB */}
+      <AuthModal
+        isOpen={showDobModal}
+        onClose={() => {}} // Can't dismiss — DOB is required
+        dobOnly
+        userId={user?.id}
+        onDobSubmitted={() => { if (user) fetchAgeGroup(user.id); }}
+        message="So your experience feels right for where you are in life."
       />
     </div>
   );
