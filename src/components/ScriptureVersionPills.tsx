@@ -2,25 +2,25 @@ import { useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 
-const VERSIONS = ["KJV", "NIV", "ESV", "AMP", "MSG", "NLT"] as const;
+const VERSIONS = ["KJV", "WEB", "ASV", "BBE", "DRA", "YLT"] as const;
 type BibleVersion = (typeof VERSIONS)[number];
 
 const VERSION_API_MAP: Record<BibleVersion, string> = {
   KJV: "kjv",
-  NIV: "niv",
-  ESV: "esv",
-  AMP: "amp",
-  MSG: "msg",
-  NLT: "nlt",
+  WEB: "web",
+  ASV: "asv",
+  BBE: "bbe",
+  DRA: "dra",
+  YLT: "ylt",
 };
 
 const VERSION_LABELS: Record<BibleVersion, { full: string; desc: string }> = {
   KJV: { full: "King James Version", desc: "The language of tradition" },
-  NIV: { full: "New International Version", desc: "Clear and accessible" },
-  ESV: { full: "English Standard Version", desc: "Closest to original languages" },
-  AMP: { full: "Amplified Bible", desc: "Every layer of meaning" },
-  MSG: { full: "The Message", desc: "Scripture with fresh ears" },
-  NLT: { full: "New Living Translation", desc: "Warmth and clarity" },
+  WEB: { full: "World English Bible", desc: "Clear, modern, public domain" },
+  ASV: { full: "American Standard Version", desc: "Closest to original languages" },
+  BBE: { full: "Bible in Basic English", desc: "Warmth and clarity" },
+  DRA: { full: "Douay-Rheims", desc: "Historic Catholic translation" },
+  YLT: { full: "Young's Literal Translation", desc: "Every layer of meaning" },
 };
 
 interface ScriptureVersionPillsProps {
@@ -39,7 +39,9 @@ async function fetchVerseText(reference: string, version: BibleVersion): Promise
     const res = await fetch(
       `https://${projectId}.supabase.co/functions/v1/bible-proxy?ref=${encodeURIComponent(refQuery)}&translation=${VERSION_API_MAP[version]}`
     );
+    if (!res.ok) return null;
     const data = await res.json();
+    if (data.error) return null;
     return data.text ? data.text.trim() : null;
   } catch {
     return null;
