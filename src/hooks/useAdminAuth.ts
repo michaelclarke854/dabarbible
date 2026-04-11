@@ -5,24 +5,26 @@ import type { User } from "@supabase/supabase-js";
 export function useAdminAuth() {
   const [user, setUser] = useState<User | null>(null);
   const [isAdmin, setIsAdmin] = useState(false);
+  const [role, setRole] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     const checkAdmin = async (u: User | null) => {
       if (!u) {
         setIsAdmin(false);
+        setRole(null);
         setLoading(false);
         return;
       }
       setUser(u);
-      // Check user_roles table for admin role
       const { data } = await supabase
-        .from("user_roles")
+        .from("profiles")
         .select("role")
         .eq("user_id", u.id)
-        .eq("role", "admin")
         .maybeSingle();
-      setIsAdmin(!!data);
+      const r = data?.role || "free";
+      setRole(r);
+      setIsAdmin(r === "super_admin" || r === "admin");
       setLoading(false);
     };
 
@@ -37,5 +39,5 @@ export function useAdminAuth() {
     return () => subscription.unsubscribe();
   }, []);
 
-  return { user, isAdmin, loading };
+  return { user, isAdmin, role, loading };
 }
