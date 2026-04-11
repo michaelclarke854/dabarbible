@@ -174,7 +174,11 @@ export default function UserEditDrawer({ userId, callerRole, onClose, onUpdated 
           </>
         )}
 
-        {/* Section D — Role History */}
+        {/* Section D — Journal Stats (no content shown) */}
+        <div className="h-px bg-border" />
+        <JournalStatsSection userId={userId} callerRole={callerRole} />
+
+        {/* Section E — Role History */}
         <div className="h-px bg-border" />
         <div className="space-y-3">
           <p className="font-serif text-xs text-gold uppercase tracking-widest">Role History</p>
