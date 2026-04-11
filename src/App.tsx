@@ -14,6 +14,7 @@ const BlogIndex = lazy(() => import("./pages/BlogIndex.tsx"));
 const BlogArticle = lazy(() => import("./pages/BlogArticle.tsx"));
 const PrivacyPage = lazy(() => import("./pages/PrivacyPage.tsx"));
 const TermsPage = lazy(() => import("./pages/TermsPage.tsx"));
+const AdminDashboard = lazy(() => import("./pages/AdminDashboard.tsx"));
 const NotFound = lazy(() => import("./pages/NotFound.tsx"));
 
 const queryClient = new QueryClient();
