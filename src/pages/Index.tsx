@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback, lazy, Suspense } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { useNavigate } from "react-router-dom";
-import { Flame, BookOpen, Globe, BookText, Lock, Settings } from "lucide-react";
+import { Flame, BookOpen, Globe, BookText, Lock, Settings, Clock } from "lucide-react";
 import AskScreen from "@/components/AskScreen";
 import ResponseScreen from "@/components/ResponseScreen";
 import AuthModal from "@/components/AuthModal";
@@ -16,7 +16,7 @@ const ScriptureScreen = lazy(() => import("@/components/ScriptureScreen"));
 const LanguageSettings = lazy(() => import("@/components/LanguageSettings"));
 const PrivacySettings = lazy(() => import("@/components/PrivacySettings"));
 
-type Tab = "ask" | "scripture" | "journal";
+type Tab = "ask" | "scripture" | "history" | "journal";
 type Screen = "ask" | "response";
 
 const GUEST_LIMIT = 3;
