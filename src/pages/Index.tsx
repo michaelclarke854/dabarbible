@@ -372,6 +372,15 @@ const Index = () => {
           )}
           {user && (
             <button
+              onClick={() => setShowPrivacySettings(true)}
+              className="text-muted-foreground hover:text-gold transition-colors"
+              title="Settings"
+            >
+              <Settings size={16} />
+            </button>
+          )}
+          {user && (
+            <button
               onClick={() => setShowLanguageSettings(true)}
               className="text-muted-foreground hover:text-gold transition-colors"
               title="Language"
