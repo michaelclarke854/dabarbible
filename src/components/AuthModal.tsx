@@ -72,8 +72,8 @@ const AuthModal = ({ isOpen, onClose, onSignedUp, onDobSubmitted, message, dobOn
       const ageGroup = getAgeGroup(age);
 
       await supabase
-        .from("profiles" as any)
-        .update({ date_of_birth: dobString, age_group: ageGroup } as any)
+        .from("profiles")
+        .update({ date_of_birth: dobString, age_group: ageGroup })
         .eq("user_id", userId);
 
       toast.success("Thank you.");
@@ -118,8 +118,8 @@ const AuthModal = ({ isOpen, onClose, onSignedUp, onDobSubmitted, message, dobOn
           const ageGroup = getAgeGroup(age);
 
           await supabase
-            .from("profiles" as any)
-            .update({ date_of_birth: dobString, age_group: ageGroup } as any)
+            .from("profiles")
+            .update({ date_of_birth: dobString, age_group: ageGroup })
             .eq("user_id", signUpData.user.id);
         }
 

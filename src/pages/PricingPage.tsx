@@ -85,11 +85,11 @@ const PricingPage = () => {
 
     // Check if student
     const { data: profile } = await supabase
-      .from("profiles" as any)
+      .from("profiles")
       .select("age_group")
       .eq("user_id", session.user.id)
       .single();
-    const isStudent = ["youth", "young_adult"].includes((profile as any)?.age_group || "");
+    const isStudent = ["youth", "young_adult"].includes(profile?.age_group || "");
 
     const cycle = showAnnual[planKey] ? "annual" : "monthly";
 
