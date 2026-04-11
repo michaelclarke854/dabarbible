@@ -218,13 +218,13 @@ const Index = () => {
     }
   }, [user, currentResponse, hasFullAccess, navigate]);
 
-  const handleScriptureDeepLink = useCallback((ref: string) => {
+  const handleScriptureDeepLink = useCallback((ref: string, version?: string) => {
     const parsed = parseScriptureRef(ref);
     if (parsed) {
-      setScriptureDeepLink(parsed);
+      setScriptureDeepLink({ ...parsed, version: version || preferredBibleVersion });
       setTab("scripture");
     }
-  }, []);
+  }, [preferredBibleVersion]);
 
   const handleTabChange = (newTab: Tab) => {
     if (newTab === "scripture" && !hasFullAccess && user) {
