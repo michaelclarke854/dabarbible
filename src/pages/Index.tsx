@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback, lazy, Suspense } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { useNavigate } from "react-router-dom";
-import { Flame, BookOpen, Globe, BookText, Lock } from "lucide-react";
+import { Flame, BookOpen, Globe, BookText, Lock, Settings } from "lucide-react";
 import AskScreen from "@/components/AskScreen";
 import ResponseScreen from "@/components/ResponseScreen";
 import AuthModal from "@/components/AuthModal";
