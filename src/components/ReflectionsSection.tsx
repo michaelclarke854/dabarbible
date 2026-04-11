@@ -1,6 +1,9 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { formatTimestamp, wasEdited } from "@/utils/formatTimestamp";
+import UndoToast from "./UndoToast";
+import { MoreVertical } from "lucide-react";
 
 interface ReflectionEntry {
   id: string;
@@ -9,6 +12,7 @@ interface ReflectionEntry {
   writing_prompt: string | null;
   created_at: string;
   updated_at: string;
+  deleted_at: string | null;
 }
 
 const FALLBACK_PROMPTS = [
@@ -25,6 +29,8 @@ const ReflectionsSection = ({ latestPrompt, stirPrompt, onStirConsumed }: { late
   const [body, setBody] = useState("");
   const [title, setTitle] = useState("");
   const [search, setSearch] = useState("");
+  const [menuOpenId, setMenuOpenId] = useState<string | null>(null);
+  const [deleteToast, setDeleteToast] = useState<{ id: string; index: number } | null>(null);
   const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const hasOpenedStir = useRef(false);
   const queryClient = useQueryClient();
@@ -35,7 +41,6 @@ const ReflectionsSection = ({ latestPrompt, stirPrompt, onStirConsumed }: { late
   useEffect(() => {
     if (stirPrompt && !hasOpenedStir.current && !isWriting) {
       hasOpenedStir.current = true;
-      // Create a new entry with the threshold question as the writing prompt
       (async () => {
         const { data: { user } } = await supabase.auth.getUser();
         if (!user) return;
@@ -60,6 +65,7 @@ const ReflectionsSection = ({ latestPrompt, stirPrompt, onStirConsumed }: { late
       const { data, error } = await supabase
         .from("reflection_entries")
         .select("*")
+        .is("deleted_at", null)
         .order("created_at", { ascending: false });
       if (error) throw error;
       return data as ReflectionEntry[];
@@ -113,6 +119,46 @@ const ReflectionsSection = ({ latestPrompt, stirPrompt, onStirConsumed }: { late
     queryClient.invalidateQueries({ queryKey: ["reflections"] });
   };
 
+  const softDeleteEntry = async (entryId: string) => {
+    setMenuOpenId(null);
+    const idx = entries.findIndex((e) => e.id === entryId);
+    // Optimistic removal
+    queryClient.setQueryData(["reflections"], (old: ReflectionEntry[] | undefined) =>
+      (old || []).filter((e) => e.id !== entryId)
+    );
+    // Set deleted_at
+    await supabase
+      .from("reflection_entries")
+      .update({ deleted_at: new Date().toISOString() })
+      .eq("id", entryId);
+    setDeleteToast({ id: entryId, index: idx });
+  };
+
+  const undoDelete = async (entryId: string) => {
+    await supabase
+      .from("reflection_entries")
+      .update({ deleted_at: null } as any)
+      .eq("id", entryId);
+    setDeleteToast(null);
+    queryClient.invalidateQueries({ queryKey: ["reflections"] });
+  };
+
+  const deleteFromEditor = async () => {
+    if (!currentEntry) return;
+    const entryId = currentEntry.id;
+    setIsWriting(false);
+    setCurrentEntry(null);
+    // Optimistic
+    queryClient.setQueryData(["reflections"], (old: ReflectionEntry[] | undefined) =>
+      (old || []).filter((e) => e.id !== entryId)
+    );
+    await supabase
+      .from("reflection_entries")
+      .update({ deleted_at: new Date().toISOString() })
+      .eq("id", entryId);
+    setDeleteToast({ id: entryId, index: 0 });
+  };
+
   const filtered = search.trim()
     ? entries.filter(
         (e) =>
@@ -123,6 +169,7 @@ const ReflectionsSection = ({ latestPrompt, stirPrompt, onStirConsumed }: { late
 
   // Full-screen writing experience
   if (isWriting) {
+    const edited = currentEntry ? wasEdited(currentEntry.created_at, currentEntry.updated_at) : false;
     return (
       <div className="fixed inset-0 z-40 bg-background flex flex-col">
         <div className="flex items-center justify-between px-6 py-4">
@@ -132,19 +179,52 @@ const ReflectionsSection = ({ latestPrompt, stirPrompt, onStirConsumed }: { late
           >
             ← Back
           </button>
-          <button
-            onClick={autoSave}
-            className="text-sm font-body text-gold hover:text-gold-dark transition-colors"
-          >
-            Save
-          </button>
+          <div className="flex items-center gap-4">
+            <button
+              onClick={autoSave}
+              className="text-sm font-body text-gold hover:text-gold-dark transition-colors"
+            >
+              Save
+            </button>
+            <div className="relative">
+              <button
+                onClick={() => setMenuOpenId(menuOpenId === "editor" ? null : "editor")}
+                className="text-muted-foreground hover:text-foreground transition-colors p-1"
+              >
+                <MoreVertical size={16} />
+              </button>
+              {menuOpenId === "editor" && (
+                <div className="absolute right-0 top-8 bg-card border border-border rounded-sm shadow-lg z-50 py-1 min-w-[160px]">
+                  <button
+                    onClick={deleteFromEditor}
+                    className="w-full text-left px-4 py-2 text-sm text-destructive hover:bg-secondary/50 transition-colors font-body"
+                  >
+                    Delete entry
+                  </button>
+                </div>
+              )}
+            </div>
+          </div>
         </div>
 
         <div className="flex-1 px-6 pb-6 overflow-y-auto">
           {currentEntry?.writing_prompt && (
-            <p className="font-serif italic text-gold text-sm mb-6 leading-relaxed">
+            <p className="font-serif italic text-gold text-sm mb-4 leading-relaxed">
               "{currentEntry.writing_prompt}"
             </p>
+          )}
+
+          {currentEntry && (
+            <div className="mb-4 space-y-0.5">
+              <p className="font-serif-display text-[10px] tracking-[0.08em] text-gold/60">
+                Created {formatTimestamp(currentEntry.created_at)}
+              </p>
+              {edited && (
+                <p className="font-serif-display text-[10px] tracking-[0.08em] text-gold/60">
+                  Last edited {formatTimestamp(currentEntry.updated_at)}
+                </p>
+              )}
+            </div>
           )}
 
           <input
@@ -199,30 +279,70 @@ const ReflectionsSection = ({ latestPrompt, stirPrompt, onStirConsumed }: { late
         </div>
       ) : (
         <div className="space-y-6">
-          {filtered.map((entry) => (
-            <button
-              key={entry.id}
-              onClick={() => openEntry(entry)}
-              className="w-full text-left pb-6 border-b border-border/50 last:border-none"
-            >
-              <time className="text-xs font-body text-muted-foreground tracking-wide uppercase">
-                {new Date(entry.created_at).toLocaleDateString("en-US", {
-                  year: "numeric",
-                  month: "long",
-                  day: "numeric",
-                })}
-              </time>
-              {entry.title && (
-                <p className="font-serif text-base text-foreground mt-1">
-                  {entry.title}
-                </p>
-              )}
-              <p className="font-body text-sm text-muted-foreground/70 mt-1 line-clamp-2 leading-relaxed">
-                {entry.body}
-              </p>
-            </button>
-          ))}
+          {filtered.map((entry) => {
+            const edited = wasEdited(entry.created_at, entry.updated_at);
+            return (
+              <div key={entry.id} className="relative group">
+                <button
+                  onClick={() => openEntry(entry)}
+                  className="w-full text-left pb-6 border-b border-border/50 last:border-none"
+                >
+                  {entry.title && (
+                    <p className="font-serif text-base text-foreground">
+                      {entry.title}
+                    </p>
+                  )}
+                  <div className="mt-1 space-y-0.5">
+                    <time className="font-serif-display text-[10px] tracking-[0.08em] text-gold/60 uppercase block">
+                      {formatTimestamp(entry.created_at)}
+                    </time>
+                    {edited && (
+                      <p className="font-['EB_Garamond'] italic text-[9px] text-muted-foreground/50">
+                        Edited {formatTimestamp(entry.updated_at)}
+                      </p>
+                    )}
+                  </div>
+                  <p className="font-body text-sm text-muted-foreground/70 mt-1 line-clamp-2 leading-relaxed">
+                    {entry.body}
+                  </p>
+                </button>
+                {/* Three-dot menu */}
+                <div className="absolute top-0 right-0">
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setMenuOpenId(menuOpenId === entry.id ? null : entry.id);
+                    }}
+                    className="p-1 text-muted-foreground/40 hover:text-muted-foreground transition-colors opacity-0 group-hover:opacity-100"
+                  >
+                    <MoreVertical size={14} />
+                  </button>
+                  {menuOpenId === entry.id && (
+                    <div className="absolute right-0 top-6 bg-card border border-border rounded-sm shadow-lg z-50 py-1 min-w-[140px]">
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          softDeleteEntry(entry.id);
+                        }}
+                        className="w-full text-left px-4 py-2 text-sm text-destructive hover:bg-secondary/50 transition-colors font-body"
+                      >
+                        Delete entry
+                      </button>
+                    </div>
+                  )}
+                </div>
+              </div>
+            );
+          })}
         </div>
+      )}
+
+      {deleteToast && (
+        <UndoToast
+          message="Entry deleted"
+          onUndo={() => undoDelete(deleteToast.id)}
+          onExpire={() => setDeleteToast(null)}
+        />
       )}
     </div>
   );

@@ -1,7 +1,134 @@
 import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
-import { X, Shield, AlertTriangle, Trash2 } from "lucide-react";
+import { X, Shield, AlertTriangle, Trash2, BookOpen, RotateCcw } from "lucide-react";
 import { toast } from "sonner";
+import { formatTimestamp } from "@/utils/formatTimestamp";
+
+// ─── Journal Stats (no content, counts only) ────────────
+function JournalStatsSection({ userId, callerRole }: { userId: string; callerRole: string }) {
+  const [stats, setStats] = useState({ activeReflections: 0, deletedReflections: 0, savedWisdom: 0 });
+  const [deletedEntries, setDeletedEntries] = useState<any[]>([]);
+  const [showDeleted, setShowDeleted] = useState(false);
+  const [restoring, setRestoring] = useState<string | null>(null);
+
+  useEffect(() => {
+    (async () => {
+      // Count active reflections
+      const { count: activeCount } = await supabase
+        .from("reflection_entries")
+        .select("*", { count: "exact", head: true })
+        .eq("user_id", userId)
+        .is("deleted_at", null);
+
+      // Count deleted reflections
+      const { count: deletedCount } = await supabase
+        .from("reflection_entries")
+        .select("*", { count: "exact", head: true })
+        .eq("user_id", userId)
+        .not("deleted_at", "is", null);
+
+      // Count saved wisdom
+      const { count: wisdomCount } = await supabase
+        .from("wisdom_sessions")
+        .select("*", { count: "exact", head: true })
+        .eq("user_id", userId)
+        .eq("saved_to_journal", true);
+
+      setStats({
+        activeReflections: activeCount || 0,
+        deletedReflections: deletedCount || 0,
+        savedWisdom: wisdomCount || 0,
+      });
+    })();
+  }, [userId]);
+
+  const loadDeletedEntries = async () => {
+    if (showDeleted) { setShowDeleted(false); return; }
+    const { data } = await supabase
+      .from("reflection_entries")
+      .select("id, created_at, deleted_at, body")
+      .eq("user_id", userId)
+      .not("deleted_at", "is", null)
+      .order("deleted_at", { ascending: false });
+    // Show metadata only — word count, no content
+    setDeletedEntries((data || []).map((e) => ({
+      id: e.id,
+      created_at: e.created_at,
+      deleted_at: e.deleted_at,
+      wordCount: (e.body || "").split(/\s+/).filter(Boolean).length,
+      canRestore: new Date().getTime() - new Date(e.deleted_at!).getTime() < 30 * 24 * 60 * 60 * 1000,
+    })));
+    setShowDeleted(true);
+  };
+
+  const restoreEntry = async (entryId: string) => {
+    setRestoring(entryId);
+    await supabase
+      .from("reflection_entries")
+      .update({ deleted_at: null } as any)
+      .eq("id", entryId);
+    setDeletedEntries((prev) => prev.filter((e) => e.id !== entryId));
+    setStats((prev) => ({
+      ...prev,
+      activeReflections: prev.activeReflections + 1,
+      deletedReflections: prev.deletedReflections - 1,
+    }));
+    toast.success("Entry restored");
+    setRestoring(null);
+  };
+
+  return (
+    <div className="space-y-3">
+      <div className="flex items-center gap-2">
+        <BookOpen size={14} className="text-gold" />
+        <span className="font-serif text-xs text-gold uppercase tracking-widest">Journal</span>
+      </div>
+      <div className="grid grid-cols-2 gap-2 text-sm">
+        <span className="text-muted-foreground">Reflections</span>
+        <span className="text-foreground">{stats.activeReflections} active, {stats.deletedReflections} deleted</span>
+        <span className="text-muted-foreground">Saved wisdom</span>
+        <span className="text-foreground">{stats.savedWisdom}</span>
+      </div>
+
+      {stats.deletedReflections > 0 && (
+        <button
+          onClick={loadDeletedEntries}
+          className="text-gold text-xs hover:text-gold-light transition-colors"
+        >
+          {showDeleted ? "Hide deleted entries" : "View deleted entries"}
+        </button>
+      )}
+
+      {showDeleted && deletedEntries.length > 0 && (
+        <div className="space-y-2 max-h-48 overflow-y-auto">
+          {deletedEntries.map((e) => (
+            <div key={e.id} className="bg-secondary/50 rounded-sm p-3 text-xs space-y-1">
+              <div className="flex justify-between items-start">
+                <div>
+                  <p className="text-muted-foreground">Created {formatTimestamp(e.created_at)}</p>
+                  <p className="text-muted-foreground">Deleted {formatTimestamp(e.deleted_at)}</p>
+                  <p className="text-muted-foreground">{e.wordCount} words</p>
+                </div>
+                {e.canRestore ? (
+                  <button
+                    onClick={() => restoreEntry(e.id)}
+                    disabled={restoring === e.id}
+                    className="text-gold text-xs hover:text-gold-light transition-colors flex items-center gap-1 disabled:opacity-50"
+                  >
+                    <RotateCcw size={12} />
+                    Restore
+                  </button>
+                ) : (
+                  <span className="text-destructive/60 text-xs italic">Permanently deleted</span>
+                )}
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
 
 interface UserEditDrawerProps {
   userId: string;
@@ -174,7 +301,11 @@ export default function UserEditDrawer({ userId, callerRole, onClose, onUpdated 
           </>
         )}
 
-        {/* Section D — Role History */}
+        {/* Section D — Journal Stats (no content shown) */}
+        <div className="h-px bg-border" />
+        <JournalStatsSection userId={userId} callerRole={callerRole} />
+
+        {/* Section E — Role History */}
         <div className="h-px bg-border" />
         <div className="space-y-3">
           <p className="font-serif text-xs text-gold uppercase tracking-widest">Role History</p>

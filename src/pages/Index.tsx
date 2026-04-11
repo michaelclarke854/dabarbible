@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback, lazy, Suspense } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { useNavigate } from "react-router-dom";
-import { Flame, BookOpen, Globe, BookText, Lock } from "lucide-react";
+import { Flame, BookOpen, Globe, BookText, Lock, Settings } from "lucide-react";
 import AskScreen from "@/components/AskScreen";
 import ResponseScreen from "@/components/ResponseScreen";
 import AuthModal from "@/components/AuthModal";
@@ -14,6 +14,7 @@ import { useAuth } from "@/contexts/AuthContext";
 const JournalScreen = lazy(() => import("@/components/JournalScreen"));
 const ScriptureScreen = lazy(() => import("@/components/ScriptureScreen"));
 const LanguageSettings = lazy(() => import("@/components/LanguageSettings"));
+const PrivacySettings = lazy(() => import("@/components/PrivacySettings"));
 
 type Tab = "ask" | "scripture" | "journal";
 type Screen = "ask" | "response";
@@ -54,6 +55,7 @@ const Index = () => {
   const [authModal, setAuthModal] = useState<{ open: boolean; message?: string }>({ open: false });
   const [stirPrompt, setStirPrompt] = useState<string | null>(null);
   const [showLanguageSettings, setShowLanguageSettings] = useState(false);
+  const [showPrivacySettings, setShowPrivacySettings] = useState(false);
   const [hasOnboarded, setHasOnboarded] = useState(() => {
     try { return localStorage.getItem(ONBOARDING_KEY) === "true"; } catch { return false; }
   });
@@ -370,6 +372,15 @@ const Index = () => {
           )}
           {user && (
             <button
+              onClick={() => setShowPrivacySettings(true)}
+              className="text-muted-foreground hover:text-gold transition-colors"
+              title="Settings"
+            >
+              <Settings size={16} />
+            </button>
+          )}
+          {user && (
+            <button
               onClick={() => setShowLanguageSettings(true)}
               className="text-muted-foreground hover:text-gold transition-colors"
               title="Language"
@@ -409,6 +420,12 @@ const Index = () => {
         onDobSubmitted={() => refreshProfile()}
         message="So your experience feels right for where you are in life."
       />
+
+      {showPrivacySettings && user && (
+        <Suspense fallback={null}>
+          <PrivacySettings userId={user.id} onClose={() => setShowPrivacySettings(false)} />
+        </Suspense>
+      )}
     </div>
   );
 };

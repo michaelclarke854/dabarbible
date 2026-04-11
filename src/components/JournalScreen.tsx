@@ -1,7 +1,10 @@
-import { useState } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useState, useCallback } from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { formatTimestamp, wasEdited } from "@/utils/formatTimestamp";
 import ReflectionsSection from "./ReflectionsSection";
+import UndoToast from "./UndoToast";
+import { MoreVertical } from "lucide-react";
 
 interface WisdomEntry {
   id: string;
@@ -9,6 +12,7 @@ interface WisdomEntry {
   response: string;
   scripture_refs: string[];
   created_at: string;
+  saved_to_journal: boolean;
 }
 
 type JournalTab = "voice" | "reflections";
@@ -17,6 +21,9 @@ const JournalScreen = ({ stirPrompt, onStirConsumed }: { stirPrompt?: string | n
   const [activeTab, setActiveTab] = useState<JournalTab>(stirPrompt ? "reflections" : "voice");
   const [search, setSearch] = useState("");
   const [expandedId, setExpandedId] = useState<string | null>(null);
+  const [menuOpenId, setMenuOpenId] = useState<string | null>(null);
+  const [unsaveToast, setUnsaveToast] = useState<{ id: string } | null>(null);
+  const queryClient = useQueryClient();
 
   const { data: entries = [], isLoading } = useQuery({
     queryKey: ["journal"],
@@ -31,7 +38,6 @@ const JournalScreen = ({ stirPrompt, onStirConsumed }: { stirPrompt?: string | n
     },
   });
 
-  // Get latest response for writing prompt
   const latestPrompt = entries.length > 0
     ? entries[0].response.split("\n").find((l) => l.trim().endsWith("?"))?.trim()
     : undefined;
@@ -43,6 +49,28 @@ const JournalScreen = ({ stirPrompt, onStirConsumed }: { stirPrompt?: string | n
           e.response.toLowerCase().includes(search.toLowerCase())
       )
     : entries;
+
+  const unsaveEntry = useCallback(async (entryId: string) => {
+    setMenuOpenId(null);
+    // Optimistic removal
+    queryClient.setQueryData(["journal"], (old: WisdomEntry[] | undefined) =>
+      (old || []).filter((e) => e.id !== entryId)
+    );
+    await supabase
+      .from("wisdom_sessions")
+      .update({ saved_to_journal: false })
+      .eq("id", entryId);
+    setUnsaveToast({ id: entryId });
+  }, [queryClient]);
+
+  const undoUnsave = useCallback(async (entryId: string) => {
+    await supabase
+      .from("wisdom_sessions")
+      .update({ saved_to_journal: true })
+      .eq("id", entryId);
+    setUnsaveToast(null);
+    queryClient.invalidateQueries({ queryKey: ["journal"] });
+  }, [queryClient]);
 
   return (
     <div className="min-h-[calc(100vh-80px)] px-6 py-8 max-w-2xl mx-auto">
@@ -104,23 +132,51 @@ const JournalScreen = ({ stirPrompt, onStirConsumed }: { stirPrompt?: string | n
               {filtered.map((entry) => (
                 <article
                   key={entry.id}
-                  className="pb-8 border-b border-border/50 last:border-none cursor-pointer"
-                  onClick={() => setExpandedId(expandedId === entry.id ? null : entry.id)}
+                  className="pb-8 border-b border-border/50 last:border-none relative group"
                 >
-                  <time className="text-xs font-body text-muted-foreground tracking-wide uppercase">
-                    {new Date(entry.created_at).toLocaleDateString("en-US", {
-                      year: "numeric",
-                      month: "long",
-                      day: "numeric",
-                    })}
-                  </time>
-                  <p className="font-body italic text-foreground/70 mt-3 mb-3 text-sm leading-relaxed">
-                    "{entry.question}"
-                  </p>
+                  <div className="flex items-start justify-between">
+                    <div
+                      className="flex-1 cursor-pointer"
+                      onClick={() => setExpandedId(expandedId === entry.id ? null : entry.id)}
+                    >
+                      <time className="font-serif-display text-[10px] tracking-[0.08em] text-gold/60 uppercase">
+                        {formatTimestamp(entry.created_at)}
+                      </time>
+                      <p className="font-body italic text-foreground/70 mt-3 mb-3 text-sm leading-relaxed">
+                        "{entry.question}"
+                      </p>
+                    </div>
+                    {/* Three-dot menu */}
+                    <div className="relative">
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setMenuOpenId(menuOpenId === entry.id ? null : entry.id);
+                        }}
+                        className="p-1 text-muted-foreground/40 hover:text-muted-foreground transition-colors opacity-0 group-hover:opacity-100"
+                      >
+                        <MoreVertical size={14} />
+                      </button>
+                      {menuOpenId === entry.id && (
+                        <div className="absolute right-0 top-6 bg-card border border-border rounded-sm shadow-lg z-50 py-1 min-w-[180px]">
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              unsaveEntry(entry.id);
+                            }}
+                            className="w-full text-left px-4 py-2 text-sm text-destructive hover:bg-secondary/50 transition-colors font-body"
+                          >
+                            Remove from journal
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                  </div>
                   <div
-                    className={`font-serif text-base leading-relaxed text-foreground whitespace-pre-line transition-all ${
+                    className={`font-serif text-base leading-relaxed text-foreground whitespace-pre-line transition-all cursor-pointer ${
                       expandedId === entry.id ? "" : "line-clamp-4"
                     }`}
+                    onClick={() => setExpandedId(expandedId === entry.id ? null : entry.id)}
                   >
                     {entry.response}
                   </div>
@@ -139,6 +195,14 @@ const JournalScreen = ({ stirPrompt, onStirConsumed }: { stirPrompt?: string | n
                 </article>
               ))}
             </div>
+          )}
+
+          {unsaveToast && (
+            <UndoToast
+              message="Removed from journal"
+              onUndo={() => undoUnsave(unsaveToast.id)}
+              onExpire={() => setUnsaveToast(null)}
+            />
           )}
         </>
       )}
