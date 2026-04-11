@@ -196,20 +196,87 @@ function getCrisisKeywords(ageGroup: string | null): string[] {
   return ADULT_CRISIS_KEYWORDS;
 }
 
+// Rate limit config per role
+const RATE_LIMITS: Record<string, number> = {
+  free: 10,        // 10 requests/hour
+  personal: 30,    // 30 requests/hour
+  beta: 30,
+  admin: 100,
+  super_admin: 100,
+  default: 15,
+};
+
+const RATE_WINDOW_MS = 60 * 60 * 1000; // 1 hour
+
+async function checkRateLimit(
+  supabase: ReturnType<typeof createClient>,
+  userId: string,
+  role: string
+): Promise<{ allowed: boolean; remaining: number }> {
+  const limit = RATE_LIMITS[role] || RATE_LIMITS.default;
+  const windowStart = new Date(Date.now() - RATE_WINDOW_MS).toISOString();
+
+  const { data } = await supabase
+    .from("rate_limits")
+    .select("id, request_count, window_start")
+    .eq("user_id", userId)
+    .eq("endpoint", "seek-wisdom")
+    .gte("window_start", windowStart)
+    .order("window_start", { ascending: false })
+    .limit(1)
+    .single();
+
+  if (data) {
+    if (data.request_count >= limit) {
+      return { allowed: false, remaining: 0 };
+    }
+    await supabase
+      .from("rate_limits")
+      .update({ request_count: data.request_count + 1 })
+      .eq("id", data.id);
+    return { allowed: true, remaining: limit - data.request_count - 1 };
+  }
+
+  await supabase.from("rate_limits").insert({
+    user_id: userId,
+    endpoint: "seek-wisdom",
+    request_count: 1,
+  });
+  return { allowed: true, remaining: limit - 1 };
+}
+
 serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
   }
 
   try {
-    const { question, userId, ageGroup, language = "en", scriptureVersion = "KJV" } = await req.json();
+    const body = await req.json();
+    const question = typeof body.question === "string" ? body.question.trim() : "";
+    const userId = typeof body.userId === "string" ? body.userId : null;
+    const ageGroup = typeof body.ageGroup === "string" ? body.ageGroup : null;
+    const language = typeof body.language === "string" ? body.language : "en";
+    const scriptureVersion = typeof body.scriptureVersion === "string" ? body.scriptureVersion : "KJV";
 
-    if (!question || typeof question !== "string" || question.trim().length === 0) {
+    if (!question || question.length === 0) {
       return new Response(
         JSON.stringify({ error: "Please provide a question." }),
         { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
+
+    if (question.length > 2000) {
+      return new Response(
+        JSON.stringify({ error: "Question is too long. Please keep it under 2000 characters." }),
+        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    // Validate language and scriptureVersion against allowed values
+    const ALLOWED_LANGUAGES = ["en", "es", "pt", "ko", "fr"];
+    const ALLOWED_VERSIONS = ["KJV", "RV1960", "ARA"];
+    const safeLang = ALLOWED_LANGUAGES.includes(language) ? language : "en";
+    const safeVersion = ALLOWED_VERSIONS.includes(scriptureVersion) ? scriptureVersion : "KJV";
 
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
     const supabaseKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
