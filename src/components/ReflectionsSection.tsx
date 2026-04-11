@@ -34,19 +34,19 @@ const ReflectionsSection = ({ latestPrompt }: { latestPrompt?: string }) => {
     queryKey: ["reflections"],
     queryFn: async () => {
       const { data, error } = await supabase
-        .from("reflection_entries" as any)
+        .from("reflection_entries")
         .select("*")
         .order("created_at", { ascending: false });
       if (error) throw error;
-      return data as unknown as ReflectionEntry[];
+      return data as ReflectionEntry[];
     },
   });
 
   const autoSave = useCallback(async () => {
     if (!currentEntry?.id || !body.trim()) return;
     await supabase
-      .from("reflection_entries" as any)
-      .update({ body, title: title || null } as any)
+      .from("reflection_entries")
+      .update({ body, title: title || null })
       .eq("id", currentEntry.id);
   }, [currentEntry, body, title]);
 

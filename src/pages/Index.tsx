@@ -44,11 +44,11 @@ const Index = () => {
   const fetchUserData = useCallback(async (userId: string) => {
     // Fetch age group
     const { data: profile } = await supabase
-      .from("profiles" as any)
+      .from("profiles")
       .select("age_group")
       .eq("user_id", userId)
       .single();
-    const ag = (profile as any)?.age_group;
+    const ag = profile?.age_group;
     if (ag) {
       setAgeGroup(ag);
       setNeedsDob(false);
@@ -63,13 +63,13 @@ const Index = () => {
 
     // Fetch subscription
     const { data: sub } = await supabase
-      .from("subscriptions" as any)
+      .from("subscriptions")
       .select("plan_type")
       .eq("user_id", userId)
       .eq("status", "active")
       .single();
-    if ((sub as any)?.plan_type) {
-      setPlanType((sub as any).plan_type);
+    if (sub?.plan_type) {
+      setPlanType(sub.plan_type);
     }
   }, []);
 
@@ -96,13 +96,13 @@ const Index = () => {
 
     const today = new Date().toISOString().split("T")[0];
     const { data } = await supabase
-      .from("usage_daily" as any)
+      .from("usage_daily")
       .select("question_count")
       .eq("user_id", user.id)
       .eq("date", today)
       .single();
 
-    const count = (data as any)?.question_count ?? 0;
+    const count = data?.question_count ?? 0;
     if (count >= FREE_DAILY_LIMIT) {
       toast("You've reached your 3 daily questions.", {
         description: "Upgrade for unlimited wisdom.",
@@ -117,7 +117,7 @@ const Index = () => {
     if (!user) return;
     const today = new Date().toISOString().split("T")[0];
     const { data: existing } = await supabase
-      .from("usage_daily" as any)
+      .from("usage_daily")
       .select("id, question_count")
       .eq("user_id", user.id)
       .eq("date", today)
@@ -125,13 +125,13 @@ const Index = () => {
 
     if (existing) {
       await supabase
-        .from("usage_daily" as any)
-        .update({ question_count: ((existing as any).question_count || 0) + 1 } as any)
-        .eq("id", (existing as any).id);
+        .from("usage_daily")
+        .update({ question_count: (existing.question_count || 0) + 1 })
+        .eq("id", existing.id);
     } else {
       await supabase
-        .from("usage_daily" as any)
-        .insert({ user_id: user.id, date: today, question_count: 1 } as any);
+        .from("usage_daily")
+        .insert({ user_id: user.id, date: today, question_count: 1 });
     }
   }, [user]);
 
