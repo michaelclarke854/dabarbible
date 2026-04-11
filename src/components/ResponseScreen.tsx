@@ -1,4 +1,5 @@
 import { useEffect, useState, useMemo } from "react";
+import ScriptureVersionPills from "./ScriptureVersionPills";
 
 interface ResponseScreenProps {
   question: string;
