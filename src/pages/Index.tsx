@@ -340,6 +340,15 @@ const Index = () => {
             <span className="font-serif text-[10px] tracking-widest uppercase">Scripture</span>
           </button>
           <button
+            onClick={() => handleTabChange("history")}
+            className={`flex-1 py-3 flex flex-col items-center gap-1 transition-colors ${
+              tab === "history" ? "text-gold" : "text-muted-foreground"
+            }`}
+          >
+            {!hasFullAccess && user ? <Lock size={18} strokeWidth={1.5} /> : <Clock size={18} strokeWidth={1.5} />}
+            <span className="font-serif text-[10px] tracking-widest uppercase">History</span>
+          </button>
+          <button
             onClick={() => handleTabChange("journal")}
             className={`flex-1 py-3 flex flex-col items-center gap-1 transition-colors ${
               tab === "journal" ? "text-gold" : "text-muted-foreground"
