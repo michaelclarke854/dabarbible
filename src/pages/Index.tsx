@@ -17,6 +17,7 @@ type Screen = "ask" | "response";
 const GUEST_LIMIT = 3;
 const FREE_DAILY_LIMIT = 3;
 const STORAGE_KEY = "dabar-questions-used";
+const ONBOARDING_KEY = "dabar-onboarded";
 
 const getGuestQuestionsUsed = (): number => {
   try { return parseInt(localStorage.getItem(STORAGE_KEY) || "0", 10); } catch { return 0; }
@@ -45,6 +46,9 @@ const Index = () => {
   const [stirPrompt, setStirPrompt] = useState<string | null>(null);
   const [languagePreference, setLanguagePreference] = useState("en");
   const [showLanguageSettings, setShowLanguageSettings] = useState(false);
+  const [hasOnboarded, setHasOnboarded] = useState(() => {
+    try { return localStorage.getItem(ONBOARDING_KEY) === "true"; } catch { return false; }
+  });
 
   const fetchUserData = useCallback(async (userId: string) => {
     // Fetch age group
