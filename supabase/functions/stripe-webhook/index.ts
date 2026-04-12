@@ -177,6 +177,10 @@ serve(async (req) => {
         const planType = session.metadata?.plan_type;
         const billingCycle = session.metadata?.billing_cycle;
 
+        // Read presentment details (Adaptive Pricing)
+        const presentmentCurrency = (session as any).presentment_details?.presentment_currency ?? null;
+        const presentmentAmount = (session as any).presentment_details?.presentment_amount ?? null;
+
         if (userId && planType) {
           // Store stripe customer ID on profile
           if (session.customer) {
@@ -191,22 +195,23 @@ serve(async (req) => {
             .eq("user_id", userId)
             .single();
 
+          const subData = {
+            plan_type: planType,
+            billing_cycle: billingCycle,
+            status: "active",
+            stripe_subscription_id: session.subscription as string,
+            presentment_currency: presentmentCurrency,
+            presentment_amount: presentmentAmount,
+          };
+
           if (existingSub) {
             await supabase.from("subscriptions")
-              .update({
-                plan_type: planType,
-                billing_cycle: billingCycle,
-                status: "active",
-                stripe_subscription_id: session.subscription as string,
-              })
+              .update(subData)
               .eq("id", existingSub.id);
           } else {
             await supabase.from("subscriptions").insert({
               user_id: userId,
-              plan_type: planType,
-              billing_cycle: billingCycle,
-              status: "active",
-              stripe_subscription_id: session.subscription as string,
+              ...subData,
             });
           }
 
