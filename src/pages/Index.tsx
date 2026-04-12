@@ -546,6 +546,7 @@ const Index = () => {
                 response={currentResponse.response}
                 scriptures={currentResponse.scriptures}
                 isStreaming={isStreaming}
+                agentStage={agentStage}
                 onAskAgain={() => { setScreen("ask"); setCurrentResponse(null); setShowSoftGate(false); }}
                 onReflect={reflectOnThis}
                 onStir={(thresholdQ) => {
