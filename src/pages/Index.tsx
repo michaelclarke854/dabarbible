@@ -126,9 +126,9 @@ const Index = () => {
     }
   }, [user, ageGroup, authLoading, emailUnconfirmed]);
 
-  // Minor check
+  // Blocked age group check (under 13)
   useEffect(() => {
-    if (ageGroup === "minor" && user) {
+    if ((ageGroup === "blocked" || ageGroup === "minor") && user) {
       toast.error("Dabar is designed for ages 13 and up. Ask a parent or guardian to create a Family Account.");
       supabase.auth.signOut();
     }
