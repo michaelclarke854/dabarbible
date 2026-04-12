@@ -81,7 +81,7 @@ serve(async (req) => {
     // Derive origin from request headers
     const origin = req.headers.get("origin")
       ?? req.headers.get("referer")?.split("/").slice(0, 3).join("/")
-      ?? "https://dabarbible.lovable.app";
+      ?? "https://dabarbible.com";
 
     // Determine price
     let effectiveKey = planKey;
