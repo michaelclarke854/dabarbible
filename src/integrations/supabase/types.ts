@@ -165,6 +165,24 @@ export type Database = {
         }
         Relationships: []
       }
+      processed_webhook_events: {
+        Row: {
+          event_id: string
+          event_type: string | null
+          processed_at: string | null
+        }
+        Insert: {
+          event_id: string
+          event_type?: string | null
+          processed_at?: string | null
+        }
+        Update: {
+          event_id?: string
+          event_type?: string | null
+          processed_at?: string | null
+        }
+        Relationships: []
+      }
       profiles: {
         Row: {
           age_group: string | null
@@ -183,6 +201,7 @@ export type Database = {
           role: string
           role_changed_at: string | null
           role_changed_by: string | null
+          stripe_customer_id: string | null
           suspended_at: string | null
           suspended_by: string | null
           trial_converted: boolean
@@ -209,6 +228,7 @@ export type Database = {
           role?: string
           role_changed_at?: string | null
           role_changed_by?: string | null
+          stripe_customer_id?: string | null
           suspended_at?: string | null
           suspended_by?: string | null
           trial_converted?: boolean
@@ -235,6 +255,7 @@ export type Database = {
           role?: string
           role_changed_at?: string | null
           role_changed_by?: string | null
+          stripe_customer_id?: string | null
           suspended_at?: string | null
           suspended_by?: string | null
           trial_converted?: boolean
@@ -267,6 +288,24 @@ export type Database = {
           request_count?: number
           user_id?: string
           window_start?: string
+        }
+        Relationships: []
+      }
+      rate_limits_anonymous: {
+        Row: {
+          count: number | null
+          created_at: string | null
+          key: string
+        }
+        Insert: {
+          count?: number | null
+          created_at?: string | null
+          key: string
+        }
+        Update: {
+          count?: number | null
+          created_at?: string | null
+          key?: string
         }
         Relationships: []
       }
@@ -606,6 +645,7 @@ export type Database = {
     }
     Functions: {
       calculate_age_group: { Args: { dob: string }; Returns: string }
+      cleanup_anon_rate_limits: { Args: never; Returns: undefined }
       cleanup_deleted_reflections: { Args: never; Returns: undefined }
       get_user_role: { Args: { _user_id: string }; Returns: string }
       has_role: {
