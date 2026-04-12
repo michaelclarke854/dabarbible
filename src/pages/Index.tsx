@@ -433,8 +433,7 @@ const Index = () => {
     return <AgeGateScreen />;
   }
 
-  const showAuthModal = authModal.open && !needsDob;
-  const showDobModal = needsDob && !!user;
+  const showAuthModal = authModal.open;
 
   // Trial paywall: show if trial expired and still on trial plan
   if (user && trial.trialExpired) {
