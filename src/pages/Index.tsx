@@ -524,6 +524,7 @@ const Index = () => {
                 question={currentResponse.question}
                 response={currentResponse.response}
                 scriptures={currentResponse.scriptures}
+                isStreaming={isStreaming}
                 onAskAgain={() => { setScreen("ask"); setCurrentResponse(null); setShowSoftGate(false); }}
                 onReflect={reflectOnThis}
                 onStir={(thresholdQ) => {
