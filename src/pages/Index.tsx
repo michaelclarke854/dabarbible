@@ -64,6 +64,7 @@ const Index = () => {
     scriptures: string[];
   } | null>(null);
   const [isStreaming, setIsStreaming] = useState(false);
+  const [agentStage, setAgentStage] = useState<"thinking" | "scripture" | "reflecting" | null>(null);
   const [authModal, setAuthModal] = useState<{ open: boolean; message?: string }>({ open: false });
   const [stirPrompt, setStirPrompt] = useState<string | null>(null);
   const [showLanguageSettings, setShowLanguageSettings] = useState(false);
@@ -205,27 +206,34 @@ const Index = () => {
       setIsSaved(false);
       setShowSoftGate(false);
 
+      // Timed stage progression
+      setAgentStage("thinking");
+      const t1 = setTimeout(() => setAgentStage("scripture"), 800);
+      const t2 = setTimeout(() => setAgentStage("reflecting"), 1800);
+
       try {
         const { data: { session: authSession } } = await supabase.auth.getSession();
 
-        const response = await fetch(
-          `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/seek-wisdom`,
-          {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-              Authorization: `Bearer ${authSession?.access_token ?? import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
-              apikey: import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
-            },
-            body: JSON.stringify({
-              question,
-              userId: user?.id || null,
-              ageGroup: ageGroup || null,
-              language: languagePreference,
-              scriptureVersion: preferredBibleVersion,
-            }),
-          }
-        );
+        // Use scripture-research-agent for authenticated users, seek-wisdom for guests
+        const endpoint = user
+          ? `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/scripture-research-agent`
+          : `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/seek-wisdom`;
+
+        const response = await fetch(endpoint, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${authSession?.access_token ?? import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
+            apikey: import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
+          },
+          body: JSON.stringify({
+            question,
+            userId: user?.id || null,
+            ageGroup: ageGroup || null,
+            language: languagePreference,
+            scriptureVersion: preferredBibleVersion,
+          }),
+        });
 
         if (!response.ok) {
           const err = await response.json().catch(() => ({}));
@@ -255,12 +263,22 @@ const Index = () => {
         const reader = response.body!.getReader();
         const decoder = new TextDecoder();
         let fullText = "";
+        let firstChunk = true;
 
         while (true) {
           const { done, value } = await reader.read();
           if (done) break;
           const chunk = decoder.decode(value, { stream: true });
           fullText += chunk;
+
+          // Clear stage label on first chunk
+          if (firstChunk) {
+            clearTimeout(t1);
+            clearTimeout(t2);
+            setAgentStage(null);
+            firstChunk = false;
+          }
+
           setCurrentResponse((prev) =>
             prev ? { ...prev, response: fullText } : { question, response: fullText, scriptures: [] }
           );
@@ -286,6 +304,9 @@ const Index = () => {
       } catch (err: any) {
         toast.error(err.message || "Could not seek wisdom at this time.");
       } finally {
+        clearTimeout(t1);
+        clearTimeout(t2);
+        setAgentStage(null);
         setIsLoading(false);
         setIsStreaming(false);
       }
@@ -525,6 +546,7 @@ const Index = () => {
                 response={currentResponse.response}
                 scriptures={currentResponse.scriptures}
                 isStreaming={isStreaming}
+                agentStage={agentStage}
                 onAskAgain={() => { setScreen("ask"); setCurrentResponse(null); setShowSoftGate(false); }}
                 onReflect={reflectOnThis}
                 onStir={(thresholdQ) => {

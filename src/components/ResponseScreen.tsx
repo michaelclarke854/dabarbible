@@ -6,6 +6,7 @@ interface ResponseScreenProps {
   response: string;
   scriptures: string[];
   isStreaming?: boolean;
+  agentStage?: "thinking" | "scripture" | "reflecting" | null;
   onAskAgain: () => void;
   onReflect: () => void;
   onStir: (thresholdQuestion: string) => void;
@@ -17,11 +18,18 @@ interface ResponseScreenProps {
   onProfileVersionChanged?: (v: string) => void;
 }
 
+const STAGE_LABELS: Record<string, string> = {
+  thinking: "Listening…",
+  scripture: "Searching scripture…",
+  reflecting: "Reflecting…",
+};
+
 const ResponseScreen = ({
   question,
   response,
   scriptures,
   isStreaming = false,
+  agentStage,
   onAskAgain,
   onReflect,
   onStir,
@@ -82,7 +90,20 @@ const ResponseScreen = ({
         ))}
       </div>
 
-      {isStreaming && (
+      {agentStage && !response && (
+        <div className="flex items-center gap-3 mb-6 animate-fade-in">
+          <div className="flex gap-1">
+            <span className="w-1.5 h-1.5 rounded-full bg-gold animate-pulse" />
+            <span className="w-1.5 h-1.5 rounded-full bg-gold animate-pulse" style={{ animationDelay: "200ms" }} />
+            <span className="w-1.5 h-1.5 rounded-full bg-gold animate-pulse" style={{ animationDelay: "400ms" }} />
+          </div>
+          <span className="font-body text-sm text-muted-foreground italic">
+            {STAGE_LABELS[agentStage] || "Listening…"}
+          </span>
+        </div>
+      )}
+
+      {isStreaming && response && (
         <div className="flex items-center gap-2 mb-4">
           <span className="inline-block w-2 h-5 bg-gold animate-pulse" />
         </div>
