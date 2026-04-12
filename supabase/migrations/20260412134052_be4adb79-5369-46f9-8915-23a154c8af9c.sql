@@ -1,0 +1,2 @@
+ALTER TABLE public.subscriptions DROP CONSTRAINT plan_type_valid;
+ALTER TABLE public.subscriptions ADD CONSTRAINT plan_type_valid CHECK (plan_type = ANY (ARRAY['free'::text, 'trial'::text, 'personal'::text, 'family'::text, 'community'::text]));
