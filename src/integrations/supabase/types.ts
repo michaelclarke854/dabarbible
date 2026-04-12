@@ -144,6 +144,78 @@ export type Database = {
           },
         ]
       }
+      journal_agent_runs: {
+        Row: {
+          created_at: string
+          error_message: string | null
+          id: string
+          metadata: Json | null
+          status: string
+          user_id: string
+          week_start: string
+        }
+        Insert: {
+          created_at?: string
+          error_message?: string | null
+          id?: string
+          metadata?: Json | null
+          status?: string
+          user_id: string
+          week_start: string
+        }
+        Update: {
+          created_at?: string
+          error_message?: string | null
+          id?: string
+          metadata?: Json | null
+          status?: string
+          user_id?: string
+          week_start?: string
+        }
+        Relationships: []
+      }
+      journal_insights: {
+        Row: {
+          created_at: string
+          entry_count: number
+          id: string
+          insight_text: string
+          primary_theme: string
+          question_count: number
+          scripture_ref: string | null
+          scripture_text: string | null
+          themes: string[]
+          user_id: string
+          week_start: string
+        }
+        Insert: {
+          created_at?: string
+          entry_count?: number
+          id?: string
+          insight_text: string
+          primary_theme: string
+          question_count?: number
+          scripture_ref?: string | null
+          scripture_text?: string | null
+          themes?: string[]
+          user_id: string
+          week_start: string
+        }
+        Update: {
+          created_at?: string
+          entry_count?: number
+          id?: string
+          insight_text?: string
+          primary_theme?: string
+          question_count?: number
+          scripture_ref?: string | null
+          scripture_text?: string | null
+          themes?: string[]
+          user_id?: string
+          week_start?: string
+        }
+        Relationships: []
+      }
       language_waitlist: {
         Row: {
           created_at: string
