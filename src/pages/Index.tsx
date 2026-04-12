@@ -705,14 +705,6 @@ const Index = () => {
         message={authModal.message}
       />
 
-      <AuthModal
-        isOpen={showDobModal}
-        onClose={() => {}}
-        dobOnly
-        userId={user?.id}
-        onDobSubmitted={() => refreshProfile()}
-        message="So your experience feels right for where you are in life."
-      />
 
       {showPrivacySettings && user && (
         <Suspense fallback={null}>
