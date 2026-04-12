@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useLocalizedPrice } from "@/hooks/useLocalizedPrice";
 
 interface TrialPaywallProps {
   questionCount: number;
@@ -8,6 +9,7 @@ interface TrialPaywallProps {
 
 const TrialPaywall = ({ questionCount, onUpgrade, onFreePlan }: TrialPaywallProps) => {
   const [downgrading, setDowngrading] = useState(false);
+  const { formatPlanPrice, loading: priceLoading } = useLocalizedPrice();
 
   const handleFree = async () => {
     setDowngrading(true);
