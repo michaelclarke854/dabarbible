@@ -139,7 +139,6 @@ const AGE_LAYERS: Record<string, string> = {
   adult: `\n\nADDITIONAL CONTEXT: The person asking is an adult (23+). Speak with the full weight and depth of scriptural wisdom. You may engage with more complex theological dimensions when the question warrants it.`,
 };
 
-// Scripture version config — ready for multilingual expansion
 const SCRIPTURE_VERSIONS: Record<string, { name: string; instruction: string }> = {
   KJV: {
     name: "King James Version",
@@ -173,7 +172,6 @@ function getSystemPrompt(
   const langInstruction = LANGUAGE_INSTRUCTIONS[language] || LANGUAGE_INSTRUCTIONS["en"];
   const versionConfig = SCRIPTURE_VERSIONS[scriptureVersion] || SCRIPTURE_VERSIONS["KJV"];
   
-  // Replace the KJV instruction in the base prompt with the appropriate version
   let prompt = BASE_SYSTEM_PROMPT;
   if (scriptureVersion !== "KJV") {
     prompt = prompt.replace(
@@ -196,17 +194,16 @@ function getCrisisKeywords(ageGroup: string | null): string[] {
   return ADULT_CRISIS_KEYWORDS;
 }
 
-// Rate limit config per role
 const RATE_LIMITS: Record<string, number> = {
-  free: 10,        // 10 requests/hour
-  personal: 30,    // 30 requests/hour
+  free: 10,
+  personal: 30,
   beta: 30,
   admin: 100,
   super_admin: 100,
   default: 15,
 };
 
-const RATE_WINDOW_MS = 60 * 60 * 1000; // 1 hour
+const RATE_WINDOW_MS = 60 * 60 * 1000;
 
 async function checkRateLimit(
   supabase: ReturnType<typeof createClient>,
@@ -272,7 +269,6 @@ serve(async (req) => {
       );
     }
 
-    // Validate language and scriptureVersion against allowed values
     const ALLOWED_LANGUAGES = ["en", "es", "pt", "ko", "fr"];
     const ALLOWED_VERSIONS = ["KJV", "RV1960", "ARA"];
     const safeLang = ALLOWED_LANGUAGES.includes(language) ? language : "en";
@@ -282,7 +278,6 @@ serve(async (req) => {
     const supabaseKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const supabase = createClient(supabaseUrl, supabaseKey);
 
-    // Validate ageGroup server-side if userId provided
     let validatedAgeGroup = ageGroup || null;
     let userPatterns: { theme: string; occurrence: number; first_seen: string }[] = [];
     let userRole = "free";
@@ -302,7 +297,6 @@ serve(async (req) => {
         userPatterns = patternsResult.data;
       }
 
-      // Server-side trial expiry enforcement
       if (profileResult.data?.plan === "trial" && profileResult.data?.trial_ends_at) {
         const trialEnd = new Date(profileResult.data.trial_ends_at);
         if (trialEnd < new Date()) {
@@ -313,8 +307,7 @@ serve(async (req) => {
         }
       }
 
-      // Rate limit check for authenticated users
-      const { allowed, remaining } = await checkRateLimit(supabase, userId, userRole);
+      const { allowed } = await checkRateLimit(supabase, userId, userRole);
       if (!allowed) {
         return new Response(
           JSON.stringify({ error: "You've asked many questions recently. Please wait a while before continuing." }),
@@ -322,7 +315,6 @@ serve(async (req) => {
         );
       }
     } else {
-      // Anonymous rate limiting by IP
       const clientIp = req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ?? "unknown";
       const hourBucket = Math.floor(Date.now() / 3_600_000);
       const windowKey = `anon_${clientIp}_${hourBucket}`;
@@ -348,7 +340,6 @@ serve(async (req) => {
         .upsert({ key: windowKey, count: currentCount + 1, created_at: new Date().toISOString() });
     }
 
-    // Crisis keyword check
     const crisisKeywords = getCrisisKeywords(validatedAgeGroup);
     const lowerQuestion = question.toLowerCase();
     for (const keyword of crisisKeywords) {
@@ -368,6 +359,7 @@ serve(async (req) => {
     const patternContext = buildPatternContext(userPatterns);
     const systemPrompt = getSystemPrompt(validatedAgeGroup, patternContext, safeLang, safeVersion);
 
+    // ── Streaming AI call ──
     const aiResponse = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
       method: "POST",
       headers: {
@@ -375,8 +367,9 @@ serve(async (req) => {
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        model: "google/gemini-3-flash-preview",
+        model: "google/gemini-2.5-flash",
         max_tokens: 1200,
+        stream: true,
         messages: [
           { role: "system", content: systemPrompt },
           { role: "user", content: question },
@@ -402,65 +395,122 @@ serve(async (req) => {
       throw new Error("Failed to receive wisdom");
     }
 
-    const data = await aiResponse.json();
-    const fullText = data.choices?.[0]?.message?.content || "";
+    // Accumulate full text for post-processing
+    let fullText = "";
+    const encoder = new TextEncoder();
+    const decoder = new TextDecoder();
 
-    // Parse [SCRIPTURE] blocks
-    const scriptureBlocks: { reference: string; text: string }[] = [];
-    const scriptureRegex = /\[SCRIPTURE\]\s*\nreference:\s*(.+)\ntext:\s*(.+)\n\[\/SCRIPTURE\]/g;
-    let match;
-    while ((match = scriptureRegex.exec(fullText)) !== null) {
-      scriptureBlocks.push({ reference: match[1].trim(), text: match[2].trim() });
-    }
-    const scriptures = scriptureBlocks.map((s) => s.reference);
+    const readableStream = new ReadableStream({
+      async start(controller) {
+        try {
+          const reader = aiResponse.body!.getReader();
 
-    const responseText = fullText.trim();
+          let buffer = "";
+          while (true) {
+            const { done, value } = await reader.read();
+            if (done) break;
 
-    // Log session and get session ID
-    const sessionId = await logSession(supabase, userId, question, responseText, scriptures);
+            buffer += decoder.decode(value, { stream: true });
+            const lines = buffer.split("\n");
+            // Keep the last potentially incomplete line in buffer
+            buffer = lines.pop() || "";
 
-    // Detect themes from question + response and update patterns
-    if (userId && sessionId) {
-      const detectedThemes = detectThemes(question + " " + responseText);
-      if (detectedThemes.length > 0) {
-        // Insert session_themes
-        await supabase.from("session_themes").insert(
-          detectedThemes.map((t) => ({
-            session_id: sessionId,
-            theme: t.theme,
-            confidence: t.confidence,
-          }))
-        );
+            for (const line of lines) {
+              const trimmed = line.trim();
+              if (!trimmed || !trimmed.startsWith("data: ")) continue;
+              const payload = trimmed.slice(6);
+              if (payload === "[DONE]") continue;
 
-        // Upsert user_patterns
-        await Promise.all(detectedThemes.map(async (t) => {
-          const { data: existing } = await supabase
-            .from("user_patterns")
-            .select("id, occurrence")
-            .eq("user_id", userId)
-            .eq("theme", t.theme)
-            .single();
-
-          if (existing) {
-            await supabase
-              .from("user_patterns")
-              .update({ occurrence: existing.occurrence + 1, last_seen: new Date().toISOString() })
-              .eq("id", existing.id);
-          } else {
-            await supabase.from("user_patterns").insert({
-              user_id: userId,
-              theme: t.theme,
-              occurrence: 1,
-            });
+              try {
+                const parsed = JSON.parse(payload);
+                const text = parsed.choices?.[0]?.delta?.content ?? "";
+                if (text) {
+                  fullText += text;
+                  controller.enqueue(encoder.encode(text));
+                }
+              } catch {
+                // skip malformed chunks
+              }
+            }
           }
-        }));
-      }
-    }
 
-    return new Response(
-      JSON.stringify({ response: responseText, scriptures }),
-      { headers: { ...corsHeaders, "Content-Type": "application/json" } }
-    );
+          // Process any remaining buffer
+          if (buffer.trim()) {
+            const trimmed = buffer.trim();
+            if (trimmed.startsWith("data: ") && trimmed.slice(6) !== "[DONE]") {
+              try {
+                const parsed = JSON.parse(trimmed.slice(6));
+                const text = parsed.choices?.[0]?.delta?.content ?? "";
+                if (text) {
+                  fullText += text;
+                  controller.enqueue(encoder.encode(text));
+                }
+              } catch { /* skip */ }
+            }
+          }
+
+          controller.close();
+
+          // ── Post-processing (after stream completes) ──
+          const responseText = fullText.trim();
+          const scriptureBlocks: { reference: string; text: string }[] = [];
+          const scriptureRegex = /\[SCRIPTURE\]\s*\nreference:\s*(.+)\ntext:\s*(.+)\n\[\/SCRIPTURE\]/g;
+          let match;
+          while ((match = scriptureRegex.exec(responseText)) !== null) {
+            scriptureBlocks.push({ reference: match[1].trim(), text: match[2].trim() });
+          }
+          const scriptures = scriptureBlocks.map((s) => s.reference);
+
+          const sessionId = await logSession(supabase, userId, question, responseText, scriptures);
+
+          if (userId && sessionId) {
+            const detectedThemes = detectThemes(question + " " + responseText);
+            if (detectedThemes.length > 0) {
+              await supabase.from("session_themes").insert(
+                detectedThemes.map((t) => ({
+                  session_id: sessionId,
+                  theme: t.theme,
+                  confidence: t.confidence,
+                }))
+              );
+
+              await Promise.all(detectedThemes.map(async (t) => {
+                const { data: existing } = await supabase
+                  .from("user_patterns")
+                  .select("id, occurrence")
+                  .eq("user_id", userId)
+                  .eq("theme", t.theme)
+                  .single();
+
+                if (existing) {
+                  await supabase
+                    .from("user_patterns")
+                    .update({ occurrence: existing.occurrence + 1, last_seen: new Date().toISOString() })
+                    .eq("id", existing.id);
+                } else {
+                  await supabase.from("user_patterns").insert({
+                    user_id: userId,
+                    theme: t.theme,
+                    occurrence: 1,
+                  });
+                }
+              }));
+            }
+          }
+        } catch (err) {
+          console.error("Stream processing error:", err);
+          controller.error(err);
+        }
+      },
+    });
+
+    return new Response(readableStream, {
+      headers: {
+        ...corsHeaders,
+        "Content-Type": "text/plain; charset=utf-8",
+        "X-Content-Type-Options": "nosniff",
+      },
+    });
   } catch (e) {
     console.error("seek-wisdom error:", e);
     return new Response(
