@@ -40,6 +40,10 @@ serve(async (req) => {
 
     const stripe = new Stripe(stripeKey, { apiVersion: "2024-12-18.acacia" });
 
+    const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
+    const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+    const supabase = createClient(supabaseUrl, supabaseServiceKey);
+
     const body = await req.json();
 
     // Input validation
@@ -74,24 +78,10 @@ serve(async (req) => {
       );
     }
 
-    // Validate returnUrl (only allow lovable.app domains or empty)
-    const allowedOrigins = ["lovable.app"];
-    if (returnUrl) {
-      try {
-        const urlObj = new URL(returnUrl);
-        if (!allowedOrigins.some(origin => urlObj.hostname.endsWith(origin))) {
-          return new Response(
-            JSON.stringify({ error: "Invalid return URL" }),
-            { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-          );
-        }
-      } catch {
-        return new Response(
-          JSON.stringify({ error: "Invalid return URL format" }),
-          { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-        );
-      }
-    }
+    // Derive origin from request headers
+    const origin = req.headers.get("origin")
+      ?? req.headers.get("referer")?.split("/").slice(0, 3).join("/")
+      ?? "https://dabarbible.lovable.app";
 
     // Determine price
     let effectiveKey = planKey;
@@ -113,19 +103,43 @@ serve(async (req) => {
       );
     }
 
-    const session = await stripe.checkout.sessions.create({
+    // Look up existing Stripe customer from profile
+    const { data: profile } = await supabase
+      .from("profiles")
+      .select("stripe_customer_id")
+      .eq("user_id", userId)
+      .single();
+
+    let customerId = profile?.stripe_customer_id;
+
+    const sessionParams: any = {
       mode: "subscription",
       payment_method_types: ["card"],
-      customer_email: email,
       line_items: [{ price: priceId, quantity: 1 }],
-      success_url: `${returnUrl || "https://id-preview--8e7d044d-f62f-415b-8598-56950d45a22e.lovable.app"}/?checkout=success`,
-      cancel_url: `${returnUrl || "https://id-preview--8e7d044d-f62f-415b-8598-56950d45a22e.lovable.app"}/pricing`,
+      success_url: `${origin}/payment-success?session_id={CHECKOUT_SESSION_ID}`,
+      cancel_url: `${origin}/pricing`,
       metadata: {
         user_id: userId,
         plan_type: planKey,
         billing_cycle: cycle || "monthly",
       },
-    });
+    };
+
+    if (customerId) {
+      sessionParams.customer = customerId;
+    } else {
+      sessionParams.customer_email = email;
+    }
+
+    const session = await stripe.checkout.sessions.create(sessionParams);
+
+    // Store customer ID back to profile if newly created
+    if (!customerId && session.customer) {
+      await supabase
+        .from("profiles")
+        .update({ stripe_customer_id: session.customer as string })
+        .eq("user_id", userId);
+    }
 
     return new Response(
       JSON.stringify({ url: session.url }),
