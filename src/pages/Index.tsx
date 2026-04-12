@@ -14,6 +14,7 @@ import TrialNudgeBanner from "@/components/TrialNudgeBanner";
 import TrialInterstitial from "@/components/TrialInterstitial";
 import AppLoadingSkeleton from "@/components/AppLoadingSkeleton";
 import EmailConfirmationPending from "@/components/EmailConfirmationPending";
+import AgeGateScreen from "@/components/AgeGateScreen";
 import { parseScriptureRef } from "@/data/kjvBooks";
 import { useAuth } from "@/contexts/AuthContext";
 
@@ -425,6 +426,11 @@ const Index = () => {
   // Unconfirmed email screen
   if (emailUnconfirmed && userEmail) {
     return <EmailConfirmationPending email={userEmail} />;
+  }
+
+  // Age gate for Google OAuth users without age_group
+  if (needsAgeGate) {
+    return <AgeGateScreen />;
   }
 
   const showAuthModal = authModal.open && !needsDob;
