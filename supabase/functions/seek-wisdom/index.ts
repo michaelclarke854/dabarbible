@@ -289,7 +289,7 @@ serve(async (req) => {
 
     if (userId) {
       const [profileResult, patternsResult] = await Promise.all([
-        supabase.from("profiles").select("age_group, language_preference, role").eq("user_id", userId).single(),
+        supabase.from("profiles").select("age_group, language_preference, role, plan, trial_ends_at").eq("user_id", userId).single(),
         supabase.from("user_patterns").select("theme, occurrence, first_seen").eq("user_id", userId),
       ]);
       if (profileResult.data?.age_group) {
@@ -302,6 +302,17 @@ serve(async (req) => {
         userPatterns = patternsResult.data;
       }
 
+      // Server-side trial expiry enforcement
+      if (profileResult.data?.plan === "trial" && profileResult.data?.trial_ends_at) {
+        const trialEnd = new Date(profileResult.data.trial_ends_at);
+        if (trialEnd < new Date()) {
+          return new Response(
+            JSON.stringify({ error: "trial_expired", message: "Your trial has ended. Please upgrade to continue." }),
+            { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+          );
+        }
+      }
+
       // Rate limit check for authenticated users
       const { allowed, remaining } = await checkRateLimit(supabase, userId, userRole);
       if (!allowed) {
@@ -310,6 +321,31 @@ serve(async (req) => {
           { status: 429, headers: { ...corsHeaders, "Content-Type": "application/json", "X-RateLimit-Remaining": "0" } }
         );
       }
+    } else {
+      // Anonymous rate limiting by IP
+      const clientIp = req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ?? "unknown";
+      const hourBucket = Math.floor(Date.now() / 3_600_000);
+      const windowKey = `anon_${clientIp}_${hourBucket}`;
+      const ANON_LIMIT = 10;
+
+      const { data: rateRow } = await supabase
+        .from("rate_limits_anonymous")
+        .select("count")
+        .eq("key", windowKey)
+        .single();
+
+      const currentCount = rateRow?.count ?? 0;
+
+      if (currentCount >= ANON_LIMIT) {
+        return new Response(
+          JSON.stringify({ error: "rate_limited", message: "Please sign up for unlimited access." }),
+          { status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+
+      await supabase
+        .from("rate_limits_anonymous")
+        .upsert({ key: windowKey, count: currentCount + 1, created_at: new Date().toISOString() });
     }
 
     // Crisis keyword check
