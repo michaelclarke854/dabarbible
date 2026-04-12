@@ -8,13 +8,10 @@ interface AuthModalProps {
   isOpen: boolean;
   onClose: () => void;
   onSignedUp?: () => void;
-  onDobSubmitted?: () => void;
   message?: string;
-  dobOnly?: boolean;
-  userId?: string;
 }
 
-const AuthModal = ({ isOpen, onClose, onSignedUp, onDobSubmitted, message, dobOnly, userId }: AuthModalProps) => {
+const AuthModal = ({ isOpen, onClose, onSignedUp, message }: AuthModalProps) => {
   const { setPendingConfirmation } = useAuth();
   const [mode, setMode] = useState<"signin" | "signup" | "forgot">("signup");
   const [email, setEmail] = useState("");
