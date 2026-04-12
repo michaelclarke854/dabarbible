@@ -1,17 +1,27 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import UserEditDrawer from "@/components/UserEditDrawer";
 import {
+  BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell,
+} from "recharts";
+import {
   LayoutDashboard, Users, CreditCard, MessageSquare,
-  Flag, AlertTriangle, FileText, Settings, LogOut
+  Flag, AlertTriangle, FileText, Settings, LogOut,
+  Activity, Server, ChevronDown, ChevronRight,
 } from "lucide-react";
 
-type AdminTab = "dashboard" | "users" | "subscriptions" | "monitor" | "flagged" | "crisis" | "prompts" | "settings";
+type AdminTab =
+  | "agent-health" | "wisdom-health" | "stripe-health"
+  | "dashboard" | "users" | "subscriptions" | "monitor"
+  | "flagged" | "crisis" | "prompts" | "settings";
 
 const tabs: { id: AdminTab; label: string; icon: typeof LayoutDashboard }[] = [
-  { id: "dashboard", label: "Dashboard", icon: LayoutDashboard },
+  { id: "agent-health", label: "Agent Health", icon: Activity },
+  { id: "wisdom-health", label: "Seek-Wisdom", icon: Server },
+  { id: "stripe-health", label: "Stripe Health", icon: CreditCard },
+  { id: "dashboard", label: "Overview", icon: LayoutDashboard },
   { id: "users", label: "Users", icon: Users },
   { id: "subscriptions", label: "Subscriptions", icon: CreditCard },
   { id: "monitor", label: "Response Monitor", icon: MessageSquare },
@@ -21,7 +31,362 @@ const tabs: { id: AdminTab; label: string; icon: typeof LayoutDashboard }[] = [
   { id: "settings", label: "Settings", icon: Settings },
 ];
 
-// ─── Dashboard Overview ─────────────────────────────
+// ─── Helpers ─────────────────────────────
+function daysAgo(n: number) {
+  const d = new Date();
+  d.setDate(d.getDate() - n);
+  return d.toISOString();
+}
+
+function MetricCard({ label, value, color }: { label: string; value: string | number; color?: string }) {
+  const bg = color === "green" ? "border-green-500/50 bg-green-500/5"
+    : color === "amber" ? "border-amber-500/50 bg-amber-500/5"
+    : color === "red" ? "border-red-500/50 bg-red-500/5"
+    : "border-border";
+  return (
+    <div className={`bg-card border rounded-sm p-5 ${bg}`}>
+      <p className="text-muted-foreground text-xs uppercase tracking-widest font-body">{label}</p>
+      <p className="text-3xl font-serif text-foreground mt-2">{value}</p>
+    </div>
+  );
+}
+
+// ═══════════════════════════════════════════
+// SECTION 1 — AGENT HEALTH MONITOR
+// ═══════════════════════════════════════════
+function AgentHealthTab() {
+  const [runs, setRuns] = useState<any[]>([]);
+  const [agentFilter, setAgentFilter] = useState("all");
+  const [statusFilter, setStatusFilter] = useState("all");
+  const [periodFilter, setPeriodFilter] = useState("7");
+  const [expandedRow, setExpandedRow] = useState<string | null>(null);
+
+  const fetchRuns = useCallback(async () => {
+    let query = supabase.from("journal_agent_runs").select("*")
+      .order("created_at", { ascending: false }).limit(200);
+    if (periodFilter !== "all") {
+      query = query.gte("created_at", daysAgo(Number(periodFilter)));
+    }
+    const { data } = await query;
+    setRuns(data || []);
+  }, [periodFilter]);
+
+  useEffect(() => { fetchRuns(); }, [fetchRuns]);
+
+  // Metrics from last 7 days
+  const last7 = runs.filter(r => new Date(r.created_at) >= new Date(daysAgo(7)));
+  const totalRuns = last7.length;
+  const successCount = last7.filter(r => r.status === "success").length;
+  const errorCount = last7.filter(r => r.status === "error").length;
+  const successRate = totalRuns > 0 ? Math.round((successCount / totalRuns) * 100) : 100;
+  const errorRate = totalRuns > 0 ? Math.round((errorCount / totalRuns) * 100) : 0;
+  const durations = last7
+    .map(r => r.metadata?.duration_ms)
+    .filter((d): d is number => typeof d === "number");
+  const avgDuration = durations.length > 0
+    ? Math.round(durations.reduce((a, b) => a + b, 0) / durations.length) : 0;
+
+  const successColor = successRate >= 98 ? "green" : successRate >= 90 ? "amber" : "red";
+
+  // Determine agent name from metadata or fall back
+  const getAgent = (r: any) => {
+    if (r.metadata?.agent) return r.metadata.agent;
+    return "journal-pattern-agent";
+  };
+
+  const filtered = runs.filter(r => {
+    if (agentFilter !== "all" && getAgent(r) !== agentFilter) return false;
+    if (statusFilter !== "all" && r.status !== statusFilter) return false;
+    return true;
+  });
+
+  return (
+    <div className="space-y-6">
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+        <MetricCard label="Total Runs (7d)" value={totalRuns} />
+        <MetricCard label="Success Rate" value={`${successRate}%`} color={successColor} />
+        <MetricCard label="Error Rate" value={`${errorRate}%`} color={errorRate > 10 ? "red" : undefined} />
+        <MetricCard label="Avg Duration" value={`${avgDuration}ms`} />
+      </div>
+
+      <div className="flex gap-3 flex-wrap">
+        <select value={agentFilter} onChange={e => setAgentFilter(e.target.value)}
+          className="bg-input border border-border rounded-sm px-3 py-2 text-sm text-foreground">
+          <option value="all">All Agents</option>
+          <option value="scripture-research-agent">scripture-research-agent</option>
+          <option value="journal-pattern-agent">journal-pattern-agent</option>
+        </select>
+        <select value={statusFilter} onChange={e => setStatusFilter(e.target.value)}
+          className="bg-input border border-border rounded-sm px-3 py-2 text-sm text-foreground">
+          <option value="all">All Statuses</option>
+          <option value="success">success</option>
+          <option value="skipped">skipped</option>
+          <option value="error">error</option>
+        </select>
+        <select value={periodFilter} onChange={e => setPeriodFilter(e.target.value)}
+          className="bg-input border border-border rounded-sm px-3 py-2 text-sm text-foreground">
+          <option value="7">Last 7 days</option>
+          <option value="30">Last 30 days</option>
+          <option value="all">All time</option>
+        </select>
+      </div>
+
+      <div className="overflow-x-auto">
+        <table className="w-full text-sm">
+          <thead>
+            <tr className="border-b border-border text-muted-foreground text-xs uppercase tracking-wider">
+              <th className="text-left py-3 px-2 w-8"></th>
+              <th className="text-left py-3 px-2">Date/Time</th>
+              <th className="text-left py-3 px-2">Agent</th>
+              <th className="text-left py-3 px-2">Status</th>
+              <th className="text-left py-3 px-2">Entries</th>
+              <th className="text-left py-3 px-2">Themes</th>
+              <th className="text-left py-3 px-2">Duration</th>
+              <th className="text-left py-3 px-2">Error</th>
+            </tr>
+          </thead>
+          <tbody>
+            {filtered.slice(0, 50).map(r => {
+              const isExpanded = expandedRow === r.id;
+              const hasError = r.status === "error" && r.error_message;
+              return (
+                <>
+                  <tr key={r.id}
+                    className={`border-b border-border/50 hover:bg-secondary/50 ${hasError ? "cursor-pointer" : ""}`}
+                    onClick={() => hasError && setExpandedRow(isExpanded ? null : r.id)}>
+                    <td className="py-3 px-2">
+                      {hasError && (isExpanded ? <ChevronDown className="w-3 h-3 text-muted-foreground" /> : <ChevronRight className="w-3 h-3 text-muted-foreground" />)}
+                    </td>
+                    <td className="py-3 px-2 text-muted-foreground text-xs">{new Date(r.created_at).toLocaleString()}</td>
+                    <td className="py-3 px-2 text-foreground text-xs font-mono">{getAgent(r)}</td>
+                    <td className="py-3 px-2">
+                      <span className={`text-xs font-serif uppercase ${
+                        r.status === "success" ? "text-green-500"
+                        : r.status === "error" ? "text-red-400"
+                        : "text-amber-400"
+                      }`}>{r.status}</span>
+                    </td>
+                    <td className="py-3 px-2 text-muted-foreground text-xs">{r.metadata?.entries_read ?? "—"}</td>
+                    <td className="py-3 px-2 text-muted-foreground text-xs">
+                      {r.metadata?.themes_found ? (r.metadata.themes_found as string[]).join(", ") : "—"}
+                    </td>
+                    <td className="py-3 px-2 text-muted-foreground text-xs">{r.metadata?.duration_ms ?? "—"}</td>
+                    <td className="py-3 px-2 text-red-400 text-xs truncate max-w-[200px]">{r.error_message || "—"}</td>
+                  </tr>
+                  {isExpanded && (
+                    <tr key={`${r.id}-detail`}>
+                      <td colSpan={8} className="bg-red-500/5 border-b border-red-500/20 px-6 py-4">
+                        <p className="text-red-300 text-sm font-mono whitespace-pre-wrap">{r.error_message}</p>
+                      </td>
+                    </tr>
+                  )}
+                </>
+              );
+            })}
+          </tbody>
+        </table>
+        {filtered.length === 0 && <p className="text-muted-foreground text-sm italic py-4 text-center">No runs found.</p>}
+      </div>
+    </div>
+  );
+}
+
+// ═══════════════════════════════════════════
+// SECTION 2 — SEEK-WISDOM HEALTH MONITOR
+// ═══════════════════════════════════════════
+function WisdomHealthTab() {
+  const [sessions, setSessions] = useState<any[]>([]);
+  const [dailyData, setDailyData] = useState<{ date: string; count: number; label: string }[]>([]);
+
+  const fetchData = useCallback(async () => {
+    const since = daysAgo(14);
+    const { data } = await supabase.from("wisdom_sessions")
+      .select("id, user_id, created_at")
+      .gte("created_at", since)
+      .order("created_at", { ascending: false })
+      .limit(1000);
+    setSessions(data || []);
+
+    // Build daily chart data
+    const buckets: Record<string, number> = {};
+    for (let i = 13; i >= 0; i--) {
+      const d = new Date();
+      d.setDate(d.getDate() - i);
+      buckets[d.toISOString().slice(0, 10)] = 0;
+    }
+    (data || []).forEach(s => {
+      const day = s.created_at.slice(0, 10);
+      if (buckets[day] !== undefined) buckets[day]++;
+    });
+    setDailyData(Object.entries(buckets).map(([date, count]) => ({
+      date,
+      count,
+      label: new Date(date + "T12:00:00").toLocaleDateString(undefined, { month: "short", day: "numeric" }),
+    })));
+  }, []);
+
+  useEffect(() => { fetchData(); }, [fetchData]);
+
+  const last7 = sessions.filter(s => new Date(s.created_at) >= new Date(daysAgo(7)));
+  const totalQuestions = last7.length;
+  const anonRequests = last7.filter(s => !s.user_id).length;
+
+  return (
+    <div className="space-y-6">
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+        <MetricCard label="Questions (7d)" value={totalQuestions} />
+        <MetricCard label="Avg Response Time" value="—" />
+        <MetricCard label="Anonymous (7d)" value={anonRequests} />
+        <MetricCard label="Rate Limited (7d)" value="—" />
+      </div>
+
+      <div>
+        <h3 className="font-serif text-gold text-sm uppercase tracking-widest mb-4">Daily Volume (14 days)</h3>
+        <div className="bg-card border border-border rounded-sm p-4" style={{ height: 260 }}>
+          <ResponsiveContainer width="100%" height="100%">
+            <BarChart data={dailyData}>
+              <XAxis dataKey="label" tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 10 }} axisLine={false} tickLine={false} />
+              <YAxis tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 10 }} axisLine={false} tickLine={false} allowDecimals={false} />
+              <Tooltip
+                contentStyle={{ background: "hsl(var(--card))", border: "1px solid hsl(var(--border))", borderRadius: 4, fontSize: 12 }}
+                labelStyle={{ color: "hsl(var(--foreground))" }}
+              />
+              <Bar dataKey="count" radius={[3, 3, 0, 0]}>
+                {dailyData.map((_, i) => (
+                  <Cell key={i} fill="hsl(var(--gold))" />
+                ))}
+              </Bar>
+            </BarChart>
+          </ResponsiveContainer>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ═══════════════════════════════════════════
+// SECTION 3 — STRIPE & SUBSCRIPTION HEALTH
+// ═══════════════════════════════════════════
+function StripeHealthTab() {
+  const [metrics, setMetrics] = useState({ paid: 0, trials: 0, converted: 0, churned: 0 });
+  const [funnel, setFunnel] = useState({ signups30d: 0, trialsStarted: 0, converted: 0 });
+
+  const fetchData = useCallback(async () => {
+    const [{ data: profiles }, { data: subs }] = await Promise.all([
+      supabase.from("profiles").select("plan, trial_converted, trial_started_at, created_at, updated_at"),
+      supabase.from("subscriptions").select("plan_type, status, created_at"),
+    ]);
+    const allProfiles = profiles || [];
+    const allSubs = subs || [];
+
+    const paid = allProfiles.filter(p => ["personal", "family", "community"].includes(p.plan)).length;
+    const trials = allProfiles.filter(p => p.plan === "trial").length;
+    const weekAgo = new Date(daysAgo(7));
+    const converted = allProfiles.filter(p => p.trial_converted && new Date(p.updated_at) >= weekAgo).length;
+    const churned = allSubs.filter(s => s.status === "cancelled" && new Date(s.created_at) >= weekAgo).length;
+
+    setMetrics({ paid, trials, converted, churned });
+
+    // Funnel
+    const monthAgo = new Date(daysAgo(30));
+    const signups30d = allProfiles.filter(p => new Date(p.created_at) >= monthAgo).length;
+    const trialsStarted = allProfiles.filter(p => p.trial_started_at && new Date(p.trial_started_at) >= monthAgo).length;
+    const convertedAll = allProfiles.filter(p => p.trial_converted).length;
+
+    setFunnel({ signups30d, trialsStarted, converted: convertedAll });
+  }, []);
+
+  useEffect(() => { fetchData(); }, [fetchData]);
+
+  const funnelRate1 = funnel.signups30d > 0 ? Math.round((funnel.trialsStarted / funnel.signups30d) * 100) : 0;
+  const funnelRate2 = funnel.trialsStarted > 0 ? Math.round((funnel.converted / funnel.trialsStarted) * 100) : 0;
+
+  return (
+    <div className="space-y-6">
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+        <MetricCard label="Active Paid" value={metrics.paid} color="green" />
+        <MetricCard label="Active Trials" value={metrics.trials} color="amber" />
+        <MetricCard label="Converted (7d)" value={metrics.converted} color="green" />
+        <MetricCard label="Churned (7d)" value={metrics.churned} color={metrics.churned > 0 ? "red" : undefined} />
+      </div>
+
+      <div>
+        <h3 className="font-serif text-gold text-sm uppercase tracking-widest mb-4">Conversion Funnel (30 days)</h3>
+        <div className="flex items-center gap-4 bg-card border border-border rounded-sm p-6">
+          <div className="text-center flex-1">
+            <p className="text-3xl font-serif text-foreground">{funnel.signups30d}</p>
+            <p className="text-muted-foreground text-xs mt-1">Signups</p>
+          </div>
+          <div className="text-center">
+            <p className="text-gold font-serif text-sm">→ {funnelRate1}%</p>
+          </div>
+          <div className="text-center flex-1">
+            <p className="text-3xl font-serif text-foreground">{funnel.trialsStarted}</p>
+            <p className="text-muted-foreground text-xs mt-1">Trials Started</p>
+          </div>
+          <div className="text-center">
+            <p className="text-gold font-serif text-sm">→ {funnelRate2}%</p>
+          </div>
+          <div className="text-center flex-1">
+            <p className="text-3xl font-serif text-foreground">{funnel.converted}</p>
+            <p className="text-muted-foreground text-xs mt-1">Paid</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ═══════════════════════════════════════════
+// SECTION 4 — ERROR ALERTS
+// ═══════════════════════════════════════════
+function useAlerts(runs: any[], sessions: any[]) {
+  const [anonHits, setAnonHits] = useState(0);
+
+  useEffect(() => {
+    (async () => {
+      const hourAgo = new Date(Date.now() - 3600000).toISOString();
+      const { data } = await supabase.from("rate_limits_anonymous")
+        .select("count")
+        .gte("created_at", hourAgo);
+      const total = (data || []).reduce((s, r) => s + (r.count || 0), 0);
+      setAnonHits(total);
+    })();
+  }, []);
+
+  const alerts: { level: "red" | "amber"; message: string }[] = [];
+
+  // Agent error rate > 10%
+  const last7runs = runs.filter(r => new Date(r.created_at) >= new Date(daysAgo(7)));
+  if (last7runs.length > 0) {
+    const errorRate = last7runs.filter(r => r.status === "error").length / last7runs.length;
+    if (errorRate > 0.1) {
+      alerts.push({ level: "red", message: "Agent error rate is elevated — check agent health below" });
+    }
+  }
+
+  // Agent errors in last 24h
+  const last24h = runs.filter(r => new Date(r.created_at) >= new Date(daysAgo(1)) && r.status === "error");
+  if (last24h.length > 0) {
+    alerts.push({ level: "red", message: `${last24h.length} agent error(s) in last 24 hours — review error details` });
+  }
+
+  // Zero wisdom sessions in 24h
+  const sessions24h = sessions.filter(s => new Date(s.created_at) >= new Date(daysAgo(1)));
+  if (sessions24h.length === 0 && sessions.length > 0) {
+    alerts.push({ level: "red", message: "No questions received in 24 hours — seek-wisdom may be down" });
+  }
+
+  // Anon rate limiting
+  if (anonHits > 5) {
+    alerts.push({ level: "amber", message: "Anonymous rate limiting active — possible traffic spike" });
+  }
+
+  return alerts;
+}
+
+// ─── Existing Tabs (preserved) ─────────────────────────────
+
 function DashboardTab() {
   const [stats, setStats] = useState({ users: 0, subscribers: 0, questionsToday: 0, mrr: 0 });
 
@@ -33,14 +398,12 @@ function DashboardTab() {
         supabase.from("usage_daily").select("question_count").eq("date", new Date().toISOString().slice(0, 10)),
         supabase.from("subscriptions").select("plan_type, billing_cycle").eq("status", "active").neq("plan_type", "free"),
       ]);
-
       const questionsToday = (usage || []).reduce((s, r) => s + (r.question_count || 0), 0);
       const prices: Record<string, number> = { personal: 3.99, family: 9.99, community: 24.99 };
       const mrr = (subs || []).reduce((s, r) => {
         const p = prices[r.plan_type] || 0;
         return s + (r.billing_cycle === "yearly" ? p * 0.8 : p);
       }, 0);
-
       setStats({ users: userCount || 0, subscribers: subCount || 0, questionsToday, mrr });
     })();
   }, []);
@@ -54,7 +417,7 @@ function DashboardTab() {
 
   return (
     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-      {cards.map((c) => (
+      {cards.map(c => (
         <div key={c.label} className="bg-card border border-border rounded-sm p-6">
           <p className="text-muted-foreground text-xs uppercase tracking-widest font-body">{c.label}</p>
           <p className="text-3xl font-serif text-foreground mt-2">{c.value}</p>
@@ -64,7 +427,6 @@ function DashboardTab() {
   );
 }
 
-// ─── Users ─────────────────────────────
 function UsersTab({ callerRole, onEditUser }: { callerRole: string; onEditUser: (id: string) => void }) {
   const [users, setUsers] = useState<any[]>([]);
   const [search, setSearch] = useState("");
@@ -83,7 +445,7 @@ function UsersTab({ callerRole, onEditUser }: { callerRole: string; onEditUser: 
     })();
   }, [page]);
 
-  const filtered = users.filter((u) => {
+  const filtered = users.filter(u => {
     if (planFilter !== "all" && u.plan !== planFilter) return false;
     if (search && !u.user_id.includes(search)) return false;
     return true;
@@ -92,9 +454,9 @@ function UsersTab({ callerRole, onEditUser }: { callerRole: string; onEditUser: 
   return (
     <div className="space-y-4">
       <div className="flex gap-3">
-        <input placeholder="Search by user ID..." value={search} onChange={(e) => setSearch(e.target.value)}
+        <input placeholder="Search by user ID..." value={search} onChange={e => setSearch(e.target.value)}
           className="bg-input border border-border rounded-sm px-3 py-2 text-sm text-foreground flex-1 placeholder:text-muted-foreground" />
-        <select value={planFilter} onChange={(e) => setPlanFilter(e.target.value)}
+        <select value={planFilter} onChange={e => setPlanFilter(e.target.value)}
           className="bg-input border border-border rounded-sm px-3 py-2 text-sm text-foreground">
           <option value="all">All Plans</option>
           <option value="free">Free</option>
@@ -103,7 +465,6 @@ function UsersTab({ callerRole, onEditUser }: { callerRole: string; onEditUser: 
           <option value="community">Community</option>
         </select>
       </div>
-
       <div className="overflow-x-auto">
         <table className="w-full text-sm">
           <thead>
@@ -117,7 +478,7 @@ function UsersTab({ callerRole, onEditUser }: { callerRole: string; onEditUser: 
             </tr>
           </thead>
           <tbody>
-            {filtered.map((u) => (
+            {filtered.map(u => (
               <tr key={u.user_id} className="border-b border-border/50 hover:bg-secondary/50">
                 <td className="py-3 px-2 text-foreground font-mono text-xs">{u.user_id.slice(0, 8)}…</td>
                 <td className="py-3 px-2 text-muted-foreground">{new Date(u.created_at).toLocaleDateString()}</td>
@@ -134,16 +495,13 @@ function UsersTab({ callerRole, onEditUser }: { callerRole: string; onEditUser: 
                 </td>
                 <td className="py-3 px-2">
                   <button onClick={() => onEditUser(u.user_id)}
-                    className="text-gold text-xs hover:text-gold-light transition-colors">
-                    Edit
-                  </button>
+                    className="text-gold text-xs hover:text-gold-light transition-colors">Edit</button>
                 </td>
               </tr>
             ))}
           </tbody>
         </table>
       </div>
-
       <div className="flex justify-between items-center">
         <button onClick={() => setPage(Math.max(0, page - 1))} disabled={page === 0}
           className="text-gold text-sm disabled:opacity-30">← Previous</button>
@@ -155,7 +513,6 @@ function UsersTab({ callerRole, onEditUser }: { callerRole: string; onEditUser: 
   );
 }
 
-// ─── Subscriptions ─────────────────────────────
 function SubscriptionsTab() {
   const [breakdown, setBreakdown] = useState<Record<string, number>>({});
   const [recent, setRecent] = useState<any[]>([]);
@@ -164,11 +521,9 @@ function SubscriptionsTab() {
     (async () => {
       const { data: subs } = await supabase.from("subscriptions").select("plan_type").eq("status", "active");
       const counts: Record<string, number> = {};
-      (subs || []).forEach((s) => { counts[s.plan_type] = (counts[s.plan_type] || 0) + 1; });
+      (subs || []).forEach(s => { counts[s.plan_type] = (counts[s.plan_type] || 0) + 1; });
       setBreakdown(counts);
-
-      const { data: recentSubs } = await supabase
-        .from("subscriptions").select("user_id, plan_type, status, created_at")
+      const { data: recentSubs } = await supabase.from("subscriptions").select("user_id, plan_type, status, created_at")
         .order("created_at", { ascending: false }).limit(10);
       setRecent(recentSubs || []);
     })();
@@ -200,7 +555,6 @@ function SubscriptionsTab() {
   );
 }
 
-// ─── Response Monitor ─────────────────────────────
 function MonitorTab() {
   const [themes, setThemes] = useState<{ theme: string; count: number }[]>([]);
 
@@ -208,17 +562,16 @@ function MonitorTab() {
     (async () => {
       const { data } = await supabase.from("session_themes").select("theme");
       const counts: Record<string, number> = {};
-      (data || []).forEach((t) => { counts[t.theme] = (counts[t.theme] || 0) + 1; });
+      (data || []).forEach(t => { counts[t.theme] = (counts[t.theme] || 0) + 1; });
       setThemes(Object.entries(counts).map(([theme, count]) => ({ theme, count })).sort((a, b) => b.count - a.count).slice(0, 20));
     })();
   }, []);
 
   const maxCount = themes[0]?.count || 1;
-
   return (
     <div className="space-y-3">
       <p className="text-muted-foreground text-xs mb-4">Aggregated themes — no individual user data shown.</p>
-      {themes.map((t) => (
+      {themes.map(t => (
         <div key={t.theme} className="flex items-center gap-3">
           <span className="text-foreground text-sm w-40 truncate font-body">{t.theme}</span>
           <div className="flex-1 h-6 bg-secondary rounded-sm overflow-hidden">
@@ -232,10 +585,8 @@ function MonitorTab() {
   );
 }
 
-// ─── Flagged ─────────────────────────────
 function FlaggedTab() {
   const [sessions, setSessions] = useState<any[]>([]);
-
   useEffect(() => {
     (async () => {
       const { data } = await supabase.from("wisdom_sessions")
@@ -244,10 +595,9 @@ function FlaggedTab() {
       setSessions(data || []);
     })();
   }, []);
-
   return (
     <div className="space-y-3">
-      {sessions.map((s) => (
+      {sessions.map(s => (
         <div key={s.id} className="bg-card border border-destructive/30 rounded-sm p-4">
           <p className="text-foreground text-sm">{s.question}</p>
           <p className="text-muted-foreground text-xs mt-2">{new Date(s.created_at).toLocaleString()}</p>
@@ -258,22 +608,18 @@ function FlaggedTab() {
   );
 }
 
-// ─── Crisis Log ─────────────────────────────
 function CrisisTab() {
   const [events, setEvents] = useState<any[]>([]);
-
   useEffect(() => {
     (async () => {
-      const { data } = await supabase.from("crisis_events").select("*")
-        .order("routed_at", { ascending: false }).limit(50);
+      const { data } = await supabase.from("crisis_events").select("*").order("routed_at", { ascending: false }).limit(50);
       setEvents(data || []);
     })();
   }, []);
-
   return (
     <div className="space-y-3">
       <p className="text-muted-foreground text-xs mb-4">Crisis keyword triggers — no user identity stored.</p>
-      {events.map((e) => (
+      {events.map(e => (
         <div key={e.id} className="flex items-center justify-between bg-card border border-border rounded-sm px-4 py-3">
           <span className="text-destructive font-body text-sm font-medium">{e.keyword}</span>
           <span className="text-muted-foreground text-xs">{e.age_group || "—"}</span>
@@ -285,7 +631,6 @@ function CrisisTab() {
   );
 }
 
-// ─── System Prompt ─────────────────────────────
 function PromptsTab() {
   const [prompts, setPrompts] = useState<any[]>([]);
   const [newVersion, setNewVersion] = useState("");
@@ -295,7 +640,6 @@ function PromptsTab() {
     const { data } = await supabase.from("system_prompts").select("*").order("created_at", { ascending: false });
     setPrompts(data || []);
   };
-
   useEffect(() => { refresh(); }, []);
 
   const createPrompt = async () => {
@@ -319,9 +663,9 @@ function PromptsTab() {
     <div className="space-y-6">
       <div className="bg-card border border-border rounded-sm p-4 space-y-3">
         <p className="font-serif text-gold text-xs uppercase tracking-widest">New Prompt Version</p>
-        <input placeholder="Version (e.g. v2.1)" value={newVersion} onChange={(e) => setNewVersion(e.target.value)}
+        <input placeholder="Version (e.g. v2.1)" value={newVersion} onChange={e => setNewVersion(e.target.value)}
           className="bg-input border border-border rounded-sm px-3 py-2 text-sm text-foreground w-full placeholder:text-muted-foreground" />
-        <textarea placeholder='Content as JSON' value={newContent} onChange={(e) => setNewContent(e.target.value)} rows={6}
+        <textarea placeholder='Content as JSON' value={newContent} onChange={e => setNewContent(e.target.value)} rows={6}
           className="bg-input border border-border rounded-sm px-3 py-2 text-sm text-foreground w-full placeholder:text-muted-foreground font-mono resize-none" />
         <button onClick={createPrompt}
           className="bg-gold text-primary-foreground font-serif text-xs uppercase tracking-widest px-6 py-2 rounded-sm hover:bg-gold-light transition-colors">
@@ -329,7 +673,7 @@ function PromptsTab() {
         </button>
       </div>
       <div className="space-y-3">
-        {prompts.map((p) => (
+        {prompts.map(p => (
           <div key={p.id} className={`bg-card border rounded-sm p-4 ${p.is_active ? "border-gold" : "border-border"}`}>
             <div className="flex items-center justify-between mb-2">
               <span className="font-serif text-foreground text-sm">{p.version}</span>
@@ -349,7 +693,6 @@ function PromptsTab() {
   );
 }
 
-// ─── Settings ─────────────────────────────
 function SettingsTab() {
   const [configs, setConfigs] = useState<{ key: string; value: string }[]>([]);
   const [newKey, setNewKey] = useState("");
@@ -359,7 +702,6 @@ function SettingsTab() {
     const { data } = await supabase.from("app_config").select("*").order("key");
     setConfigs((data || []) as { key: string; value: string }[]);
   };
-
   useEffect(() => { refresh(); }, []);
 
   const saveConfig = async () => {
@@ -374,16 +716,16 @@ function SettingsTab() {
       <div className="bg-card border border-border rounded-sm p-4 space-y-3">
         <p className="font-serif text-gold text-xs uppercase tracking-widest">Add / Update Config</p>
         <div className="flex gap-3">
-          <input placeholder="Key" value={newKey} onChange={(e) => setNewKey(e.target.value)}
+          <input placeholder="Key" value={newKey} onChange={e => setNewKey(e.target.value)}
             className="bg-input border border-border rounded-sm px-3 py-2 text-sm text-foreground flex-1 placeholder:text-muted-foreground" />
-          <input placeholder="Value" value={newValue} onChange={(e) => setNewValue(e.target.value)}
+          <input placeholder="Value" value={newValue} onChange={e => setNewValue(e.target.value)}
             className="bg-input border border-border rounded-sm px-3 py-2 text-sm text-foreground flex-1 placeholder:text-muted-foreground" />
           <button onClick={saveConfig}
             className="bg-gold text-primary-foreground font-serif text-xs uppercase tracking-widest px-6 py-2 rounded-sm hover:bg-gold-light transition-colors whitespace-nowrap">Save</button>
         </div>
       </div>
       <div className="space-y-2">
-        {configs.map((c) => (
+        {configs.map(c => (
           <div key={c.key} className="flex items-center justify-between bg-card border border-border/50 rounded-sm px-4 py-3">
             <span className="text-gold font-mono text-sm">{c.key}</span>
             <span className="text-foreground text-sm">{c.value || "—"}</span>
@@ -395,18 +737,58 @@ function SettingsTab() {
   );
 }
 
-// ─── Main Admin Page ─────────────────────────────
+// ═══════════════════════════════════════════
+// MAIN ADMIN PAGE
+// ═══════════════════════════════════════════
 export default function AdminDashboard() {
   const navigate = useNavigate();
-  const { user, role, isAdmin, loading } = useAuth();
-  const [activeTab, setActiveTab] = useState<AdminTab>("dashboard");
+  const { user, role, loading } = useAuth();
+  const [activeTab, setActiveTab] = useState<AdminTab>("agent-health");
   const [editingUserId, setEditingUserId] = useState<string | null>(null);
+  const [lastUpdated, setLastUpdated] = useState(new Date());
+  const [elapsed, setElapsed] = useState(0);
 
+  // Data for alerts (shared state)
+  const [agentRuns, setAgentRuns] = useState<any[]>([]);
+  const [wisdomSessions, setWisdomSessions] = useState<any[]>([]);
+
+  const fetchAlertData = useCallback(async () => {
+    const [{ data: runs }, { data: sessions }] = await Promise.all([
+      supabase.from("journal_agent_runs").select("id, status, error_message, created_at, metadata")
+        .gte("created_at", daysAgo(7)).order("created_at", { ascending: false }).limit(200),
+      supabase.from("wisdom_sessions").select("id, user_id, created_at")
+        .gte("created_at", daysAgo(14)).order("created_at", { ascending: false }).limit(1000),
+    ]);
+    setAgentRuns(runs || []);
+    setWisdomSessions(sessions || []);
+    setLastUpdated(new Date());
+  }, []);
+
+  // Guard: super_admin only
   useEffect(() => {
-    if (!loading && (!user || !isAdmin)) {
+    if (!loading && (!user || role !== "super_admin")) {
       navigate("/", { replace: true });
     }
-  }, [loading, user, isAdmin, navigate]);
+  }, [loading, user, role, navigate]);
+
+  // Initial fetch + 60s auto-refresh
+  useEffect(() => {
+    if (role === "super_admin") {
+      fetchAlertData();
+      const interval = setInterval(fetchAlertData, 60_000);
+      return () => clearInterval(interval);
+    }
+  }, [role, fetchAlertData]);
+
+  // Elapsed timer
+  useEffect(() => {
+    const t = setInterval(() => {
+      setElapsed(Math.floor((Date.now() - lastUpdated.getTime()) / 1000));
+    }, 1000);
+    return () => clearInterval(t);
+  }, [lastUpdated]);
+
+  const alerts = useAlerts(agentRuns, wisdomSessions);
 
   if (loading) {
     return (
@@ -416,16 +798,21 @@ export default function AdminDashboard() {
     );
   }
 
-  if (!isAdmin) return null;
+  if (role !== "super_admin") return null;
 
   const handleLogout = async () => {
     await supabase.auth.signOut();
     navigate("/");
   };
 
+  const formatElapsed = (s: number) => s < 60 ? `${s}s ago` : `${Math.floor(s / 60)}m ${s % 60}s ago`;
+
   const tabContent: Record<AdminTab, JSX.Element> = {
+    "agent-health": <AgentHealthTab />,
+    "wisdom-health": <WisdomHealthTab />,
+    "stripe-health": <StripeHealthTab />,
     dashboard: <DashboardTab />,
-    users: <UsersTab callerRole={role} onEditUser={(id) => setEditingUserId(id)} />,
+    users: <UsersTab callerRole={role} onEditUser={id => setEditingUserId(id)} />,
     subscriptions: <SubscriptionsTab />,
     monitor: <MonitorTab />,
     flagged: <FlaggedTab />,
@@ -436,13 +823,13 @@ export default function AdminDashboard() {
 
   return (
     <div className="min-h-screen bg-background flex">
-      <aside className="w-56 bg-card border-r border-border flex flex-col">
+      <aside className="w-56 bg-card border-r border-border flex flex-col shrink-0">
         <div className="p-6 border-b border-border">
           <h1 className="font-serif text-xl text-gold tracking-widest">DABAR</h1>
           <p className="text-muted-foreground text-xs font-body mt-1">Admin Console</p>
         </div>
-        <nav className="flex-1 py-4">
-          {tabs.map((t) => (
+        <nav className="flex-1 py-4 overflow-y-auto">
+          {tabs.map(t => (
             <button key={t.id} onClick={() => setActiveTab(t.id)}
               className={`w-full flex items-center gap-3 px-6 py-3 text-sm font-body transition-colors ${
                 activeTab === t.id ? "text-gold bg-secondary border-r-2 border-gold" : "text-muted-foreground hover:text-foreground hover:bg-secondary/50"
@@ -463,9 +850,34 @@ export default function AdminDashboard() {
 
       <main className="flex-1 p-8 overflow-y-auto">
         <div className="max-w-5xl">
-          <h2 className="font-serif text-2xl text-foreground tracking-wide mb-6">
-            {tabs.find((t) => t.id === activeTab)?.label}
-          </h2>
+          {/* Alert banners */}
+          {alerts.length === 0 ? (
+            <div className="bg-green-500/10 border border-green-500/30 rounded-sm px-4 py-3 mb-6">
+              <p className="text-green-400 text-sm font-body">✓ All systems healthy</p>
+            </div>
+          ) : (
+            <div className="space-y-2 mb-6">
+              {alerts.map((a, i) => (
+                <div key={i} className={`border rounded-sm px-4 py-3 ${
+                  a.level === "red" ? "bg-red-500/10 border-red-500/30" : "bg-amber-500/10 border-amber-500/30"
+                }`}>
+                  <p className={`text-sm font-body ${a.level === "red" ? "text-red-400" : "text-amber-400"}`}>
+                    ⚠ {a.message}
+                  </p>
+                </div>
+              ))}
+            </div>
+          )}
+
+          <div className="flex items-center justify-between mb-6">
+            <h2 className="font-serif text-2xl text-foreground tracking-wide">
+              {tabs.find(t => t.id === activeTab)?.label}
+            </h2>
+            <span className="text-muted-foreground text-xs font-body">
+              Last updated {formatElapsed(elapsed)}
+            </span>
+          </div>
+
           {tabContent[activeTab]}
         </div>
       </main>
