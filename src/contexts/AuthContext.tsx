@@ -38,6 +38,7 @@ interface AuthContextValue {
   refreshProfile: () => Promise<void>;
   setLanguagePreference: (lang: string) => void;
   setPreferredBibleVersion: (v: string) => void;
+  setPendingConfirmation: (email: string | null) => void;
 }
 
 const AuthContext = createContext<AuthContextValue | null>(null);
