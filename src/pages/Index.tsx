@@ -63,6 +63,7 @@ const Index = () => {
     response: string;
     scriptures: string[];
   } | null>(null);
+  const [isStreaming, setIsStreaming] = useState(false);
   const [authModal, setAuthModal] = useState<{ open: boolean; message?: string }>({ open: false });
   const [stirPrompt, setStirPrompt] = useState<string | null>(null);
   const [showLanguageSettings, setShowLanguageSettings] = useState(false);
