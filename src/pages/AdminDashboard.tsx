@@ -193,6 +193,108 @@ function AgentHealthTab() {
 }
 
 // ═══════════════════════════════════════════
+// SECTION 6 — AI GATEWAY & MODEL HEALTH
+// ═══════════════════════════════════════════
+const GEMINI_INPUT_RATE = 0.00015; // per 1K tokens
+const GEMINI_OUTPUT_RATE = 0.00060; // per 1K tokens
+
+function AIGatewayTab() {
+  const [runs, setRuns] = useState<any[]>([]);
+
+  const fetchRuns = useCallback(async () => {
+    const { data } = await supabase.from("journal_agent_runs").select("status, metadata, created_at")
+      .gte("created_at", daysAgo(7)).order("created_at", { ascending: false }).limit(500);
+    setRuns(data || []);
+  }, []);
+
+  useEffect(() => { fetchRuns(); }, [fetchRuns]);
+
+  // Metrics
+  const totalCalls = runs.length;
+
+  const inputTokens = runs
+    .map(r => r.metadata?.input_tokens)
+    .filter((t): t is number => typeof t === "number");
+  const outputTokens = runs
+    .map(r => r.metadata?.output_tokens)
+    .filter((t): t is number => typeof t === "number");
+
+  const avgInput = inputTokens.length > 0
+    ? Math.round(inputTokens.reduce((a, b) => a + b, 0) / inputTokens.length) : 0;
+  const avgOutput = outputTokens.length > 0
+    ? Math.round(outputTokens.reduce((a, b) => a + b, 0) / outputTokens.length) : 0;
+
+  const totalInputTokens = inputTokens.reduce((a, b) => a + b, 0);
+  const totalOutputTokens = outputTokens.reduce((a, b) => a + b, 0);
+  const estimatedCost = (totalInputTokens / 1000) * GEMINI_INPUT_RATE + (totalOutputTokens / 1000) * GEMINI_OUTPUT_RATE;
+  const costColor = estimatedCost < 1 ? "green" : estimatedCost <= 5 ? "amber" : "red";
+
+  // Tool call reliability by agent
+  type AgentStats = { calls: number; toolSuccess: number; toolFailure: number };
+  const agentMap: Record<string, AgentStats> = {};
+
+  for (const r of runs) {
+    const agent = (r.metadata?.agent as string) || "journal-pattern-agent";
+    if (!agentMap[agent]) agentMap[agent] = { calls: 0, toolSuccess: 0, toolFailure: 0 };
+    agentMap[agent].calls++;
+    if (r.metadata?.tool_parse_success === true) agentMap[agent].toolSuccess++;
+    if (r.metadata?.tool_parse_failure === true || r.status === "error") agentMap[agent].toolFailure++;
+  }
+
+  const agentRows = Object.entries(agentMap).map(([agent, stats]) => ({
+    agent,
+    ...stats,
+    failureRate: stats.calls > 0 ? Math.round((stats.toolFailure / stats.calls) * 100) : 0,
+  }));
+
+  return (
+    <div className="space-y-6">
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+        <MetricCard label="Total AI Calls (7d)" value={totalCalls} />
+        <MetricCard label="Avg Input Tokens" value={avgInput} />
+        <MetricCard label="Avg Output Tokens" value={avgOutput} />
+        <MetricCard label="Est. Cost (Gemini Flash)" value={`$${estimatedCost.toFixed(2)}`} color={costColor} />
+      </div>
+
+      <div>
+        <h3 className="font-serif text-gold text-sm uppercase tracking-widest mb-4">Tool Call Reliability</h3>
+        <div className="overflow-x-auto">
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="border-b border-border text-muted-foreground text-xs uppercase tracking-wider">
+                <th className="text-left py-3 px-2">Agent</th>
+                <th className="text-left py-3 px-2">Calls</th>
+                <th className="text-left py-3 px-2">Tool Parse Success</th>
+                <th className="text-left py-3 px-2">Tool Parse Failures</th>
+                <th className="text-left py-3 px-2">Failure %</th>
+              </tr>
+            </thead>
+            <tbody>
+              {agentRows.map(row => (
+                <tr key={row.agent} className="border-b border-border/50 hover:bg-secondary/50">
+                  <td className="py-3 px-2 text-foreground font-mono text-xs">{row.agent}</td>
+                  <td className="py-3 px-2 text-muted-foreground">{row.calls}</td>
+                  <td className="py-3 px-2 text-green-500">{row.toolSuccess}</td>
+                  <td className="py-3 px-2 text-red-400">{row.toolFailure}</td>
+                  <td className="py-3 px-2">
+                    <span className={`text-xs font-serif ${row.failureRate > 10 ? "text-red-400" : row.failureRate > 0 ? "text-amber-400" : "text-green-500"}`}>
+                      {row.failureRate}%
+                    </span>
+                  </td>
+                </tr>
+              ))}
+              {agentRows.length === 0 && (
+                <tr><td colSpan={5} className="py-4 text-center text-muted-foreground text-sm italic">No data yet.</td></tr>
+              )}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ═══════════════════════════════════════════
 // SECTION 2 — SEEK-WISDOM HEALTH MONITOR
 // ═══════════════════════════════════════════
 function WisdomHealthTab() {
