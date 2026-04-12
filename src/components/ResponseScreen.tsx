@@ -6,6 +6,7 @@ interface ResponseScreenProps {
   response: string;
   scriptures: string[];
   isStreaming?: boolean;
+  agentStage?: "thinking" | "scripture" | "reflecting" | null;
   onAskAgain: () => void;
   onReflect: () => void;
   onStir: (thresholdQuestion: string) => void;
@@ -17,11 +18,18 @@ interface ResponseScreenProps {
   onProfileVersionChanged?: (v: string) => void;
 }
 
+const STAGE_LABELS: Record<string, string> = {
+  thinking: "Listening…",
+  scripture: "Searching scripture…",
+  reflecting: "Reflecting…",
+};
+
 const ResponseScreen = ({
   question,
   response,
   scriptures,
   isStreaming = false,
+  agentStage,
   onAskAgain,
   onReflect,
   onStir,
