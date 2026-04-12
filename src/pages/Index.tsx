@@ -54,7 +54,7 @@ const Index = () => {
     needsAgeGate,
   } = useAuth();
 
-  const [needsDob, setNeedsDob] = useState(false);
+  
   const [tab, setTab] = useState<Tab>("ask");
   const [screen, setScreen] = useState<Screen>("ask");
   const [isLoading, setIsLoading] = useState(false);
@@ -121,14 +121,8 @@ const Index = () => {
     }
   }, [authLoading, isSuspended, navigate]);
 
-  // Check if DOB is needed
-  useEffect(() => {
-    if (user && !ageGroup && !authLoading && !emailUnconfirmed) {
-      setNeedsDob(true);
-    } else {
-      setNeedsDob(false);
-    }
-  }, [user, ageGroup, authLoading, emailUnconfirmed]);
+
+
 
   // Blocked age group check (under 13)
   useEffect(() => {
