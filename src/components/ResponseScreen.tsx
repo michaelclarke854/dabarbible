@@ -82,7 +82,13 @@ const ResponseScreen = ({
         ))}
       </div>
 
-      {visibleBlocks >= blocks.length && (
+      {isStreaming && (
+        <div className="flex items-center gap-2 mb-4">
+          <span className="inline-block w-2 h-5 bg-gold animate-pulse" />
+        </div>
+      )}
+
+      {visibleBlocks >= blocks.length && !isStreaming && (
         <div className="animate-fade-in-up flex flex-col gap-3 pt-4">
           <div className="flex flex-col sm:flex-row gap-3">
             <button
