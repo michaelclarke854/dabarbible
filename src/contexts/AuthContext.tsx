@@ -35,10 +35,12 @@ interface AuthContextValue {
   emailUnconfirmed: boolean;
   userEmail: string | null;
   trial: TrialState;
+  needsAgeGate: boolean;
   refreshProfile: () => Promise<void>;
   setLanguagePreference: (lang: string) => void;
   setPreferredBibleVersion: (v: string) => void;
   setPendingConfirmation: (email: string | null) => void;
+  clearAgeGate: () => void;
 }
 
 const AuthContext = createContext<AuthContextValue | null>(null);

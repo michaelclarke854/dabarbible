@@ -9,7 +9,7 @@ interface TrialPaywallProps {
 
 const TrialPaywall = ({ questionCount, onUpgrade, onFreePlan }: TrialPaywallProps) => {
   const [downgrading, setDowngrading] = useState(false);
-  const { formatPlanPrice, loading: priceLoading } = useLocalizedPrice();
+  const { formatPrice, loading: priceLoading } = useLocalizedPrice();
 
   const handleFree = async () => {
     setDowngrading(true);
@@ -60,7 +60,7 @@ const TrialPaywall = ({ questionCount, onUpgrade, onFreePlan }: TrialPaywallProp
       </div>
 
       <p className="font-serif text-lg text-gold mb-6">
-        {priceLoading ? "…" : `${formatPlanPrice("personal")}/month`}
+        {priceLoading ? "…" : `${formatPrice("personal")}/month`}
       </p>
 
       <button
