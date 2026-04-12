@@ -38,6 +38,7 @@ interface AuthContextValue {
   refreshProfile: () => Promise<void>;
   setLanguagePreference: (lang: string) => void;
   setPreferredBibleVersion: (v: string) => void;
+  setPendingConfirmation: (email: string | null) => void;
 }
 
 const AuthContext = createContext<AuthContextValue | null>(null);
@@ -161,6 +162,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const hasFullAccess = FULL_ACCESS_ROLES.includes(role) || (plan === "trial" && !trial.trialExpired);
 
+  const setPendingConfirmation = useCallback((email: string | null) => {
+    if (email) {
+      setEmailUnconfirmed(true);
+      setUserEmail(email);
+    } else {
+      setEmailUnconfirmed(false);
+      setUserEmail(null);
+    }
+  }, []);
+
   const value: AuthContextValue = {
     user,
     role,
@@ -180,6 +191,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     refreshProfile,
     setLanguagePreference,
     setPreferredBibleVersion,
+    setPendingConfirmation,
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

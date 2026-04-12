@@ -2,6 +2,7 @@ import { useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { lovable } from "@/integrations/lovable/index";
 import { toast } from "sonner";
+import { useAuth } from "@/contexts/AuthContext";
 
 interface AuthModalProps {
   isOpen: boolean;
@@ -14,6 +15,7 @@ interface AuthModalProps {
 }
 
 const AuthModal = ({ isOpen, onClose, onSignedUp, onDobSubmitted, message, dobOnly, userId }: AuthModalProps) => {
+  const { setPendingConfirmation } = useAuth();
   const [mode, setMode] = useState<"signin" | "signup" | "forgot">("signup");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -114,21 +116,18 @@ const AuthModal = ({ isOpen, onClose, onSignedUp, onDobSubmitted, message, dobOn
           return;
         }
 
-        const { data: signUpData, error } = await supabase.auth.signUp({
+        const { error } = await supabase.auth.signUp({
           email,
           password,
-          options: { emailRedirectTo: window.location.origin },
+          options: {
+            emailRedirectTo: window.location.origin,
+            data: { age_group: result.ageGroup },
+          },
         });
         if (error) throw error;
 
-        if (signUpData.user) {
-          await supabase
-            .from("profiles")
-            .update({ age_group: result.ageGroup })
-            .eq("user_id", signUpData.user.id);
-        }
-
         toast.success("Check your email to confirm your account.");
+        setPendingConfirmation(email);
         onSignedUp?.();
         onClose();
       } else {
