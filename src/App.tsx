@@ -17,6 +17,8 @@ const PrivacyPage = lazy(() => import("./pages/PrivacyPage.tsx"));
 const TermsPage = lazy(() => import("./pages/TermsPage.tsx"));
 const AdminDashboard = lazy(() => import("./pages/AdminDashboard.tsx"));
 const SuspendedPage = lazy(() => import("./pages/SuspendedPage.tsx"));
+const ResetPasswordPage = lazy(() => import("./pages/ResetPasswordPage.tsx"));
+const PaymentSuccessPage = lazy(() => import("./pages/PaymentSuccessPage.tsx"));
 const NotFound = lazy(() => import("./pages/NotFound.tsx"));
 
 const queryClient = new QueryClient();
@@ -44,6 +46,8 @@ const App = () => (
               <Route path="/terms" element={<TermsPage />} />
               <Route path="/admin" element={<AdminDashboard />} />
               <Route path="/suspended" element={<SuspendedPage />} />
+              <Route path="/reset-password" element={<ResetPasswordPage />} />
+              <Route path="/payment-success" element={<PaymentSuccessPage />} />
               {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
               <Route path="*" element={<NotFound />} />
             </Routes>

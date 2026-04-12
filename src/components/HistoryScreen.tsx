@@ -1,10 +1,10 @@
-import { useState, useMemo } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useState, useMemo, useCallback } from "react";
+import { useQuery, useInfiniteQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { formatTimestamp } from "@/utils/formatTimestamp";
 import { parseResponse, ScriptureCard } from "./WisdomResponseBlocks";
 
-interface HistoryEntry {
+interface HistoryEntryData {
   id: string;
   question: string;
   response: string;
@@ -13,21 +13,48 @@ interface HistoryEntry {
   saved_to_journal: boolean;
 }
 
+const HISTORY_PAGE_SIZE = 20;
+
 const HistoryScreen = () => {
   const [search, setSearch] = useState("");
   const [expandedId, setExpandedId] = useState<string | null>(null);
 
-  const { data: entries = [], isLoading } = useQuery({
+  const {
+    data,
+    isLoading,
+    fetchNextPage,
+    hasNextPage,
+    isFetchingNextPage,
+  } = useInfiniteQuery({
     queryKey: ["history"],
-    queryFn: async () => {
-      const { data, error } = await supabase
+    queryFn: async ({ pageParam }: { pageParam: string | undefined }) => {
+      let query = supabase
         .from("wisdom_sessions")
         .select("*")
-        .order("created_at", { ascending: false });
+        .order("created_at", { ascending: false })
+        .limit(HISTORY_PAGE_SIZE + 1);
+
+      if (pageParam) {
+        query = query.lt("created_at", pageParam);
+      }
+
+      const { data, error } = await query;
       if (error) throw error;
-      return data as HistoryEntry[];
+
+      const items = data as HistoryEntryData[];
+      const hasMore = items.length === HISTORY_PAGE_SIZE + 1;
+      const pageItems = hasMore ? items.slice(0, -1) : items;
+
+      return {
+        items: pageItems,
+        nextCursor: hasMore ? pageItems[pageItems.length - 1].created_at : undefined,
+      };
     },
+    initialPageParam: undefined as string | undefined,
+    getNextPageParam: (lastPage) => lastPage.nextCursor,
   });
+
+  const entries = data?.pages.flatMap((p) => p.items) ?? [];
 
   const filtered = search.trim()
     ? entries.filter(
@@ -77,6 +104,17 @@ const HistoryScreen = () => {
               />
             );
           })}
+          {hasNextPage && !search.trim() && (
+            <div className="text-center py-4">
+              <button
+                onClick={() => fetchNextPage()}
+                disabled={isFetchingNextPage}
+                className="font-body text-sm text-gold hover:text-gold-dark transition-colors disabled:opacity-50"
+              >
+                {isFetchingNextPage ? "Loading…" : "Load more"}
+              </button>
+            </div>
+          )}
         </div>
       )}
     </div>
@@ -88,7 +126,7 @@ const HistoryEntry = ({
   isExpanded,
   onToggle,
 }: {
-  entry: HistoryEntry;
+  entry: HistoryEntryData;
   isExpanded: boolean;
   onToggle: () => void;
 }) => {

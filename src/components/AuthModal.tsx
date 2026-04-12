@@ -14,66 +14,60 @@ interface AuthModalProps {
 }
 
 const AuthModal = ({ isOpen, onClose, onSignedUp, onDobSubmitted, message, dobOnly, userId }: AuthModalProps) => {
-  const [mode, setMode] = useState<"signin" | "signup">("signup");
+  const [mode, setMode] = useState<"signin" | "signup" | "forgot">("signup");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [dobMonth, setDobMonth] = useState("");
-  const [dobDay, setDobDay] = useState("");
   const [dobYear, setDobYear] = useState("");
   const [loading, setLoading] = useState(false);
   const [dobError, setDobError] = useState("");
+  const [oauthLoading, setOauthLoading] = useState(false);
+  const [oauthError, setOauthError] = useState<string | null>(null);
+  const [forgotSent, setForgotSent] = useState(false);
+  const [forgotError, setForgotError] = useState("");
 
   if (!isOpen) return null;
 
-  const parseDob = (): Date | null => {
-    const m = parseInt(dobMonth, 10);
-    const d = parseInt(dobDay, 10);
-    const y = parseInt(dobYear, 10);
-    if (!m || !d || !y || m < 1 || m > 12 || d < 1 || d > 31 || y < 1900 || y > new Date().getFullYear()) {
-      return null;
-    }
-    const date = new Date(y, m - 1, d);
-    if (date.getMonth() !== m - 1 || date.getDate() !== d) return null;
-    if (date > new Date()) return null;
-    return date;
-  };
-
-  const getAgeYears = (dob: Date): number => {
+  const getAgeFromYearMonth = (year: number, month: number): number => {
     const now = new Date();
-    let age = now.getFullYear() - dob.getFullYear();
-    const monthDiff = now.getMonth() - dob.getMonth();
-    if (monthDiff < 0 || (monthDiff === 0 && now.getDate() < dob.getDate())) age--;
+    let age = now.getFullYear() - year;
+    if (now.getMonth() + 1 < month) age--;
     return age;
   };
 
   const getAgeGroup = (age: number) => {
-    if (age < 13) return "minor";
+    if (age < 13) return "blocked";
     if (age <= 17) return "youth";
     if (age <= 22) return "young_adult";
     return "adult";
   };
 
+  const validateDob = (): { ageGroup: string; age: number } | null => {
+    const m = parseInt(dobMonth, 10);
+    const y = parseInt(dobYear, 10);
+    if (!m || !y || m < 1 || m > 12 || y < 1900 || y > new Date().getFullYear()) {
+      setDobError("Please enter a valid birth year and month.");
+      return null;
+    }
+    const age = getAgeFromYearMonth(y, m);
+    const ageGroup = getAgeGroup(age);
+    if (ageGroup === "blocked") {
+      setDobError("Dabar is designed for ages 13 and up. Ask a parent or guardian to create a Family Account — they can set up access for you from their account.");
+      return null;
+    }
+    return { ageGroup, age };
+  };
+
   const handleDobSubmit = async () => {
     setDobError("");
-    const dob = parseDob();
-    if (!dob) {
-      setDobError("Please enter a valid date of birth.");
-      return;
-    }
-    const age = getAgeYears(dob);
-    if (age < 13) {
-      setDobError("Dabar is designed for ages 13 and up. Ask a parent or guardian to create a Family Account — they can set up access for you from their account.");
-      return;
-    }
+    const result = validateDob();
+    if (!result) return;
 
     setLoading(true);
     try {
-      const dobString = `${dobYear}-${dobMonth.padStart(2, "0")}-${dobDay.padStart(2, "0")}`;
-      const ageGroup = getAgeGroup(age);
-
       await supabase
         .from("profiles")
-        .update({ date_of_birth: dobString, age_group: ageGroup })
+        .update({ age_group: result.ageGroup })
         .eq("user_id", userId);
 
       toast.success("Thank you.");
@@ -86,6 +80,27 @@ const AuthModal = ({ isOpen, onClose, onSignedUp, onDobSubmitted, message, dobOn
     }
   };
 
+  const handleForgotPassword = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setForgotError("");
+    if (!email.trim()) {
+      setForgotError("Please enter your email address.");
+      return;
+    }
+    setLoading(true);
+    try {
+      const { error } = await supabase.auth.resetPasswordForEmail(email.trim(), {
+        redirectTo: `${window.location.origin}/reset-password`,
+      });
+      if (error) throw error;
+      setForgotSent(true);
+    } catch (err: any) {
+      setForgotError(err.message || "Something went wrong.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setDobError("");
@@ -93,15 +108,8 @@ const AuthModal = ({ isOpen, onClose, onSignedUp, onDobSubmitted, message, dobOn
 
     try {
       if (mode === "signup") {
-        const dob = parseDob();
-        if (!dob) {
-          setDobError("Please enter a valid date of birth.");
-          setLoading(false);
-          return;
-        }
-        const age = getAgeYears(dob);
-        if (age < 13) {
-          setDobError("Dabar is designed for ages 13 and up. Ask a parent or guardian to create a Family Account — they can set up access for you from their account.");
+        const result = validateDob();
+        if (!result) {
           setLoading(false);
           return;
         }
@@ -114,12 +122,9 @@ const AuthModal = ({ isOpen, onClose, onSignedUp, onDobSubmitted, message, dobOn
         if (error) throw error;
 
         if (signUpData.user) {
-          const dobString = `${dobYear}-${dobMonth.padStart(2, "0")}-${dobDay.padStart(2, "0")}`;
-          const ageGroup = getAgeGroup(age);
-
           await supabase
             .from("profiles")
-            .update({ date_of_birth: dobString, age_group: ageGroup })
+            .update({ age_group: result.ageGroup })
             .eq("user_id", signUpData.user.id);
         }
 
@@ -143,53 +148,56 @@ const AuthModal = ({ isOpen, onClose, onSignedUp, onDobSubmitted, message, dobOn
   };
 
   const handleGoogle = async () => {
+    setOauthLoading(true);
+    setOauthError(null);
+
     const result = await lovable.auth.signInWithOAuth("google", {
       redirect_uri: window.location.origin,
     });
-    if (result.error) toast.error(result.error.message || "Google sign-in failed.");
-    if (result.redirected) return;
+
+    if (result.error) {
+      setOauthLoading(false);
+      setOauthError(`Google sign-in failed: ${result.error.message || "Unknown error"}. Please try email instead.`);
+      return;
+    }
+
+    if (!result.redirected) {
+      setOauthLoading(false);
+      setOauthError("Google sign-in could not complete. Please try again or use email.");
+      return;
+    }
+    // Redirect in progress — loading persists until return
   };
 
   const inputClass = "w-full bg-transparent border-b border-border pb-2 text-sm font-body outline-none focus:border-gold transition-colors";
-  const dobInputClass = "bg-transparent border-b border-border pb-2 text-sm font-body outline-none focus:border-gold transition-colors text-center";
 
   const dobFields = (
     <div className="pt-2">
-      <label className="block text-xs font-body text-foreground/70 mb-2">
-        Your date of birth
+      <label className="block text-xs font-body text-foreground/70 mb-1">
+        {dobOnly
+          ? "To personalize your experience and ensure age-appropriate content, we ask for your approximate age. We store only your age group, not your exact birthdate."
+          : "Your birth year and month"}
       </label>
       <div className="flex gap-3">
-        <input
-          type="text"
-          inputMode="numeric"
-          maxLength={2}
+        <select
           value={dobMonth}
-          onChange={(e) => setDobMonth(e.target.value.replace(/\D/g, ""))}
-          placeholder="MM"
-          required
-          className={`${dobInputClass} w-16`}
-        />
-        <span className="text-muted-foreground self-end pb-2">/</span>
-        <input
-          type="text"
-          inputMode="numeric"
-          maxLength={2}
-          value={dobDay}
-          onChange={(e) => setDobDay(e.target.value.replace(/\D/g, ""))}
-          placeholder="DD"
-          required
-          className={`${dobInputClass} w-16`}
-        />
-        <span className="text-muted-foreground self-end pb-2">/</span>
+          onChange={(e) => setDobMonth(e.target.value)}
+          className="bg-transparent border-b border-border pb-2 text-sm font-body outline-none focus:border-gold transition-colors flex-1"
+        >
+          <option value="">Month</option>
+          {["January","February","March","April","May","June","July","August","September","October","November","December"].map((m, i) => (
+            <option key={m} value={String(i + 1)}>{m}</option>
+          ))}
+        </select>
         <input
           type="text"
           inputMode="numeric"
           maxLength={4}
           value={dobYear}
           onChange={(e) => setDobYear(e.target.value.replace(/\D/g, ""))}
-          placeholder="YYYY"
+          placeholder="Year"
           required
-          className={`${dobInputClass} w-20`}
+          className="bg-transparent border-b border-border pb-2 text-sm font-body outline-none focus:border-gold transition-colors text-center w-24"
         />
       </div>
       <p className="text-xs text-muted-foreground/60 mt-2 font-body">
@@ -227,9 +235,72 @@ const AuthModal = ({ isOpen, onClose, onSignedUp, onDobSubmitted, message, dobOn
     );
   }
 
-  return (
+  // Forgot password mode
+  if (mode === "forgot") {
+    return (
       <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm px-6">
         <div className="bg-card rounded-sm shadow-xl max-w-sm w-full p-8 relative max-h-[90vh] overflow-y-auto border border-border">
+          <button
+            onClick={onClose}
+            className="absolute top-4 right-4 text-muted-foreground hover:text-foreground text-lg"
+          >
+            ×
+          </button>
+
+          <h3 className="font-serif text-xl text-center mb-6 tracking-wide">
+            Reset Password
+          </h3>
+
+          {forgotSent ? (
+            <div className="text-center">
+              <p className="font-body text-sm text-foreground/80 leading-relaxed mb-6">
+                We sent a reset link to <span className="text-gold">{email}</span>. Check your inbox.
+              </p>
+              <button
+                onClick={() => { setMode("signin"); setForgotSent(false); }}
+                className="text-gold hover:underline text-sm font-body"
+              >
+                Back to sign in
+              </button>
+            </div>
+          ) : (
+            <form onSubmit={handleForgotPassword} className="space-y-4">
+              <p className="font-body text-sm text-foreground/70 leading-relaxed">
+                Enter your email and we'll send you a link to reset your password.
+              </p>
+              <input
+                type="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                placeholder="Email"
+                required
+                className={inputClass}
+              />
+              {forgotError && (
+                <p className="text-xs text-destructive font-body">{forgotError}</p>
+              )}
+              <button
+                type="submit"
+                disabled={loading}
+                className="w-full font-serif text-sm tracking-widest uppercase py-3 bg-gold text-primary-foreground rounded-sm transition-all hover:bg-gold-dark disabled:opacity-50"
+              >
+                {loading ? "…" : "Send reset link"}
+              </button>
+              <p className="text-center text-xs font-body text-muted-foreground">
+                <button onClick={() => setMode("signin")} className="text-gold hover:underline">
+                  Back to sign in
+                </button>
+              </p>
+            </form>
+          )}
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm px-6">
+      <div className="bg-card rounded-sm shadow-xl max-w-sm w-full p-8 relative max-h-[90vh] overflow-y-auto border border-border">
         <button
           onClick={onClose}
           className="absolute top-4 right-4 text-muted-foreground hover:text-foreground text-lg"
@@ -266,6 +337,16 @@ const AuthModal = ({ isOpen, onClose, onSignedUp, onDobSubmitted, message, dobOn
             className={inputClass}
           />
 
+          {mode === "signin" && (
+            <button
+              type="button"
+              onClick={() => setMode("forgot")}
+              className="text-xs font-body text-muted-foreground hover:text-gold transition-colors"
+            >
+              Forgot password?
+            </button>
+          )}
+
           {mode === "signup" && dobFields}
 
           <button
@@ -285,10 +366,15 @@ const AuthModal = ({ isOpen, onClose, onSignedUp, onDobSubmitted, message, dobOn
 
         <button
           onClick={handleGoogle}
-          className="w-full font-body text-sm py-3 border border-border rounded-sm hover:border-gold transition-colors"
+          disabled={oauthLoading}
+          className="w-full font-body text-sm py-3 border border-border rounded-sm hover:border-gold transition-colors disabled:opacity-50"
         >
-          Continue with Google
+          {oauthLoading ? "Connecting…" : "Continue with Google"}
         </button>
+
+        {oauthError && (
+          <p className="text-xs text-destructive font-body mt-2 text-center">{oauthError}</p>
+        )}
 
         <p className="text-center mt-6 text-xs font-body text-muted-foreground">
           {mode === "signup" ? (

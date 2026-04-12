@@ -12,6 +12,8 @@ import TrialBadge from "@/components/TrialBadge";
 import TrialPaywall from "@/components/TrialPaywall";
 import TrialNudgeBanner from "@/components/TrialNudgeBanner";
 import TrialInterstitial from "@/components/TrialInterstitial";
+import AppLoadingSkeleton from "@/components/AppLoadingSkeleton";
+import EmailConfirmationPending from "@/components/EmailConfirmationPending";
 import { parseScriptureRef } from "@/data/kjvBooks";
 import { useAuth } from "@/contexts/AuthContext";
 
@@ -44,7 +46,11 @@ const PageSpinner = () => (
 
 const Index = () => {
   const navigate = useNavigate();
-  const { user, role, plan, isSuspended, ageGroup, hasFullAccess, isBeta, isAdmin, languagePreference, setLanguagePreference, preferredBibleVersion, setPreferredBibleVersion, refreshProfile, loading: authLoading, trial } = useAuth();
+  const {
+    user, role, plan, isSuspended, ageGroup, hasFullAccess, isBeta, isAdmin,
+    languagePreference, setLanguagePreference, preferredBibleVersion, setPreferredBibleVersion,
+    refreshProfile, loading: authLoading, isHydrating, emailUnconfirmed, userEmail, trial,
+  } = useAuth();
 
   const [needsDob, setNeedsDob] = useState(false);
   const [tab, setTab] = useState<Tab>("ask");
@@ -66,11 +72,16 @@ const Index = () => {
   });
   const [scriptureDeepLink, setScriptureDeepLink] = useState<{ book: string; chapter: number; verse: number; version?: string } | null>(null);
 
-  // Trial nudge state
-  const [nudgeDismissed, setNudgeDismissed] = useState<Record<string, boolean>>({});
+  // Trial nudge state — derived from profile, not React state
   const [showInterstitial, setShowInterstitial] = useState(false);
   const [trialQuestionCount, setTrialQuestionCount] = useState(0);
   const [trialTopTheme, setTrialTopTheme] = useState<string | null>(null);
+
+  // Soft gate state for guest limit
+  const [showSoftGate, setShowSoftGate] = useState(false);
+
+  // Downgrade loading
+  const [downgradeLoading, setDowngradeLoading] = useState(false);
 
   // Fetch trial stats when on trial
   useEffect(() => {
@@ -94,7 +105,7 @@ const Index = () => {
 
   // Show day 21 interstitial once
   useEffect(() => {
-    if (trial.isOnTrial && trial.daysLeft <= 9 && !trial.trialNudgeSent.day21 && !nudgeDismissed.day21) {
+    if (trial.isOnTrial && trial.daysLeft <= 9 && !trial.trialNudgeSent.day21) {
       setShowInterstitial(true);
     }
   }, [trial]);
@@ -108,12 +119,12 @@ const Index = () => {
 
   // Check if DOB is needed
   useEffect(() => {
-    if (user && !ageGroup && !authLoading) {
+    if (user && !ageGroup && !authLoading && !emailUnconfirmed) {
       setNeedsDob(true);
     } else {
       setNeedsDob(false);
     }
-  }, [user, ageGroup, authLoading]);
+  }, [user, ageGroup, authLoading, emailUnconfirmed]);
 
   // Minor check
   useEffect(() => {
@@ -130,7 +141,8 @@ const Index = () => {
       .from("profiles")
       .update({ trial_nudge_sent: updated } as any)
       .eq("user_id", user.id);
-  }, [user, trial.trialNudgeSent]);
+    await refreshProfile();
+  }, [user, trial.trialNudgeSent, refreshProfile]);
 
   const checkDailyLimit = useCallback(async (): Promise<boolean> => {
     if (!user) return true;
@@ -179,13 +191,8 @@ const Index = () => {
 
   const seekWisdom = useCallback(
     async (question: string) => {
-      if (!user && getGuestQuestionsUsed() >= GUEST_LIMIT) {
-        setAuthModal({
-          open: true,
-          message: "Your words are worth keeping. Create a free account to start your 30-day trial — no card required.",
-        });
-        return;
-      }
+      // Soft gate for guests: show blurred response instead of hard block
+      const isGuestAtLimit = !user && getGuestQuestionsUsed() >= GUEST_LIMIT;
 
       if (user) {
         const canAsk = await checkDailyLimit();
@@ -196,14 +203,38 @@ const Index = () => {
 
       setIsLoading(true);
       setIsSaved(false);
+      setShowSoftGate(false);
 
       try {
         const { data, error } = await supabase.functions.invoke("seek-wisdom", {
           body: { question, userId: user?.id || null, ageGroup: ageGroup || null },
         });
 
-        if (error) throw error;
-        if (data?.error) throw new Error(data.error);
+        if (error) {
+          // Handle rate limiting for anonymous users
+          if (!user && error.message?.includes("429")) {
+            setAuthModal({
+              open: true,
+              message: "You've reached the free limit. Sign up for a 30-day free trial with unlimited questions.",
+            });
+            return;
+          }
+          throw error;
+        }
+        if (data?.error) {
+          if (data.error === "trial_expired") {
+            await refreshProfile();
+            return;
+          }
+          if (data.error === "rate_limited") {
+            setAuthModal({
+              open: true,
+              message: "You've reached the free limit. Sign up for a 30-day free trial with unlimited questions.",
+            });
+            return;
+          }
+          throw new Error(data.error);
+        }
 
         setCurrentResponse({
           question,
@@ -212,15 +243,21 @@ const Index = () => {
         });
         setScreen("response");
 
-        if (!user) incrementGuestQuestions();
-        else await incrementDailyUsage();
+        if (!user) {
+          incrementGuestQuestions();
+          if (isGuestAtLimit || getGuestQuestionsUsed() >= GUEST_LIMIT) {
+            setShowSoftGate(true);
+          }
+        } else {
+          await incrementDailyUsage();
+        }
       } catch (err: any) {
         toast.error(err.message || "Could not seek wisdom at this time.");
       } finally {
         setIsLoading(false);
       }
     },
-    [user, ageGroup, needsDob, checkDailyLimit, incrementDailyUsage]
+    [user, ageGroup, needsDob, checkDailyLimit, incrementDailyUsage, refreshProfile]
   );
 
   const reflectOnThis = useCallback(async () => {
@@ -311,12 +348,29 @@ const Index = () => {
 
   const handleDowngradeToFree = async () => {
     if (!user) return;
-    await supabase
-      .from("profiles")
-      .update({ plan: "free", role: "free" } as any)
-      .eq("user_id", user.id);
-    await refreshProfile();
+    setDowngradeLoading(true);
+    try {
+      const { error } = await supabase.functions.invoke("downgrade-plan", {
+        body: { userId: user.id },
+      });
+      if (error) throw error;
+      await refreshProfile();
+    } catch {
+      toast.error("Something went wrong. Please try again.");
+    } finally {
+      setDowngradeLoading(false);
+    }
   };
+
+  // Hydration guard — show skeleton while loading auth state
+  if (isHydrating || authLoading) {
+    return <AppLoadingSkeleton />;
+  }
+
+  // Unconfirmed email screen
+  if (emailUnconfirmed && userEmail) {
+    return <EmailConfirmationPending email={userEmail} />;
+  }
 
   const showAuthModal = authModal.open && !needsDob;
   const showDobModal = needsDob && !!user;
@@ -332,9 +386,51 @@ const Index = () => {
     );
   }
 
-  // Determine which nudge banner to show
-  const showDay14Banner = trial.isOnTrial && trial.daysLeft <= 16 && trial.daysLeft > 9 && !trial.trialNudgeSent.day14 && !nudgeDismissed.day14;
-  const showDay28Banner = trial.isOnTrial && trial.daysLeft <= 2;
+  // Nudge display — derived from profile, not React state
+  const showDay14Banner = trial.isOnTrial && trial.daysLeft <= 16 && trial.daysLeft > 9 && !trial.trialNudgeSent.day14 && !trial.trialConverted;
+  const showDay28Banner = trial.isOnTrial && trial.daysLeft <= 2 && !trial.trialConverted;
+
+  // Soft gate overlay for guest limit
+  const renderSoftGate = () => {
+    if (!showSoftGate || !currentResponse) return null;
+    const responseLines = currentResponse.response.split("\n");
+    const cutoff = Math.floor(responseLines.length * 0.4);
+
+    return (
+      <div className="mt-6">
+        <div className="relative">
+          <div style={{ filter: "blur(4px)", userSelect: "none", pointerEvents: "none" as const }}>
+            {responseLines.slice(cutoff).map((line, i) => (
+              <p key={i} className="font-serif text-base leading-relaxed text-foreground mb-2">{line}</p>
+            ))}
+          </div>
+          <div className="absolute inset-0 flex items-center justify-center">
+            <div className="bg-card border border-gold/20 rounded-sm p-6 text-center max-w-sm shadow-xl">
+              <p className="font-serif text-lg text-foreground mb-2">Unlock your full answer</p>
+              <p className="font-body text-xs text-muted-foreground mb-4">
+                Start your 30-day free trial — unlimited questions, full responses, journal access.
+              </p>
+              <button
+                onClick={() => setAuthModal({ open: true, message: "Start your 30-day free trial — unlimited questions, full responses, journal access." })}
+                className="w-full font-serif text-sm tracking-widest uppercase py-3 bg-gold text-primary-foreground rounded-sm hover:bg-gold-dark transition-all mb-2"
+              >
+                Start free trial
+              </button>
+              <p className="text-xs font-body text-muted-foreground">
+                Already have an account?{" "}
+                <button
+                  onClick={() => setAuthModal({ open: true })}
+                  className="text-gold hover:underline"
+                >
+                  Sign in
+                </button>
+              </p>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  };
 
   return (
     <div className="min-h-screen flex flex-col">
@@ -345,7 +441,6 @@ const Index = () => {
             daysLeft={trial.daysLeft}
             variant={showDay28Banner ? "day28" : "day14"}
             onDismiss={() => {
-              setNudgeDismissed(prev => ({ ...prev, day14: true }));
               markNudgeSent("day14");
             }}
             onUpgrade={handleUpgrade}
@@ -362,7 +457,6 @@ const Index = () => {
           onUpgrade={handleUpgrade}
           onDismiss={() => {
             setShowInterstitial(false);
-            setNudgeDismissed(prev => ({ ...prev, day21: true }));
             markNudgeSent("day21");
           }}
         />
@@ -392,27 +486,30 @@ const Index = () => {
           screen === "ask" ? (
             <AskScreen onSeekWisdom={seekWisdom} isLoading={isLoading} />
           ) : currentResponse ? (
-            <ResponseScreen
-              question={currentResponse.question}
-              response={currentResponse.response}
-              scriptures={currentResponse.scriptures}
-              onAskAgain={() => { setScreen("ask"); setCurrentResponse(null); }}
-              onReflect={reflectOnThis}
-              onStir={(thresholdQ) => {
-                reflectOnThis().then(() => {
-                  if (!user) return;
-                  if (!hasFullAccess) return;
-                  setStirPrompt(thresholdQ);
-                  setTab("journal");
-                });
-              }}
-              isSaving={isSaving}
-              isSaved={isSaved}
-              onScriptureRef={handleScriptureDeepLink}
-              userId={user?.id}
-              profileVersion={preferredBibleVersion}
-              onProfileVersionChanged={(v) => setPreferredBibleVersion(v)}
-            />
+            <>
+              <ResponseScreen
+                question={currentResponse.question}
+                response={currentResponse.response}
+                scriptures={currentResponse.scriptures}
+                onAskAgain={() => { setScreen("ask"); setCurrentResponse(null); setShowSoftGate(false); }}
+                onReflect={reflectOnThis}
+                onStir={(thresholdQ) => {
+                  reflectOnThis().then(() => {
+                    if (!user) return;
+                    if (!hasFullAccess) return;
+                    setStirPrompt(thresholdQ);
+                    setTab("journal");
+                  });
+                }}
+                isSaving={isSaving}
+                isSaved={isSaved}
+                onScriptureRef={handleScriptureDeepLink}
+                userId={user?.id}
+                profileVersion={preferredBibleVersion}
+                onProfileVersionChanged={(v) => setPreferredBibleVersion(v)}
+              />
+              {renderSoftGate()}
+            </>
           ) : null
         ) : tab === "scripture" ? (
           <Suspense fallback={<PageSpinner />}>
