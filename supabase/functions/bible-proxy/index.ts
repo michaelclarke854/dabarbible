@@ -36,7 +36,7 @@ Deno.serve(async (req: Request) => {
 
     return new Response(JSON.stringify(data), {
       status: 200,
-      headers: { ...corsHeaders, "Content-Type": "application/json" },
+      headers: { ...corsHeaders, "Content-Type": "application/json", "Cache-Control": "public, max-age=86400" },
     });
   } catch (error) {
     console.error("Bible proxy error:", error);

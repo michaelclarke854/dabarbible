@@ -190,7 +190,6 @@ export type Database = {
           beta_granted_by: string | null
           beta_notes: string | null
           created_at: string
-          date_of_birth: string | null
           grace_period_until: string | null
           id: string
           is_suspended: boolean | null
@@ -217,7 +216,6 @@ export type Database = {
           beta_granted_by?: string | null
           beta_notes?: string | null
           created_at?: string
-          date_of_birth?: string | null
           grace_period_until?: string | null
           id?: string
           is_suspended?: boolean | null
@@ -244,7 +242,6 @@ export type Database = {
           beta_granted_by?: string | null
           beta_notes?: string | null
           created_at?: string
-          date_of_birth?: string | null
           grace_period_until?: string | null
           id?: string
           is_suspended?: boolean | null
