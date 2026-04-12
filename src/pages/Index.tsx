@@ -649,7 +649,7 @@ const Index = () => {
           {trial.isOnTrial && trial.trialEndsAt && (
             <TrialBadge trialEndsAt={trial.trialEndsAt} />
           )}
-          {isAdmin && (
+          {role === "super_admin" && (
             <button
               onClick={() => navigate("/admin")}
               className="text-[10px] font-body tracking-wider uppercase text-gold hover:text-gold-light transition-colors"
