@@ -9,16 +9,17 @@ import {
 import {
   LayoutDashboard, Users, CreditCard, MessageSquare,
   Flag, AlertTriangle, FileText, Settings, LogOut,
-  Activity, Server, ChevronDown, ChevronRight,
+  Activity, Server, ChevronDown, ChevronRight, Cpu,
 } from "lucide-react";
 
 type AdminTab =
-  | "agent-health" | "wisdom-health" | "stripe-health"
+  | "agent-health" | "ai-gateway" | "wisdom-health" | "stripe-health"
   | "dashboard" | "users" | "subscriptions" | "monitor"
   | "flagged" | "crisis" | "prompts" | "settings";
 
 const tabs: { id: AdminTab; label: string; icon: typeof LayoutDashboard }[] = [
   { id: "agent-health", label: "Agent Health", icon: Activity },
+  { id: "ai-gateway", label: "AI Gateway", icon: Cpu },
   { id: "wisdom-health", label: "Seek-Wisdom", icon: Server },
   { id: "stripe-health", label: "Stripe Health", icon: CreditCard },
   { id: "dashboard", label: "Overview", icon: LayoutDashboard },
