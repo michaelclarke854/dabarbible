@@ -32,7 +32,8 @@ const JournalScreen = ({ stirPrompt, onStirConsumed }: { stirPrompt?: string | n
         .from("wisdom_sessions")
         .select("*")
         .eq("saved_to_journal", true)
-        .order("created_at", { ascending: false });
+        .order("created_at", { ascending: false })
+        .limit(100);
       if (error) throw error;
       return data as WisdomEntry[];
     },
