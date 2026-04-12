@@ -6,34 +6,37 @@ import BillingConfirmModal from "@/components/BillingConfirmModal";
 import { useLocalizedPrice } from "@/hooks/useLocalizedPrice";
 import { Skeleton } from "@/components/ui/skeleton";
 
+const ALLOWED_CURRENCIES = [
+  "usd", "gbp", "eur", "aud", "cad", "nzd", "ngn", "ghs", "kes", "zar", "tzs",
+  "inr", "php", "sgd", "myr", "idr", "brl", "mxn", "cop", "clp", "jpy", "krw",
+  "chf", "sek", "nok", "dkk", "pln", "huf", "ron", "czk", "aed", "try", "hkd",
+];
+
 interface PricingTier {
   key: string;
   name: string;
-  usdMonthly: number;
-  usdAnnual?: number;
-  studentUsdMonthly?: number;
+  planKey: string; // key used in the hook's price map
   description: string;
   features: string[];
   cta: string;
   highlighted?: boolean;
   hasAnnual?: boolean;
+  hasStudent?: boolean;
 }
 
 const tiers: PricingTier[] = [
   {
     key: "free",
     name: "Free",
-    usdMonthly: 0,
-    description: "Start with a 30-day free trial. After that, $6.99/month or continue on the free plan.",
+    planKey: "",
+    description: "Start with a 30-day free trial. After that, continue on the free plan.",
     features: ["30-day free trial with full access", "After trial: 3 questions per day", "No journal persistence on free plan"],
     cta: "Get Started",
   },
   {
     key: "personal",
     name: "Personal",
-    usdMonthly: 6.99,
-    usdAnnual: 59.99,
-    studentUsdMonthly: 4.99,
+    planKey: "personal",
     description: "For the daily seeker.",
     features: [
       "Unlimited questions",
@@ -43,12 +46,12 @@ const tiers: PricingTier[] = [
     cta: "Start Personal",
     highlighted: true,
     hasAnnual: true,
+    hasStudent: true,
   },
   {
     key: "family",
     name: "Family",
-    usdMonthly: 12.99,
-    usdAnnual: 99.99,
+    planKey: "family",
     description: "For those who seek together.",
     features: [
       "Everything in Personal",
@@ -61,7 +64,7 @@ const tiers: PricingTier[] = [
   {
     key: "community",
     name: "Community",
-    usdMonthly: 99,
+    planKey: "community",
     description: "For churches, ministries, and schools.",
     features: [
       "Everything in Personal",
@@ -74,10 +77,11 @@ const tiers: PricingTier[] = [
 
 const PricingPage = () => {
   const navigate = useNavigate();
-  const { formatPrice, currency, loading: priceLoading, isNonUSD } = useLocalizedPrice();
+  const { formatPrice, currency, canOverride, loading: priceLoading, saveCurrencyPreference } = useLocalizedPrice();
   const [loadingPlan, setLoadingPlan] = useState<string | null>(null);
   const [showAnnual, setShowAnnual] = useState<Record<string, boolean>>({});
   const [confirmPlan, setConfirmPlan] = useState<{ key: string; displayPrice: string } | null>(null);
+  const [showCurrencyPicker, setShowCurrencyPicker] = useState(false);
 
   const handleCheckout = async (planKey: string) => {
     if (planKey === "free") {
@@ -126,11 +130,7 @@ const PricingPage = () => {
 
   const getDisplayPrice = (tier: PricingTier): string => {
     if (tier.key === "free") return "Free";
-    const isAnnual = showAnnual[tier.key];
-    if (isAnnual && tier.usdAnnual) {
-      return `${formatPrice(tier.usdAnnual)}/yr`;
-    }
-    return `${formatPrice(tier.usdMonthly)}/mo`;
+    return `${formatPrice(tier.planKey)}/mo`;
   };
 
   const handlePlanClick = (planKey: string, displayPrice: string) => {
@@ -174,11 +174,6 @@ const PricingPage = () => {
                     <Skeleton className="h-6 w-20 bg-gold/10" />
                   ) : (
                     <span className="font-serif text-lg text-gold">{displayPrice}</span>
-                  )}
-                  {tier.studentUsdMonthly && !priceLoading && (
-                    <span className="block text-xs font-body text-muted-foreground">
-                      Student: {formatPrice(tier.studentUsdMonthly)}/mo
-                    </span>
                   )}
                 </div>
               </div>
@@ -226,20 +221,45 @@ const PricingPage = () => {
         })}
       </div>
 
-      {isNonUSD && !priceLoading && (
-        <p className="text-center mt-6 font-body text-xs text-muted-foreground">
-          Prices shown are estimates in {currency}. Your exact charge is confirmed by Stripe at checkout.
-        </p>
+      {canOverride && !priceLoading && (
+        <div className="text-center mt-6">
+          <span className="font-body text-xs text-muted-foreground">
+            Showing prices in {currency.toUpperCase()} ·{" "}
+          </span>
+          {showCurrencyPicker ? (
+            <select
+              value={currency}
+              onChange={(e) => {
+                saveCurrencyPreference(e.target.value);
+                setShowCurrencyPicker(false);
+              }}
+              className="font-body text-xs text-gold bg-transparent border-b border-gold/30 outline-none cursor-pointer"
+            >
+              {ALLOWED_CURRENCIES.map((c) => (
+                <option key={c} value={c}>
+                  {c.toUpperCase()}
+                </option>
+              ))}
+            </select>
+          ) : (
+            <button
+              onClick={() => setShowCurrencyPicker(true)}
+              className="font-body text-xs text-gold hover:underline bg-transparent border-none cursor-pointer p-0"
+            >
+              Change
+            </button>
+          )}
+        </div>
       )}
 
       <div className="text-center mt-12 pt-8 border-t border-border">
         <p className="font-body text-xs text-muted-foreground">
           Gift a year of wisdom —{" "}
           <button
-            onClick={() => handlePlanClick("gift", formatPrice(59.99) + "/year")}
+            onClick={() => handlePlanClick("gift", formatPrice("personal") + "/year")}
             className="text-gold hover:underline"
           >
-            {priceLoading ? "…" : `${formatPrice(59.99)}/year`}
+            {priceLoading ? "…" : `${formatPrice("personal")}/year`}
           </button>
         </p>
       </div>

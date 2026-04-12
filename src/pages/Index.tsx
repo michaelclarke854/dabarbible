@@ -50,6 +50,7 @@ const Index = () => {
     user, role, plan, isSuspended, ageGroup, hasFullAccess, isBeta, isAdmin,
     languagePreference, setLanguagePreference, preferredBibleVersion, setPreferredBibleVersion,
     refreshProfile, loading: authLoading, isHydrating, emailUnconfirmed, userEmail, trial,
+    needsAgeGate,
   } = useAuth();
 
   const [needsDob, setNeedsDob] = useState(false);
