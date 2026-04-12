@@ -520,6 +520,8 @@ export type Database = {
           created_at: string
           id: string
           plan_type: string
+          presentment_amount: number | null
+          presentment_currency: string | null
           status: string
           stripe_subscription_id: string | null
           user_id: string
@@ -529,6 +531,8 @@ export type Database = {
           created_at?: string
           id?: string
           plan_type?: string
+          presentment_amount?: number | null
+          presentment_currency?: string | null
           status?: string
           stripe_subscription_id?: string | null
           user_id: string
@@ -538,6 +542,8 @@ export type Database = {
           created_at?: string
           id?: string
           plan_type?: string
+          presentment_amount?: number | null
+          presentment_currency?: string | null
           status?: string
           stripe_subscription_id?: string | null
           user_id?: string
