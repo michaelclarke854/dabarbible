@@ -5,6 +5,7 @@ interface ResponseScreenProps {
   question: string;
   response: string;
   scriptures: string[];
+  isStreaming?: boolean;
   onAskAgain: () => void;
   onReflect: () => void;
   onStir: (thresholdQuestion: string) => void;
