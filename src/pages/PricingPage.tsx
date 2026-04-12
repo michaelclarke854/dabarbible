@@ -2,6 +2,7 @@ import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import BillingConfirmModal from "@/components/BillingConfirmModal";
 
 interface PricingTier {
   key: string;
@@ -70,8 +71,9 @@ const PricingPage = () => {
   const navigate = useNavigate();
   const [loadingPlan, setLoadingPlan] = useState<string | null>(null);
   const [showAnnual, setShowAnnual] = useState<Record<string, boolean>>({});
+  const [confirmPlan, setConfirmPlan] = useState<{ key: string; price: string } | null>(null);
 
-  const handleCheckout = async (planKey: string, hasAnnual: boolean) => {
+  const handleCheckout = async (planKey: string) => {
     if (planKey === "free") {
       navigate("/");
       return;
@@ -83,7 +85,6 @@ const PricingPage = () => {
       return;
     }
 
-    // Check if student
     const { data: profile } = await supabase
       .from("profiles")
       .select("age_group")
@@ -113,7 +114,16 @@ const PricingPage = () => {
       toast.error(err.message || "Could not start checkout.");
     } finally {
       setLoadingPlan(null);
+      setConfirmPlan(null);
     }
+  };
+
+  const handlePlanClick = (planKey: string, price: string) => {
+    if (planKey === "free") {
+      navigate("/");
+      return;
+    }
+    setConfirmPlan({ key: planKey, price });
   };
 
   return (
@@ -180,7 +190,7 @@ const PricingPage = () => {
             )}
 
             <button
-              onClick={() => handleCheckout(tier.key, !!tier.hasAnnual)}
+              onClick={() => handlePlanClick(tier.key, tier.price)}
               disabled={loadingPlan === tier.key}
               className={`w-full font-serif text-sm tracking-widest uppercase py-3 rounded-sm transition-all disabled:opacity-50 ${
                 tier.highlighted
@@ -198,13 +208,22 @@ const PricingPage = () => {
         <p className="font-body text-xs text-muted-foreground">
           Gift a year of wisdom —{" "}
           <button
-            onClick={() => handleCheckout("gift", false)}
+            onClick={() => handlePlanClick("gift", "$59.99/year")}
             className="text-gold hover:underline"
           >
             $59.99/year
           </button>
         </p>
       </div>
+
+      {confirmPlan && (
+        <BillingConfirmModal
+          price={confirmPlan.price}
+          onConfirm={() => handleCheckout(confirmPlan.key)}
+          onCancel={() => setConfirmPlan(null)}
+          loading={!!loadingPlan}
+        />
+      )}
     </div>
   );
 };
