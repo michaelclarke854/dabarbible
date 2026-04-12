@@ -63,6 +63,7 @@ const Index = () => {
     response: string;
     scriptures: string[];
   } | null>(null);
+  const [isStreaming, setIsStreaming] = useState(false);
   const [authModal, setAuthModal] = useState<{ open: boolean; message?: string }>({ open: false });
   const [stirPrompt, setStirPrompt] = useState<string | null>(null);
   const [showLanguageSettings, setShowLanguageSettings] = useState(false);
@@ -191,7 +192,6 @@ const Index = () => {
 
   const seekWisdom = useCallback(
     async (question: string) => {
-      // Soft gate for guests: show blurred response instead of hard block
       const isGuestAtLimit = !user && getGuestQuestionsUsed() >= GUEST_LIMIT;
 
       if (user) {
@@ -206,42 +206,74 @@ const Index = () => {
       setShowSoftGate(false);
 
       try {
-        const { data, error } = await supabase.functions.invoke("seek-wisdom", {
-          body: { question, userId: user?.id || null, ageGroup: ageGroup || null },
-        });
+        const { data: { session: authSession } } = await supabase.auth.getSession();
 
-        if (error) {
-          // Handle rate limiting for anonymous users
-          if (!user && error.message?.includes("429")) {
-            setAuthModal({
-              open: true,
-              message: "You've reached the free limit. Sign up for a 30-day free trial with unlimited questions.",
-            });
-            return;
+        const response = await fetch(
+          `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/seek-wisdom`,
+          {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              Authorization: `Bearer ${authSession?.access_token ?? import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
+              apikey: import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
+            },
+            body: JSON.stringify({
+              question,
+              userId: user?.id || null,
+              ageGroup: ageGroup || null,
+              language: languagePreference,
+              scriptureVersion: preferredBibleVersion,
+            }),
           }
-          throw error;
-        }
-        if (data?.error) {
-          if (data.error === "trial_expired") {
+        );
+
+        if (!response.ok) {
+          const err = await response.json().catch(() => ({}));
+          if (err.error === "trial_expired") {
             await refreshProfile();
             return;
           }
-          if (data.error === "rate_limited") {
-            setAuthModal({
-              open: true,
-              message: "You've reached the free limit. Sign up for a 30-day free trial with unlimited questions.",
-            });
+          if (err.error === "rate_limited" || response.status === 429) {
+            if (!user) {
+              setAuthModal({
+                open: true,
+                message: "You've reached the free limit. Sign up for a 30-day free trial with unlimited questions.",
+              });
+            } else {
+              toast.error(err.error || "You've asked many questions recently. Please wait a while.");
+            }
             return;
           }
-          throw new Error(data.error);
+          throw new Error(err.message || err.error || "Something went wrong");
         }
 
-        setCurrentResponse({
-          question,
-          response: data.response,
-          scriptures: data.scriptures || [],
-        });
+        // Set up streaming response
+        setCurrentResponse({ question, response: "", scriptures: [] });
         setScreen("response");
+        setIsStreaming(true);
+
+        const reader = response.body!.getReader();
+        const decoder = new TextDecoder();
+        let fullText = "";
+
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
+          const chunk = decoder.decode(value, { stream: true });
+          fullText += chunk;
+          setCurrentResponse((prev) =>
+            prev ? { ...prev, response: fullText } : { question, response: fullText, scriptures: [] }
+          );
+        }
+
+        // Parse scriptures from final text
+        const scriptureRefs: string[] = [];
+        const regex = /\[SCRIPTURE\]\s*\nreference:\s*(.+)\ntext:\s*.+\n\[\/SCRIPTURE\]/g;
+        let match;
+        while ((match = regex.exec(fullText)) !== null) {
+          scriptureRefs.push(match[1].trim());
+        }
+        setCurrentResponse({ question, response: fullText, scriptures: scriptureRefs });
 
         if (!user) {
           incrementGuestQuestions();
@@ -255,9 +287,10 @@ const Index = () => {
         toast.error(err.message || "Could not seek wisdom at this time.");
       } finally {
         setIsLoading(false);
+        setIsStreaming(false);
       }
     },
-    [user, ageGroup, needsDob, checkDailyLimit, incrementDailyUsage, refreshProfile]
+    [user, ageGroup, needsDob, checkDailyLimit, incrementDailyUsage, refreshProfile, languagePreference, preferredBibleVersion]
   );
 
   const reflectOnThis = useCallback(async () => {
@@ -491,6 +524,7 @@ const Index = () => {
                 question={currentResponse.question}
                 response={currentResponse.response}
                 scriptures={currentResponse.scriptures}
+                isStreaming={isStreaming}
                 onAskAgain={() => { setScreen("ask"); setCurrentResponse(null); setShowSoftGate(false); }}
                 onReflect={reflectOnThis}
                 onStir={(thresholdQ) => {

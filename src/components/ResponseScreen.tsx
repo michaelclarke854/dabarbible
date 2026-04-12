@@ -5,6 +5,7 @@ interface ResponseScreenProps {
   question: string;
   response: string;
   scriptures: string[];
+  isStreaming?: boolean;
   onAskAgain: () => void;
   onReflect: () => void;
   onStir: (thresholdQuestion: string) => void;
@@ -20,6 +21,7 @@ const ResponseScreen = ({
   question,
   response,
   scriptures,
+  isStreaming = false,
   onAskAgain,
   onReflect,
   onStir,
@@ -34,19 +36,17 @@ const ResponseScreen = ({
   const blocks = useMemo(() => parseResponse(response), [response]);
   const thresholdQuestion = useMemo(() => extractThresholdQuestion(blocks), [blocks]);
 
+  // During streaming, show all blocks immediately; after streaming ends, keep them all visible
   useEffect(() => {
-    setVisibleBlocks(0);
-    const interval = setInterval(() => {
-      setVisibleBlocks((prev) => {
-        if (prev >= blocks.length) {
-          clearInterval(interval);
-          return prev;
-        }
-        return prev + 1;
-      });
-    }, 400);
-    return () => clearInterval(interval);
-  }, [response, blocks.length]);
+    if (isStreaming) {
+      setVisibleBlocks(blocks.length);
+      return;
+    }
+    // When streaming finishes, ensure all blocks stay visible
+    if (blocks.length > 0 && visibleBlocks < blocks.length) {
+      setVisibleBlocks(blocks.length);
+    }
+  }, [isStreaming, blocks.length]);
 
   return (
     <div className="min-h-[calc(100vh-80px)] px-6 py-12 max-w-2xl mx-auto">
@@ -82,7 +82,13 @@ const ResponseScreen = ({
         ))}
       </div>
 
-      {visibleBlocks >= blocks.length && (
+      {isStreaming && (
+        <div className="flex items-center gap-2 mb-4">
+          <span className="inline-block w-2 h-5 bg-gold animate-pulse" />
+        </div>
+      )}
+
+      {visibleBlocks >= blocks.length && !isStreaming && (
         <div className="animate-fade-in-up flex flex-col gap-3 pt-4">
           <div className="flex flex-col sm:flex-row gap-3">
             <button
