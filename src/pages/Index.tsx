@@ -196,7 +196,7 @@ const Index = () => {
         if (!canAsk) return;
       }
 
-      if (user && needsDob) return;
+      if (user && needsAgeGate) return;
 
       setIsLoading(true);
       setIsSaved(false);
@@ -307,7 +307,7 @@ const Index = () => {
         setIsStreaming(false);
       }
     },
-    [user, ageGroup, needsDob, checkDailyLimit, incrementDailyUsage, refreshProfile, languagePreference, preferredBibleVersion]
+    [user, ageGroup, needsAgeGate, checkDailyLimit, incrementDailyUsage, refreshProfile, languagePreference, preferredBibleVersion]
   );
 
   const reflectOnThis = useCallback(async () => {
