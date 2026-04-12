@@ -56,7 +56,8 @@ serve(async (req) => {
 
     if (configData) {
       for (const c of configData) {
-        const plan = c.key.replace("stripe_price_", "");
+        // Strip "stripe_price_" prefix and billing cycle suffix to get plan name
+        const plan = c.key.replace("stripe_price_", "").replace(/_(monthly|annual|student)$/, "");
         if (c.value) PLAN_MAP[c.value] = plan;
       }
     }
