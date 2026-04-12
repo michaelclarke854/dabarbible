@@ -268,6 +268,7 @@ export type Database = {
           language_preference: string
           plan: string
           preferred_bible_version: string
+          preferred_currency: string | null
           previous_role: string | null
           role: string
           role_changed_at: string | null
@@ -294,6 +295,7 @@ export type Database = {
           language_preference?: string
           plan?: string
           preferred_bible_version?: string
+          preferred_currency?: string | null
           previous_role?: string | null
           role?: string
           role_changed_at?: string | null
@@ -320,6 +322,7 @@ export type Database = {
           language_preference?: string
           plan?: string
           preferred_bible_version?: string
+          preferred_currency?: string | null
           previous_role?: string | null
           role?: string
           role_changed_at?: string | null
