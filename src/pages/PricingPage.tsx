@@ -3,12 +3,15 @@ import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import BillingConfirmModal from "@/components/BillingConfirmModal";
+import { useLocalizedPrice } from "@/hooks/useLocalizedPrice";
+import { Skeleton } from "@/components/ui/skeleton";
 
 interface PricingTier {
   key: string;
   name: string;
-  price: string;
-  studentPrice?: string;
+  usdMonthly: number;
+  usdAnnual?: number;
+  studentUsdMonthly?: number;
   description: string;
   features: string[];
   cta: string;
@@ -20,7 +23,7 @@ const tiers: PricingTier[] = [
   {
     key: "free",
     name: "Free",
-    price: "Free",
+    usdMonthly: 0,
     description: "Start with a 30-day free trial. After that, $6.99/month or continue on the free plan.",
     features: ["30-day free trial with full access", "After trial: 3 questions per day", "No journal persistence on free plan"],
     cta: "Get Started",
@@ -28,8 +31,9 @@ const tiers: PricingTier[] = [
   {
     key: "personal",
     name: "Personal",
-    price: "$6.99/mo",
-    studentPrice: "$4.99/mo",
+    usdMonthly: 6.99,
+    usdAnnual: 59.99,
+    studentUsdMonthly: 4.99,
     description: "For the daily seeker.",
     features: [
       "Unlimited questions",
@@ -43,7 +47,8 @@ const tiers: PricingTier[] = [
   {
     key: "family",
     name: "Family",
-    price: "$12.99/mo",
+    usdMonthly: 12.99,
+    usdAnnual: 99.99,
     description: "For those who seek together.",
     features: [
       "Everything in Personal",
@@ -56,7 +61,7 @@ const tiers: PricingTier[] = [
   {
     key: "community",
     name: "Community",
-    price: "$99/mo",
+    usdMonthly: 99,
     description: "For churches, ministries, and schools.",
     features: [
       "Everything in Personal",
@@ -69,9 +74,10 @@ const tiers: PricingTier[] = [
 
 const PricingPage = () => {
   const navigate = useNavigate();
+  const { formatPrice, currency, loading: priceLoading, isNonUSD } = useLocalizedPrice();
   const [loadingPlan, setLoadingPlan] = useState<string | null>(null);
   const [showAnnual, setShowAnnual] = useState<Record<string, boolean>>({});
-  const [confirmPlan, setConfirmPlan] = useState<{ key: string; price: string } | null>(null);
+  const [confirmPlan, setConfirmPlan] = useState<{ key: string; displayPrice: string } | null>(null);
 
   const handleCheckout = async (planKey: string) => {
     if (planKey === "free") {
@@ -118,12 +124,21 @@ const PricingPage = () => {
     }
   };
 
-  const handlePlanClick = (planKey: string, price: string) => {
+  const getDisplayPrice = (tier: PricingTier): string => {
+    if (tier.key === "free") return "Free";
+    const isAnnual = showAnnual[tier.key];
+    if (isAnnual && tier.usdAnnual) {
+      return `${formatPrice(tier.usdAnnual)}/yr`;
+    }
+    return `${formatPrice(tier.usdMonthly)}/mo`;
+  };
+
+  const handlePlanClick = (planKey: string, displayPrice: string) => {
     if (planKey === "free") {
       navigate("/");
       return;
     }
-    setConfirmPlan({ key: planKey, price });
+    setConfirmPlan({ key: planKey, displayPrice });
   };
 
   return (
@@ -143,82 +158,95 @@ const PricingPage = () => {
       </p>
 
       <div className="space-y-6">
-        {tiers.map((tier) => (
-          <div
-            key={tier.key}
-            className={`p-6 rounded-sm border transition-all ${
-              tier.highlighted ? "border-gold bg-gold/5" : "border-border"
-            }`}
-          >
-            <div className="flex items-baseline justify-between mb-2">
-              <h3 className="font-serif text-lg tracking-wide">{tier.name}</h3>
-              <div className="text-right">
-                <span className="font-serif text-lg text-gold">{tier.price}</span>
-                {tier.studentPrice && (
-                  <span className="block text-xs font-body text-muted-foreground">
-                    Student: {tier.studentPrice}
-                  </span>
-                )}
-              </div>
-            </div>
-            <p className="font-body text-sm text-muted-foreground mb-4">
-              {tier.description}
-            </p>
-            <ul className="space-y-2 mb-4">
-              {tier.features.map((feature, i) => (
-                <li key={i} className="font-body text-sm text-foreground/80 flex items-start gap-2">
-                  <span className="text-gold mt-0.5">·</span>
-                  {feature}
-                </li>
-              ))}
-            </ul>
-
-            {tier.hasAnnual && (
-              <label className="flex items-center gap-2 mb-4 cursor-pointer">
-                <input
-                  type="checkbox"
-                  checked={showAnnual[tier.key] || false}
-                  onChange={() =>
-                    setShowAnnual((prev) => ({ ...prev, [tier.key]: !prev[tier.key] }))
-                  }
-                  className="accent-gold"
-                />
-                <span className="font-body text-xs text-muted-foreground">
-                  Annual billing (save ~30%)
-                </span>
-              </label>
-            )}
-
-            <button
-              onClick={() => handlePlanClick(tier.key, tier.price)}
-              disabled={loadingPlan === tier.key}
-              className={`w-full font-serif text-sm tracking-widest uppercase py-3 rounded-sm transition-all disabled:opacity-50 ${
-                tier.highlighted
-                  ? "bg-gold text-primary-foreground hover:bg-gold-dark"
-                  : "border border-border text-foreground hover:border-gold"
+        {tiers.map((tier) => {
+          const displayPrice = getDisplayPrice(tier);
+          return (
+            <div
+              key={tier.key}
+              className={`p-6 rounded-sm border transition-all ${
+                tier.highlighted ? "border-gold bg-gold/5" : "border-border"
               }`}
             >
-              {loadingPlan === tier.key ? "…" : tier.cta}
-            </button>
-          </div>
-        ))}
+              <div className="flex items-baseline justify-between mb-2">
+                <h3 className="font-serif text-lg tracking-wide">{tier.name}</h3>
+                <div className="text-right">
+                  {priceLoading && tier.key !== "free" ? (
+                    <Skeleton className="h-6 w-20 bg-gold/10" />
+                  ) : (
+                    <span className="font-serif text-lg text-gold">{displayPrice}</span>
+                  )}
+                  {tier.studentUsdMonthly && !priceLoading && (
+                    <span className="block text-xs font-body text-muted-foreground">
+                      Student: {formatPrice(tier.studentUsdMonthly)}/mo
+                    </span>
+                  )}
+                </div>
+              </div>
+              <p className="font-body text-sm text-muted-foreground mb-4">
+                {tier.description}
+              </p>
+              <ul className="space-y-2 mb-4">
+                {tier.features.map((feature, i) => (
+                  <li key={i} className="font-body text-sm text-foreground/80 flex items-start gap-2">
+                    <span className="text-gold mt-0.5">·</span>
+                    {feature}
+                  </li>
+                ))}
+              </ul>
+
+              {tier.hasAnnual && (
+                <label className="flex items-center gap-2 mb-4 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={showAnnual[tier.key] || false}
+                    onChange={() =>
+                      setShowAnnual((prev) => ({ ...prev, [tier.key]: !prev[tier.key] }))
+                    }
+                    className="accent-gold"
+                  />
+                  <span className="font-body text-xs text-muted-foreground">
+                    Annual billing (save ~30%)
+                  </span>
+                </label>
+              )}
+
+              <button
+                onClick={() => handlePlanClick(tier.key, displayPrice)}
+                disabled={loadingPlan === tier.key}
+                className={`w-full font-serif text-sm tracking-widest uppercase py-3 rounded-sm transition-all disabled:opacity-50 ${
+                  tier.highlighted
+                    ? "bg-gold text-primary-foreground hover:bg-gold-dark"
+                    : "border border-border text-foreground hover:border-gold"
+                }`}
+              >
+                {loadingPlan === tier.key ? "…" : tier.cta}
+              </button>
+            </div>
+          );
+        })}
       </div>
+
+      {isNonUSD && !priceLoading && (
+        <p className="text-center mt-6 font-body text-xs text-muted-foreground">
+          Prices shown are estimates in {currency}. Your exact charge is confirmed by Stripe at checkout.
+        </p>
+      )}
 
       <div className="text-center mt-12 pt-8 border-t border-border">
         <p className="font-body text-xs text-muted-foreground">
           Gift a year of wisdom —{" "}
           <button
-            onClick={() => handlePlanClick("gift", "$59.99/year")}
+            onClick={() => handlePlanClick("gift", formatPrice(59.99) + "/year")}
             className="text-gold hover:underline"
           >
-            $59.99/year
+            {priceLoading ? "…" : `${formatPrice(59.99)}/year`}
           </button>
         </p>
       </div>
 
       {confirmPlan && (
         <BillingConfirmModal
-          price={confirmPlan.price}
+          price={confirmPlan.displayPrice}
           onConfirm={() => handleCheckout(confirmPlan.key)}
           onCancel={() => setConfirmPlan(null)}
           loading={!!loadingPlan}
