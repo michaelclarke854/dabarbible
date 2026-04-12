@@ -912,6 +912,7 @@ export default function AdminDashboard() {
 
   const tabContent: Record<AdminTab, JSX.Element> = {
     "agent-health": <AgentHealthTab />,
+    "ai-gateway": <AIGatewayTab />,
     "wisdom-health": <WisdomHealthTab />,
     "stripe-health": <StripeHealthTab />,
     dashboard: <DashboardTab />,
