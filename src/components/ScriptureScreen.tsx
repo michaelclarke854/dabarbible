@@ -86,6 +86,9 @@ const ScriptureScreen = ({
 
   const activeChapterVersion = sessionVersion || chapterVersion;
 
+  // Chapter cache — instant same-session navigation
+  const chapterCacheRef = useRef<Record<string, VerseData[]>>({});
+
   // Fetch saved verses
   const fetchSavedVerses = useCallback(async () => {
     if (!user) return;
@@ -139,6 +142,15 @@ const ScriptureScreen = ({
   // Fetch chapter verses
   const fetchChapter = useCallback(
     async (book: BibleBook, chapter: number, version: BibleVersion) => {
+      const cacheKey = `${book.name}-${chapter}-${version}`;
+      const cached = chapterCacheRef.current[cacheKey];
+      if (cached) {
+        setVerses(cached);
+        setChapterLoading(false);
+        setLoading(false);
+        return;
+      }
+
       setChapterLoading(true);
       setVerses([]);
       const bookQuery = book.name.replace(/ /g, "+");
@@ -149,7 +161,9 @@ const ScriptureScreen = ({
         );
         const data = await res.json();
         if (data.verses) {
-          setVerses(data.verses.map((v: any) => ({ verse: v.verse, text: v.text.trim() })));
+          const parsed = data.verses.map((v: any) => ({ verse: v.verse, text: v.text.trim() }));
+          chapterCacheRef.current[cacheKey] = parsed;
+          setVerses(parsed);
 
           // Probe which other versions have data for this book (check verse 1)
           const probeRef = `${bookQuery}+${chapter}:1`;
