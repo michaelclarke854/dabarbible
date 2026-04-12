@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from "react";
 
-const USD_PRICES: Record<string, { monthly: number; annual?: number; studentMonthly?: number }> = {
+const USD_PRICES: Record<string, { monthly?: number; annual?: number; studentMonthly?: number }> = {
   personal: { monthly: 6.99, annual: 59.99, studentMonthly: 4.99 },
   family: { monthly: 12.99, annual: 99.99 },
   community: { monthly: 99 },
