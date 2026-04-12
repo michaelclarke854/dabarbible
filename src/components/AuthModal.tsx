@@ -15,6 +15,7 @@ interface AuthModalProps {
 }
 
 const AuthModal = ({ isOpen, onClose, onSignedUp, onDobSubmitted, message, dobOnly, userId }: AuthModalProps) => {
+  const { setPendingConfirmation } = useAuth();
   const [mode, setMode] = useState<"signin" | "signup" | "forgot">("signup");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -126,6 +127,7 @@ const AuthModal = ({ isOpen, onClose, onSignedUp, onDobSubmitted, message, dobOn
         if (error) throw error;
 
         toast.success("Check your email to confirm your account.");
+        setPendingConfirmation(email);
         onSignedUp?.();
         onClose();
       } else {
