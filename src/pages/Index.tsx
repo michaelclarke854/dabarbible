@@ -14,6 +14,7 @@ import TrialNudgeBanner from "@/components/TrialNudgeBanner";
 import TrialInterstitial from "@/components/TrialInterstitial";
 import AppLoadingSkeleton from "@/components/AppLoadingSkeleton";
 import EmailConfirmationPending from "@/components/EmailConfirmationPending";
+import AgeGateScreen from "@/components/AgeGateScreen";
 import { parseScriptureRef } from "@/data/kjvBooks";
 import { useAuth } from "@/contexts/AuthContext";
 
@@ -50,9 +51,10 @@ const Index = () => {
     user, role, plan, isSuspended, ageGroup, hasFullAccess, isBeta, isAdmin,
     languagePreference, setLanguagePreference, preferredBibleVersion, setPreferredBibleVersion,
     refreshProfile, loading: authLoading, isHydrating, emailUnconfirmed, userEmail, trial,
+    needsAgeGate,
   } = useAuth();
 
-  const [needsDob, setNeedsDob] = useState(false);
+  
   const [tab, setTab] = useState<Tab>("ask");
   const [screen, setScreen] = useState<Screen>("ask");
   const [isLoading, setIsLoading] = useState(false);
@@ -119,14 +121,8 @@ const Index = () => {
     }
   }, [authLoading, isSuspended, navigate]);
 
-  // Check if DOB is needed
-  useEffect(() => {
-    if (user && !ageGroup && !authLoading && !emailUnconfirmed) {
-      setNeedsDob(true);
-    } else {
-      setNeedsDob(false);
-    }
-  }, [user, ageGroup, authLoading, emailUnconfirmed]);
+
+
 
   // Blocked age group check (under 13)
   useEffect(() => {
@@ -200,7 +196,7 @@ const Index = () => {
         if (!canAsk) return;
       }
 
-      if (user && needsDob) return;
+      if (user && needsAgeGate) return;
 
       setIsLoading(true);
       setIsSaved(false);
@@ -311,7 +307,7 @@ const Index = () => {
         setIsStreaming(false);
       }
     },
-    [user, ageGroup, needsDob, checkDailyLimit, incrementDailyUsage, refreshProfile, languagePreference, preferredBibleVersion]
+    [user, ageGroup, needsAgeGate, checkDailyLimit, incrementDailyUsage, refreshProfile, languagePreference, preferredBibleVersion]
   );
 
   const reflectOnThis = useCallback(async () => {
@@ -426,8 +422,12 @@ const Index = () => {
     return <EmailConfirmationPending email={userEmail} />;
   }
 
-  const showAuthModal = authModal.open && !needsDob;
-  const showDobModal = needsDob && !!user;
+  // Age gate for Google OAuth users without age_group
+  if (needsAgeGate) {
+    return <AgeGateScreen />;
+  }
+
+  const showAuthModal = authModal.open;
 
   // Trial paywall: show if trial expired and still on trial plan
   if (user && trial.trialExpired) {
@@ -699,14 +699,6 @@ const Index = () => {
         message={authModal.message}
       />
 
-      <AuthModal
-        isOpen={showDobModal}
-        onClose={() => {}}
-        dobOnly
-        userId={user?.id}
-        onDobSubmitted={() => refreshProfile()}
-        message="So your experience feels right for where you are in life."
-      />
 
       {showPrivacySettings && user && (
         <Suspense fallback={null}>

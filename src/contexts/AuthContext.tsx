@@ -35,10 +35,12 @@ interface AuthContextValue {
   emailUnconfirmed: boolean;
   userEmail: string | null;
   trial: TrialState;
+  needsAgeGate: boolean;
   refreshProfile: () => Promise<void>;
   setLanguagePreference: (lang: string) => void;
   setPreferredBibleVersion: (v: string) => void;
   setPendingConfirmation: (email: string | null) => void;
+  clearAgeGate: () => void;
 }
 
 const AuthContext = createContext<AuthContextValue | null>(null);
@@ -87,6 +89,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     isOnTrial: false, trialEndsAt: null, trialStartedAt: null,
     trialConverted: false, trialNudgeSent: DEFAULT_NUDGE, daysLeft: 0, trialExpired: false,
   });
+  const [needsAgeGate, setNeedsAgeGate] = useState(false);
 
   const isFetchingRef = useRef(false);
 
@@ -143,7 +146,31 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             return;
           }
           setEmailUnconfirmed(false);
-          fetchProfile(u.id);
+          setNeedsAgeGate(false);
+          fetchProfile(u.id).then(() => {
+            // Check if Google OAuth user needs age gate
+            const isGoogleUser = u.app_metadata?.provider === "google";
+            if (isGoogleUser) {
+              supabase
+                .from("profiles")
+                .select("age_group")
+                .eq("user_id", u.id)
+                .single()
+                .then(({ data: profileData }) => {
+                  if (!profileData?.age_group) {
+                    setNeedsAgeGate(true);
+                  }
+                });
+            }
+            // Sync anonymous currency preference
+            const stored = localStorage.getItem("dabar_preferred_currency");
+            if (stored) {
+              supabase.functions
+                .invoke("save-currency-preference", { body: { currency: stored } })
+                .then(() => localStorage.removeItem("dabar_preferred_currency"))
+                .catch(() => {});
+            }
+          });
         } else {
           setRole("free");
           setPlan("free");
@@ -151,6 +178,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           setAgeGroup(null);
           setEmailUnconfirmed(false);
           setTrial({ isOnTrial: false, trialEndsAt: null, trialStartedAt: null, trialConverted: false, trialNudgeSent: DEFAULT_NUDGE, daysLeft: 0, trialExpired: false });
+          setNeedsAgeGate(false);
           setIsHydrating(false);
           setLoading(false);
         }
@@ -172,6 +200,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   }, []);
 
+  const clearAgeGate = useCallback(() => {
+    setNeedsAgeGate(false);
+    if (user) {
+      isFetchingRef.current = false;
+      fetchProfile(user.id);
+    }
+  }, [user, fetchProfile]);
+
   const value: AuthContextValue = {
     user,
     role,
@@ -188,10 +224,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     emailUnconfirmed,
     userEmail,
     trial,
+    needsAgeGate,
     refreshProfile,
     setLanguagePreference,
     setPreferredBibleVersion,
     setPendingConfirmation,
+    clearAgeGate,
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

@@ -8,13 +8,10 @@ interface AuthModalProps {
   isOpen: boolean;
   onClose: () => void;
   onSignedUp?: () => void;
-  onDobSubmitted?: () => void;
   message?: string;
-  dobOnly?: boolean;
-  userId?: string;
 }
 
-const AuthModal = ({ isOpen, onClose, onSignedUp, onDobSubmitted, message, dobOnly, userId }: AuthModalProps) => {
+const AuthModal = ({ isOpen, onClose, onSignedUp, message }: AuthModalProps) => {
   const { setPendingConfirmation } = useAuth();
   const [mode, setMode] = useState<"signin" | "signup" | "forgot">("signup");
   const [email, setEmail] = useState("");
@@ -60,27 +57,6 @@ const AuthModal = ({ isOpen, onClose, onSignedUp, onDobSubmitted, message, dobOn
     return { ageGroup, age };
   };
 
-  const handleDobSubmit = async () => {
-    setDobError("");
-    const result = validateDob();
-    if (!result) return;
-
-    setLoading(true);
-    try {
-      await supabase
-        .from("profiles")
-        .update({ age_group: result.ageGroup })
-        .eq("user_id", userId);
-
-      toast.success("Thank you.");
-      onDobSubmitted?.();
-      onClose();
-    } catch {
-      toast.error("Something went wrong. Please try again.");
-    } finally {
-      setLoading(false);
-    }
-  };
 
   const handleForgotPassword = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -173,9 +149,7 @@ const AuthModal = ({ isOpen, onClose, onSignedUp, onDobSubmitted, message, dobOn
   const dobFields = (
     <div className="pt-2">
       <label className="block text-xs font-body text-foreground/70 mb-1">
-        {dobOnly
-          ? "To personalize your experience and ensure age-appropriate content, we ask for your approximate age. We store only your age group, not your exact birthdate."
-          : "Your birth year and month"}
+        Your birth year and month
       </label>
       <div className="flex gap-3">
         <select
@@ -208,31 +182,6 @@ const AuthModal = ({ isOpen, onClose, onSignedUp, onDobSubmitted, message, dobOn
     </div>
   );
 
-  // DOB-only mode for existing users (e.g. Google OAuth)
-  if (dobOnly) {
-    return (
-      <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm px-6">
-        <div className="bg-card rounded-sm shadow-xl max-w-sm w-full p-8 relative border border-border">
-          {message && (
-            <p className="font-serif text-sm text-foreground/80 text-center mb-6 leading-relaxed">
-              {message}
-            </p>
-          )}
-          <h3 className="font-serif text-xl text-center mb-6 tracking-wide">
-            One more thing
-          </h3>
-          {dobFields}
-          <button
-            onClick={handleDobSubmit}
-            disabled={loading}
-            className="w-full mt-6 font-serif text-sm tracking-widest uppercase py-3 bg-gold text-primary-foreground rounded-sm transition-all hover:bg-gold-dark disabled:opacity-50"
-          >
-            {loading ? "…" : "Continue"}
-          </button>
-        </div>
-      </div>
-    );
-  }
 
   // Forgot password mode
   if (mode === "forgot") {
