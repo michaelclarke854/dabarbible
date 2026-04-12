@@ -114,19 +114,15 @@ const AuthModal = ({ isOpen, onClose, onSignedUp, onDobSubmitted, message, dobOn
           return;
         }
 
-        const { data: signUpData, error } = await supabase.auth.signUp({
+        const { error } = await supabase.auth.signUp({
           email,
           password,
-          options: { emailRedirectTo: window.location.origin },
+          options: {
+            emailRedirectTo: window.location.origin,
+            data: { age_group: result.ageGroup },
+          },
         });
         if (error) throw error;
-
-        if (signUpData.user) {
-          await supabase
-            .from("profiles")
-            .update({ age_group: result.ageGroup })
-            .eq("user_id", signUpData.user.id);
-        }
 
         toast.success("Check your email to confirm your account.");
         onSignedUp?.();
