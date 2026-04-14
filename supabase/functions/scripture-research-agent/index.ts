@@ -290,15 +290,20 @@ serve(async (req) => {
 
     const userMessage = `Question: ${question}${versesContext}`;
 
+    // Inject crisis prompt if crisis-level
+    const systemPrompt = (crisisResult.detected && crisisResult.severity === "crisis")
+      ? SYNTHESIS_SYSTEM + "\n\n" + CRISIS_PROMPT_ADDENDUM
+      : SYNTHESIS_SYSTEM;
+
     const call2Res = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
       method: "POST",
       headers: { Authorization: `Bearer ${LOVABLE_API_KEY}`, "Content-Type": "application/json" },
       body: JSON.stringify({
         model: "google/gemini-2.5-flash",
-        max_tokens: 450,
+        max_tokens: crisisResult.severity === "crisis" ? 600 : 450,
         stream: true,
         messages: [
-          { role: "system", content: SYNTHESIS_SYSTEM },
+          { role: "system", content: systemPrompt },
           { role: "user", content: userMessage },
         ],
       }),
