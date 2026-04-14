@@ -36,6 +36,7 @@ interface AuthContextValue {
   userEmail: string | null;
   trial: TrialState;
   needsAgeGate: boolean;
+  pendingCheckin: boolean;
   refreshProfile: () => Promise<void>;
   setLanguagePreference: (lang: string) => void;
   setPreferredBibleVersion: (v: string) => void;
@@ -90,6 +91,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     trialConverted: false, trialNudgeSent: DEFAULT_NUDGE, daysLeft: 0, trialExpired: false,
   });
   const [needsAgeGate, setNeedsAgeGate] = useState(false);
+  const [pendingCheckin, setPendingCheckin] = useState(false);
 
   const isFetchingRef = useRef(false);
 
@@ -99,7 +101,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     try {
       const { data: profile } = await supabase
         .from("profiles")
-        .select("role, plan, is_suspended, age_group, language_preference, preferred_bible_version, trial_started_at, trial_ends_at, trial_converted, trial_nudge_sent")
+        .select("role, plan, is_suspended, age_group, language_preference, preferred_bible_version, trial_started_at, trial_ends_at, trial_converted, trial_nudge_sent, pending_checkin")
         .eq("user_id", userId)
         .single();
 
@@ -113,6 +115,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setLanguagePreference(profile.language_preference || "en");
         setPreferredBibleVersion((profile as any).preferred_bible_version || "KJV");
         setTrial(computeTrialState(profile));
+        setPendingCheckin((profile as any).pending_checkin || false);
       }
     } catch (error) {
       console.error("fetchProfile error:", error);
@@ -231,6 +234,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     userEmail,
     trial,
     needsAgeGate,
+    pendingCheckin,
     refreshProfile,
     setLanguagePreference,
     setPreferredBibleVersion,
