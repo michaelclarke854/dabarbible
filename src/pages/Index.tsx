@@ -540,15 +540,10 @@ const Index = () => {
           </Suspense>
         ) : tab === "ask" ? (
           screen === "ask" ? (
-            pendingCheckin && user && !showCheckin ? (
-              (() => { setShowCheckin(true); return null; })() ?? null
-            ) : showCheckin && user ? (
+            pendingCheckin && user ? (
               <CrisisCheckinCard
                 userId={user.id}
-                onDismiss={() => {
-                  setShowCheckin(false);
-                  refreshProfile();
-                }}
+                onDismiss={() => refreshProfile()}
               />
             ) : (
               <AskScreen onSeekWisdom={seekWisdom} isLoading={isLoading} />
