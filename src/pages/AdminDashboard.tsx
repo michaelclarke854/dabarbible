@@ -885,16 +885,20 @@ export default function AdminDashboard() {
   // Data for alerts (shared state)
   const [agentRuns, setAgentRuns] = useState<any[]>([]);
   const [wisdomSessions, setWisdomSessions] = useState<any[]>([]);
+  const [crisisBadge, setCrisisBadge] = useState(0);
 
   const fetchAlertData = useCallback(async () => {
-    const [{ data: runs }, { data: sessions }] = await Promise.all([
+    const [{ data: runs }, { data: sessions }, { data: crisisLogs }] = await Promise.all([
       supabase.from("journal_agent_runs").select("id, status, error_message, created_at, metadata")
         .gte("created_at", daysAgo(7)).order("created_at", { ascending: false }).limit(200),
       supabase.from("wisdom_sessions").select("id, user_id, created_at")
         .gte("created_at", daysAgo(14)).order("created_at", { ascending: false }).limit(1000),
+      supabase.from("crisis_log").select("severity, triggered_at")
+        .eq("severity", "crisis").gte("triggered_at", daysAgo(7)),
     ]);
     setAgentRuns(runs || []);
     setWisdomSessions(sessions || []);
+    setCrisisBadge((crisisLogs || []).length);
     setLastUpdated(new Date());
   }, []);
 
