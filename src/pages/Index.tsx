@@ -589,42 +589,54 @@ const Index = () => {
       </main>
 
       {/* Bottom Navigation */}
-      {(hasOnboarded || user) && <nav className="fixed bottom-0 left-0 right-0 bg-nav/95 backdrop-blur-sm border-t border-gold/15 z-30">
-        <div className="flex max-w-lg mx-auto">
+      {(hasOnboarded || user) && <nav aria-label="Main navigation" className="fixed bottom-0 left-0 right-0 bg-nav/95 backdrop-blur-sm border-t border-gold/15 z-30">
+        <div className="flex max-w-lg mx-auto" role="tablist">
           <button
+            role="tab"
+            aria-selected={tab === "ask"}
+            aria-label="Ask a question"
             onClick={() => handleTabChange("ask")}
             className={`flex-1 py-3 flex flex-col items-center gap-1 transition-colors ${
               tab === "ask" ? "text-gold" : "text-muted-foreground"
             }`}
           >
-            <Flame size={18} strokeWidth={1.5} />
+            <Flame size={18} strokeWidth={1.5} aria-hidden="true" />
             <span className="font-serif text-[10px] tracking-widest uppercase">Ask</span>
           </button>
           <button
+            role="tab"
+            aria-selected={tab === "scripture"}
+            aria-label="Scripture companion"
             onClick={() => handleTabChange("scripture")}
             className={`flex-1 py-3 flex flex-col items-center gap-1 transition-colors ${
               tab === "scripture" ? "text-gold" : "text-muted-foreground"
             }`}
           >
-            {!hasFullAccess && user ? <Lock size={18} strokeWidth={1.5} /> : <BookText size={18} strokeWidth={1.5} />}
+            {!hasFullAccess && user ? <Lock size={18} strokeWidth={1.5} aria-hidden="true" /> : <BookText size={18} strokeWidth={1.5} aria-hidden="true" />}
             <span className="font-serif text-[10px] tracking-widest uppercase">Scripture</span>
           </button>
           <button
+            role="tab"
+            aria-selected={tab === "history"}
+            aria-label="View history"
             onClick={() => handleTabChange("history")}
             className={`flex-1 py-3 flex flex-col items-center gap-1 transition-colors ${
               tab === "history" ? "text-gold" : "text-muted-foreground"
             }`}
           >
-            {!hasFullAccess && user ? <Lock size={18} strokeWidth={1.5} /> : <Clock size={18} strokeWidth={1.5} />}
+            {!hasFullAccess && user ? <Lock size={18} strokeWidth={1.5} aria-hidden="true" /> : <Clock size={18} strokeWidth={1.5} aria-hidden="true" />}
             <span className="font-serif text-[10px] tracking-widest uppercase">History</span>
           </button>
           <button
+            role="tab"
+            aria-selected={tab === "journal"}
+            aria-label="Open journal"
             onClick={() => handleTabChange("journal")}
             className={`flex-1 py-3 flex flex-col items-center gap-1 transition-colors ${
               tab === "journal" ? "text-gold" : "text-muted-foreground"
             }`}
           >
-            {!hasFullAccess && user ? <Lock size={18} strokeWidth={1.5} /> : <BookOpen size={18} strokeWidth={1.5} />}
+            {!hasFullAccess && user ? <Lock size={18} strokeWidth={1.5} aria-hidden="true" /> : <BookOpen size={18} strokeWidth={1.5} aria-hidden="true" />}
             <span className="font-serif text-[10px] tracking-widest uppercase">Journal</span>
           </button>
         </div>
@@ -661,18 +673,18 @@ const Index = () => {
             <button
               onClick={() => setShowPrivacySettings(true)}
               className="text-muted-foreground hover:text-gold transition-colors"
-              title="Settings"
+              aria-label="Settings"
             >
-              <Settings size={16} />
+              <Settings size={16} aria-hidden="true" />
             </button>
           )}
           {user && (
             <button
               onClick={() => setShowLanguageSettings(true)}
               className="text-muted-foreground hover:text-gold transition-colors"
-              title="Language"
+              aria-label="Language settings"
             >
-              <Globe size={16} />
+              <Globe size={16} aria-hidden="true" />
             </button>
           )}
           {user ? (
