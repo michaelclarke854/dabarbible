@@ -7,6 +7,7 @@ import {
   Container,
   Head,
   Heading,
+  Hr,
   Html,
   Preview,
   Text,
@@ -19,10 +20,12 @@ interface ReauthenticationEmailProps {
 export const ReauthenticationEmail = ({ token }: ReauthenticationEmailProps) => (
   <Html lang="en" dir="ltr">
     <Head />
-    <Preview>Your verification code</Preview>
+    <Preview>Your verification code for Dabar</Preview>
     <Body style={main}>
       <Container style={container}>
-        <Heading style={h1}>Confirm reauthentication</Heading>
+        <Text style={brand}>DABAR</Text>
+        <Hr style={divider} />
+        <Heading style={h1}>Verification Code</Heading>
         <Text style={text}>Use the code below to confirm your identity:</Text>
         <Text style={codeStyle}>{token}</Text>
         <Text style={footer}>
@@ -36,25 +39,42 @@ export const ReauthenticationEmail = ({ token }: ReauthenticationEmailProps) => 
 
 export default ReauthenticationEmail
 
-const main = { backgroundColor: '#ffffff', fontFamily: 'Arial, sans-serif' }
-const container = { padding: '20px 25px' }
-const h1 = {
-  fontSize: '22px',
+const main = { backgroundColor: '#ffffff', fontFamily: "'Lato', 'Helvetica Neue', Arial, sans-serif" }
+const container = { padding: '40px 30px', maxWidth: '480px', margin: '0 auto' }
+const brand = {
+  fontFamily: "'Cinzel', 'Georgia', 'Times New Roman', serif",
+  fontSize: '28px',
   fontWeight: 'bold' as const,
-  color: '#000000',
+  color: '#C4973A',
+  textAlign: 'center' as const,
+  letterSpacing: '6px',
   margin: '0 0 20px',
 }
-const text = {
-  fontSize: '14px',
-  color: '#55575d',
-  lineHeight: '1.5',
-  margin: '0 0 25px',
-}
-const codeStyle = {
-  fontFamily: 'Courier, monospace',
+const divider = { borderColor: '#C4973A', borderWidth: '1px', margin: '0 0 30px', opacity: 0.4 }
+const h1 = {
+  fontFamily: "'Cinzel', 'Georgia', 'Times New Roman', serif",
   fontSize: '22px',
   fontWeight: 'bold' as const,
-  color: '#000000',
-  margin: '0 0 30px',
+  color: '#0F0D0A',
+  margin: '0 0 20px',
+  textAlign: 'center' as const,
 }
-const footer = { fontSize: '12px', color: '#999999', margin: '30px 0 0' }
+const text = {
+  fontSize: '15px',
+  color: '#3a3632',
+  lineHeight: '1.6',
+  margin: '0 0 20px',
+}
+const codeStyle = {
+  fontFamily: "'Cinzel', 'Georgia', 'Courier', monospace",
+  fontSize: '28px',
+  fontWeight: 'bold' as const,
+  color: '#C4973A',
+  textAlign: 'center' as const,
+  letterSpacing: '4px',
+  margin: '10px 0 30px',
+  padding: '16px',
+  border: '1px solid rgba(196, 151, 58, 0.3)',
+  borderRadius: '2px',
+}
+const footer = { fontSize: '12px', color: '#999999', margin: '30px 0 0', textAlign: 'center' as const }
