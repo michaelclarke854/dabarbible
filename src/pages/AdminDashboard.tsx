@@ -713,20 +713,51 @@ function FlaggedTab() {
 
 function CrisisTab() {
   const [events, setEvents] = useState<any[]>([]);
+  const [crisisCount7d, setCrisisCount7d] = useState(0);
+
   useEffect(() => {
     (async () => {
-      const { data } = await supabase.from("crisis_events").select("*").order("routed_at", { ascending: false }).limit(50);
+      const { data } = await supabase.from("crisis_log").select("*").order("triggered_at", { ascending: false }).limit(100);
       setEvents(data || []);
+
+      const sevenDaysAgo = daysAgo(7);
+      const count = (data || []).filter(
+        (e: any) => e.severity === "crisis" && new Date(e.triggered_at) >= new Date(sevenDaysAgo)
+      ).length;
+      setCrisisCount7d(count);
     })();
   }, []);
+
   return (
     <div className="space-y-3">
-      <p className="text-muted-foreground text-xs mb-4">Crisis keyword triggers — no user identity stored.</p>
-      {events.map(e => (
-        <div key={e.id} className="flex items-center justify-between bg-card border border-border rounded-sm px-4 py-3">
-          <span className="text-destructive font-body text-sm font-medium">{e.keyword}</span>
-          <span className="text-muted-foreground text-xs">{e.age_group || "—"}</span>
-          <span className="text-muted-foreground text-xs">{new Date(e.routed_at).toLocaleString()}</span>
+      <div className="flex items-center justify-between mb-4">
+        <p className="text-muted-foreground text-xs">Crisis keyword triggers — no user identity stored.</p>
+        {crisisCount7d > 0 && (
+          <span className="bg-red-500/20 text-red-400 text-xs font-serif px-2 py-1 rounded-sm">
+            {crisisCount7d} crisis event{crisisCount7d !== 1 ? "s" : ""} (7d)
+          </span>
+        )}
+      </div>
+      {events.map((e: any) => (
+        <div
+          key={e.id}
+          className={`flex items-center justify-between bg-card border rounded-sm px-4 py-3 ${
+            e.severity === "crisis"
+              ? "border-red-500/40 bg-red-500/5"
+              : "border-amber-500/40 bg-amber-500/5"
+          }`}
+        >
+          <span className={`font-body text-sm font-medium ${
+            e.severity === "crisis" ? "text-red-400" : "text-amber-400"
+          }`}>
+            {e.keyword_matched}
+          </span>
+          <span className={`text-xs font-serif uppercase ${
+            e.severity === "crisis" ? "text-red-400" : "text-amber-400"
+          }`}>
+            {e.severity}
+          </span>
+          <span className="text-muted-foreground text-xs">{new Date(e.triggered_at).toLocaleString()}</span>
         </div>
       ))}
       {events.length === 0 && <p className="text-muted-foreground text-sm italic">No crisis events recorded.</p>}

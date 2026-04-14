@@ -55,7 +55,7 @@ const Index = () => {
     needsAgeGate, pendingCheckin,
   } = useAuth();
 
-  const [showCheckin, setShowCheckin] = useState(false);
+  
   
   const [tab, setTab] = useState<Tab>("ask");
   const [screen, setScreen] = useState<Screen>("ask");
