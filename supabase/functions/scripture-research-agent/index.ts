@@ -208,14 +208,41 @@ serve(async (req) => {
     }
 
     // ── Crisis check ──
-    const crisisKeywords = (validatedAgeGroup === "youth" || validatedAgeGroup === "young_adult") ? YOUTH_CRISIS_KEYWORDS : ADULT_CRISIS_KEYWORDS;
-    const lowerQ = question.toLowerCase();
-    for (const kw of crisisKeywords) {
-      if (lowerQ.includes(kw)) {
-        await logSession(supabase, userId, question, CRISIS_RESPONSE.response, []);
-        return new Response(JSON.stringify(CRISIS_RESPONSE),
-          { headers: { ...corsHeaders, "Content-Type": "application/json" } });
+    const crisisResult = detectCrisis(question, validatedAgeGroup);
+    if (crisisResult.detected) {
+      // Log to crisis_log
+      await supabase.from("crisis_log").insert({
+        keyword_matched: crisisResult.keyword,
+        session_id: null,
+        severity: crisisResult.severity,
+      });
+
+      if (crisisResult.severity === "crisis") {
+        // Set pending_checkin on user profile
+        if (userId) {
+          await supabase.from("profiles").update({ pending_checkin: true }).eq("user_id", userId);
+        }
+
+        // Send admin email alert
+        try {
+          const { data: adminEmailRow } = await supabase
+            .from("app_config").select("value").eq("key", "admin_email").single();
+          if (adminEmailRow?.value) {
+            const time = new Date().toISOString();
+            await supabase.rpc("enqueue_email", {
+              queue_name: "email_queue",
+              payload: JSON.stringify({
+                to: adminEmailRow.value,
+                subject: "DABAR: Crisis keyword detected",
+                html: `<p>A crisis-level keyword was triggered at ${time}. No user identity is stored. Please review your Crisis Log.</p>`,
+              }),
+            });
+          }
+        } catch (e) { console.error("Admin email alert failed:", e); }
       }
+
+      // For watch-level: proceed normally (no prompt injection, no resource card)
+      // For crisis-level: inject crisis prompt addendum into synthesis
     }
 
     // ══════════════════════════════════════════════
