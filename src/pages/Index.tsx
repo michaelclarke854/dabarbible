@@ -4,6 +4,7 @@ import { toast } from "sonner";
 import { useNavigate } from "react-router-dom";
 import { Flame, BookOpen, Globe, BookText, Lock, Settings, Clock } from "lucide-react";
 import AskScreen from "@/components/AskScreen";
+import CrisisCheckinCard from "@/components/CrisisCheckinCard";
 import ResponseScreen from "@/components/ResponseScreen";
 import AuthModal from "@/components/AuthModal";
 import OnboardingScreen from "@/components/OnboardingScreen";
@@ -51,9 +52,10 @@ const Index = () => {
     user, role, plan, isSuspended, ageGroup, hasFullAccess, isBeta, isAdmin,
     languagePreference, setLanguagePreference, preferredBibleVersion, setPreferredBibleVersion,
     refreshProfile, loading: authLoading, isHydrating, emailUnconfirmed, userEmail, trial,
-    needsAgeGate,
+    needsAgeGate, pendingCheckin,
   } = useAuth();
 
+  
   
   const [tab, setTab] = useState<Tab>("ask");
   const [screen, setScreen] = useState<Screen>("ask");
@@ -538,7 +540,14 @@ const Index = () => {
           </Suspense>
         ) : tab === "ask" ? (
           screen === "ask" ? (
-            <AskScreen onSeekWisdom={seekWisdom} isLoading={isLoading} />
+            pendingCheckin && user ? (
+              <CrisisCheckinCard
+                userId={user.id}
+                onDismiss={() => refreshProfile()}
+              />
+            ) : (
+              <AskScreen onSeekWisdom={seekWisdom} isLoading={isLoading} />
+            )
           ) : currentResponse ? (
             <>
               <ResponseScreen

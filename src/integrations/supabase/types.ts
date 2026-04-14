@@ -109,6 +109,30 @@ export type Database = {
         }
         Relationships: []
       }
+      crisis_log: {
+        Row: {
+          id: string
+          keyword_matched: string
+          session_id: string | null
+          severity: string
+          triggered_at: string | null
+        }
+        Insert: {
+          id?: string
+          keyword_matched: string
+          session_id?: string | null
+          severity?: string
+          triggered_at?: string | null
+        }
+        Update: {
+          id?: string
+          keyword_matched?: string
+          session_id?: string | null
+          severity?: string
+          triggered_at?: string | null
+        }
+        Relationships: []
+      }
       email_send_log: {
         Row: {
           created_at: string
@@ -353,6 +377,7 @@ export type Database = {
           id: string
           is_suspended: boolean | null
           language_preference: string
+          pending_checkin: boolean
           plan: string
           preferred_bible_version: string
           preferred_currency: string | null
@@ -380,6 +405,7 @@ export type Database = {
           id?: string
           is_suspended?: boolean | null
           language_preference?: string
+          pending_checkin?: boolean
           plan?: string
           preferred_bible_version?: string
           preferred_currency?: string | null
@@ -407,6 +433,7 @@ export type Database = {
           id?: string
           is_suspended?: boolean | null
           language_preference?: string
+          pending_checkin?: boolean
           plan?: string
           preferred_bible_version?: string
           preferred_currency?: string | null
