@@ -81,6 +81,12 @@ const ResponseScreen = ({
                 profileDefault={profileVersion}
                 onDefaultChanged={onProfileVersionChanged}
               />
+            ) : isCrisisResourceLine(block.content) ? (
+              <div className="border-l-2 border-amber-500/60 pl-4 py-3 bg-amber-500/5 rounded-sm">
+                <p className="font-serif text-base leading-relaxed text-foreground">
+                  {block.content.replace(/^[•·]\s*/, "")}
+                </p>
+              </div>
             ) : (
               <p className="font-serif text-lg md:text-xl leading-relaxed text-foreground">
                 {block.content}
