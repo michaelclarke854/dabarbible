@@ -7,21 +7,68 @@ const corsHeaders = {
     "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
 
-// ── Crisis keywords (reused from seek-wisdom) ──
-const ADULT_CRISIS_KEYWORDS = [
-  "suicide", "self-harm", "kill myself", "hurt myself", "end my life",
-  "don't want to live", "dont want to live", "want to die",
+// ── Crisis keyword lists (synced with seek-wisdom) ──
+const CLINICAL_CRISIS_KEYWORDS = [
+  "i want to kill myself", "i want to die", "suicidal", "end my life",
+  "take my life", "i can't go on", "i don't want to be here anymore",
+  "nobody would miss me", "i have no reason to live",
+  "i just want it to end", "i want to disappear",
 ];
-const YOUTH_CRISIS_KEYWORDS = [
-  ...ADULT_CRISIS_KEYWORDS,
+
+const SPIRITUAL_CRISIS_KEYWORDS = [
+  "god has abandoned me", "i have no reason to pray",
+  "i feel completely alone", "i have no hope left",
+  "god doesn't hear me", "my faith is gone", "i feel forsaken",
+  "there is no point anymore", "i am beyond saving",
+  "god has given up on me", "i am too broken to be loved",
+  "i cannot be forgiven",
+];
+
+const ALL_CRISIS_KEYWORDS = [...CLINICAL_CRISIS_KEYWORDS, ...SPIRITUAL_CRISIS_KEYWORDS];
+
+const YOUTH_EXTRA_KEYWORDS = [
   "loneliness", "lonely", "worthless", "worthlessness", "hopeless", "hopelessness",
   "not belonging", "don't belong", "dont belong", "no one cares", "nobody cares",
   "i don't matter", "i dont matter",
 ];
-const CRISIS_RESPONSE = {
-  response: "This burden is heavier than words. Please reach out to someone who can truly be with you: call or text 988 (Suicide & Crisis Lifeline) or speak with a pastor or counselor today.",
-  scriptures: [],
-};
+
+const THEOLOGICAL_FALSE_POSITIVES = [
+  "rapture", "heaven", "end times", "second coming", "eternity",
+  "glorified", "resurrection", "eschatology", "tribulation", "millennium",
+];
+
+interface CrisisResult {
+  detected: boolean;
+  severity: "crisis" | "watch" | null;
+  keyword: string | null;
+}
+
+function detectCrisis(text: string, ageGroup: string | null): CrisisResult {
+  const lower = text.toLowerCase();
+  const keywords = ageGroup === "youth" || ageGroup === "young_adult"
+    ? [...ALL_CRISIS_KEYWORDS, ...YOUTH_EXTRA_KEYWORDS]
+    : ALL_CRISIS_KEYWORDS;
+
+  let matchedKeyword: string | null = null;
+  for (const kw of keywords) {
+    if (lower.includes(kw)) { matchedKeyword = kw; break; }
+  }
+  if (!matchedKeyword) return { detected: false, severity: null, keyword: null };
+
+  const hasFalsePositive = THEOLOGICAL_FALSE_POSITIVES.some(fp => lower.includes(fp));
+  return { detected: true, severity: hasFalsePositive ? "watch" : "crisis", keyword: matchedKeyword };
+}
+
+const CRISIS_PROMPT_ADDENDUM = `
+A crisis keyword was detected in this message. Before giving your normal response, open with a single warm sentence that directly acknowledges what the person expressed — use their own words or theme. Do not be clinical. Do not jump straight to resources. Speak as a compassionate pastor would. Then after your normal response close with this block exactly:
+
+---
+You don't have to carry this alone.
+• 988 Suicide & Crisis Lifeline — call or text 988
+• Crisis Text Line — text HOME to 741741
+• You matter. Help is available right now.
+---
+`;
 
 // ── Rate limits (same as seek-wisdom) ──
 const RATE_LIMITS: Record<string, number> = {
