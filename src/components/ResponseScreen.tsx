@@ -1,6 +1,20 @@
 import { useEffect, useState, useMemo } from "react";
 import { parseResponse, extractThresholdQuestion, ScriptureCard, type ContentBlock } from "./WisdomResponseBlocks";
 
+const CRISIS_RESOURCE_MARKERS = [
+  "you don't have to carry this alone",
+  "988 suicide & crisis lifeline",
+  "crisis text line",
+  "you matter. help is available",
+  "call or text 988",
+  "text home to 741741",
+];
+
+function isCrisisResourceLine(text: string): boolean {
+  const lower = text.toLowerCase();
+  return CRISIS_RESOURCE_MARKERS.some(m => lower.includes(m));
+}
+
 interface ResponseScreenProps {
   question: string;
   response: string;
