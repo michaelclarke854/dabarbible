@@ -107,11 +107,23 @@ const AuthModal = ({ isOpen, onClose, onSignedUp, message }: AuthModalProps) => 
         onSignedUp?.();
         onClose();
       } else {
-        const { error } = await supabase.auth.signInWithPassword({
+        const { data: signInData, error } = await supabase.auth.signInWithPassword({
           email,
           password,
         });
         if (error) throw error;
+
+        // One-time hint if user also has a Google identity linked
+        const identities = signInData?.user?.identities ?? [];
+        const hasGoogle = identities.some((id: any) => id.provider === "google");
+        if (hasGoogle) {
+          const hintKey = `dabar_google_hint_shown_${signInData.user.id}`;
+          if (!localStorage.getItem(hintKey)) {
+            toast.info("You can also sign in with Google using this email address.");
+            localStorage.setItem(hintKey, "1");
+          }
+        }
+
         toast.success("Welcome back.");
         onClose();
       }

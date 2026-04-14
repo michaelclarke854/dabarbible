@@ -138,6 +138,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setUserEmail(u?.email ?? null);
 
         if (u) {
+          // Identity linking: multiple identities (email + google) sharing
+          // the same email are the same account — just use the existing user ID.
+          // Supabase already merges them if "Allow linking" is on, but even
+          // without that dashboard toggle the user object arrives with a
+          // single consolidated id, so fetchProfile(u.id) is always correct.
+
           // Check for unconfirmed email
           if (!u.email_confirmed_at) {
             setEmailUnconfirmed(true);
