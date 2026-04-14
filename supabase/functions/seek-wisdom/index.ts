@@ -7,23 +7,82 @@ const corsHeaders = {
     "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
 
-const ADULT_CRISIS_KEYWORDS = [
-  "suicide", "self-harm", "kill myself", "hurt myself", "end my life",
-  "don't want to live", "dont want to live", "want to die",
+// ── Crisis keyword lists ──────────────────
+
+const CLINICAL_CRISIS_KEYWORDS = [
+  "i want to kill myself", "i want to die", "suicidal", "end my life",
+  "take my life", "i can't go on", "i don't want to be here anymore",
+  "nobody would miss me", "i have no reason to live",
+  "i just want it to end", "i want to disappear",
 ];
 
-const YOUTH_CRISIS_KEYWORDS = [
-  ...ADULT_CRISIS_KEYWORDS,
+const SPIRITUAL_CRISIS_KEYWORDS = [
+  "god has abandoned me", "i have no reason to pray",
+  "i feel completely alone", "i have no hope left",
+  "god doesn't hear me", "my faith is gone", "i feel forsaken",
+  "there is no point anymore", "i am beyond saving",
+  "god has given up on me", "i am too broken to be loved",
+  "i cannot be forgiven",
+];
+
+const ALL_CRISIS_KEYWORDS = [...CLINICAL_CRISIS_KEYWORDS, ...SPIRITUAL_CRISIS_KEYWORDS];
+
+// Youth-only extras (from original)
+const YOUTH_EXTRA_KEYWORDS = [
   "loneliness", "lonely", "worthless", "worthlessness", "hopeless", "hopelessness",
   "not belonging", "don't belong", "dont belong", "no one cares", "nobody cares",
   "i don't matter", "i dont matter",
 ];
 
-const CRISIS_RESPONSE = {
-  response:
-    "This burden is heavier than words. Please reach out to someone who can truly be with you: call or text 988 (Suicide & Crisis Lifeline) or speak with a pastor or counselor today.",
-  scriptures: [],
-};
+const THEOLOGICAL_FALSE_POSITIVES = [
+  "rapture", "heaven", "end times", "second coming", "eternity",
+  "glorified", "resurrection", "eschatology", "tribulation", "millennium",
+];
+
+// ── Crisis detection ──────────────────
+
+interface CrisisResult {
+  detected: boolean;
+  severity: "crisis" | "watch" | null;
+  keyword: string | null;
+}
+
+function detectCrisis(text: string, ageGroup: string | null): CrisisResult {
+  const lower = text.toLowerCase();
+  const keywords = ageGroup === "youth" || ageGroup === "young_adult"
+    ? [...ALL_CRISIS_KEYWORDS, ...YOUTH_EXTRA_KEYWORDS]
+    : ALL_CRISIS_KEYWORDS;
+
+  let matchedKeyword: string | null = null;
+  for (const kw of keywords) {
+    if (lower.includes(kw)) {
+      matchedKeyword = kw;
+      break;
+    }
+  }
+
+  if (!matchedKeyword) return { detected: false, severity: null, keyword: null };
+
+  // Check for theological false positives
+  const hasFalsePositive = THEOLOGICAL_FALSE_POSITIVES.some(fp => lower.includes(fp));
+  const severity = hasFalsePositive ? "watch" : "crisis";
+
+  return { detected: true, severity, keyword: matchedKeyword };
+}
+
+// ── Crisis prompt injection ──────────────────
+
+const CRISIS_PROMPT_ADDENDUM = `
+A crisis keyword was detected in this message. Before giving your normal response, open with a single warm sentence that directly acknowledges what the person expressed — use their own words or theme. Do not be clinical. Do not jump straight to resources. Speak as a compassionate pastor would. Then after your normal response close with this block exactly:
+
+---
+You don't have to carry this alone.
+• 988 Suicide & Crisis Lifeline — call or text 988
+• Crisis Text Line — text HOME to 741741
+• You matter. Help is available right now.
+---`;
+
+// ── Theme detection ──────────────────
 
 const ALL_THEMES = [
   "anxiety", "purpose", "relationships", "grief",
@@ -59,9 +118,10 @@ function detectThemes(text: string): { theme: string; confidence: number }[] {
   return results.sort((a, b) => b.confidence - a.confidence).slice(0, 3);
 }
 
+// ── Pattern context ──────────────────
+
 function buildPatternContext(patterns: { theme: string; occurrence: number; first_seen: string }[]): string {
   if (!patterns || patterns.length === 0) return "";
-
   const lines = patterns
     .filter((p) => p.occurrence >= 2)
     .sort((a, b) => b.occurrence - a.occurrence)
@@ -71,17 +131,18 @@ function buildPatternContext(patterns: { theme: string; occurrence: number; firs
         (Date.now() - new Date(p.first_seen).getTime()) / (1000 * 60 * 60 * 24)
       );
       if (p.occurrence >= 5) {
-        return `This person has carried the weight of [${p.theme}] for some time now — it has surfaced repeatedly over ${daysSince} days. In your Mirror, acknowledge the long-carried nature of this burden without referencing numbers or counts.`;
+        return `This person has carried the weight of [${p.theme}] for some time now — it has surfaced repeatedly over ${daysSince} days.`;
       }
       if (p.occurrence >= 3) {
-        return `The theme of [${p.theme}] has returned again. Speak to the recurring nature of this struggle with tenderness — they keep coming back to this.`;
+        return `The theme of [${p.theme}] has returned again. Speak to the recurring nature of this struggle with tenderness.`;
       }
       return `[${p.theme}] has appeared before. Be aware this is not the first time they've brought this forward.`;
     });
-
   if (lines.length === 0) return "";
   return `\n\nUSER PATTERN CONTEXT:\n${lines.join("\n")}`;
 }
+
+// ── System prompt ──────────────────
 
 const BASE_SYSTEM_PROMPT = `You are the unified voice of biblical wisdom — drawing from the teachings of the prophets (Moses, Isaiah, Elijah, Daniel, Jeremiah), the disciples (Peter, Paul, John, James), and Jesus. You do not roleplay as a single figure. You speak as a chorus of scripture, distilling ancient wisdom for a modern person's real daily challenge. Your sole scriptural source is the King James Version (KJV) of the Bible.
 
@@ -140,18 +201,9 @@ const AGE_LAYERS: Record<string, string> = {
 };
 
 const SCRIPTURE_VERSIONS: Record<string, { name: string; instruction: string }> = {
-  KJV: {
-    name: "King James Version",
-    instruction: "Your sole scriptural source is the King James Version (KJV) of the Bible.",
-  },
-  RV1960: {
-    name: "Reina Valera 1960",
-    instruction: "Tu única fuente escritural es la Reina Valera 1960. Cita los versículos exactamente como aparecen en esa versión.",
-  },
-  ARA: {
-    name: "Almeida Revista e Atualizada",
-    instruction: "Sua única fonte escritural é a Almeida Revista e Atualizada (ARA). Cite os versículos exatamente como aparecem nessa versão.",
-  },
+  KJV: { name: "King James Version", instruction: "Your sole scriptural source is the King James Version (KJV) of the Bible." },
+  RV1960: { name: "Reina Valera 1960", instruction: "Tu única fuente escritural es la Reina Valera 1960. Cita los versículos exactamente como aparecen en esa versión." },
+  ARA: { name: "Almeida Revista e Atualizada", instruction: "Sua única fonte escritural é a Almeida Revista e Atualizada (ARA). Cite os versículos exatamente como aparecem nessa versão." },
 };
 
 const LANGUAGE_INSTRUCTIONS: Record<string, string> = {
@@ -163,15 +215,14 @@ const LANGUAGE_INSTRUCTIONS: Record<string, string> = {
 };
 
 function getSystemPrompt(
-  ageGroup: string | null,
-  patternContext: string,
-  language: string = "en",
-  scriptureVersion: string = "KJV"
+  ageGroup: string | null, patternContext: string,
+  language: string = "en", scriptureVersion: string = "KJV",
+  crisisSeverity: "crisis" | "watch" | null = null
 ): string {
   const layer = ageGroup && AGE_LAYERS[ageGroup] ? AGE_LAYERS[ageGroup] : AGE_LAYERS["adult"];
   const langInstruction = LANGUAGE_INSTRUCTIONS[language] || LANGUAGE_INSTRUCTIONS["en"];
   const versionConfig = SCRIPTURE_VERSIONS[scriptureVersion] || SCRIPTURE_VERSIONS["KJV"];
-  
+
   let prompt = BASE_SYSTEM_PROMPT;
   if (scriptureVersion !== "KJV") {
     prompt = prompt.replace(
@@ -183,64 +234,70 @@ function getSystemPrompt(
       `Use the language and cadence of the ${versionConfig.name} — its beauty and weight are part of the authority.`
     );
   }
-  
-  return prompt + layer + patternContext + `\n\n${langInstruction}`;
+
+  let result = prompt + layer + patternContext + `\n\n${langInstruction}`;
+
+  // For crisis-level events, inject the warm response addendum
+  if (crisisSeverity === "crisis") {
+    result += CRISIS_PROMPT_ADDENDUM;
+  }
+
+  return result;
 }
 
-function getCrisisKeywords(ageGroup: string | null): string[] {
-  if (ageGroup === "youth" || ageGroup === "young_adult") {
-    return YOUTH_CRISIS_KEYWORDS;
-  }
-  return ADULT_CRISIS_KEYWORDS;
-}
+// ── Rate limiting ──────────────────
 
 const RATE_LIMITS: Record<string, number> = {
-  free: 10,
-  personal: 30,
-  beta: 30,
-  admin: 100,
-  super_admin: 100,
-  default: 15,
+  free: 10, personal: 30, beta: 30, admin: 100, super_admin: 100, default: 15,
 };
-
 const RATE_WINDOW_MS = 60 * 60 * 1000;
 
 async function checkRateLimit(
-  supabase: ReturnType<typeof createClient>,
-  userId: string,
-  role: string
+  supabase: ReturnType<typeof createClient>, userId: string, role: string
 ): Promise<{ allowed: boolean; remaining: number }> {
   const limit = RATE_LIMITS[role] || RATE_LIMITS.default;
   const windowStart = new Date(Date.now() - RATE_WINDOW_MS).toISOString();
 
   const { data } = await supabase
-    .from("rate_limits")
-    .select("id, request_count, window_start")
-    .eq("user_id", userId)
-    .eq("endpoint", "seek-wisdom")
+    .from("rate_limits").select("id, request_count, window_start")
+    .eq("user_id", userId).eq("endpoint", "seek-wisdom")
     .gte("window_start", windowStart)
-    .order("window_start", { ascending: false })
-    .limit(1)
-    .single();
+    .order("window_start", { ascending: false }).limit(1).single();
 
   if (data) {
-    if (data.request_count >= limit) {
-      return { allowed: false, remaining: 0 };
-    }
-    await supabase
-      .from("rate_limits")
-      .update({ request_count: data.request_count + 1 })
-      .eq("id", data.id);
+    if (data.request_count >= limit) return { allowed: false, remaining: 0 };
+    await supabase.from("rate_limits").update({ request_count: data.request_count + 1 }).eq("id", data.id);
     return { allowed: true, remaining: limit - data.request_count - 1 };
   }
 
-  await supabase.from("rate_limits").insert({
-    user_id: userId,
-    endpoint: "seek-wisdom",
-    request_count: 1,
-  });
+  await supabase.from("rate_limits").insert({ user_id: userId, endpoint: "seek-wisdom", request_count: 1 });
   return { allowed: true, remaining: limit - 1 };
 }
+
+// ── Admin email alert ──────────────────
+
+async function sendCrisisAdminEmail(supabase: ReturnType<typeof createClient>, keyword: string) {
+  try {
+    const { data: config } = await supabase
+      .from("app_config").select("value").eq("key", "admin_email").single();
+    if (!config?.value) return;
+
+    const time = new Date().toISOString();
+    await supabase.rpc("enqueue_email", {
+      queue_name: "transactional_emails",
+      payload: {
+        to: config.value,
+        subject: "DABAR: Crisis keyword detected",
+        html: `<p>A crisis-level keyword was triggered at ${time}.</p><p>No user identity is stored. Please review your Crisis Log.</p>`,
+        purpose: "transactional",
+      },
+    });
+  } catch (err) {
+    console.error("Failed to send crisis admin email:", err);
+  }
+}
+
+// ── Main handler ──────────────────
 
 serve(async (req) => {
   if (req.method === "OPTIONS") {
@@ -261,7 +318,6 @@ serve(async (req) => {
         { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
-
     if (question.length > 2000) {
       return new Response(
         JSON.stringify({ error: "Question is too long. Please keep it under 2000 characters." }),
@@ -287,15 +343,9 @@ serve(async (req) => {
         supabase.from("profiles").select("age_group, language_preference, role, plan, trial_ends_at").eq("user_id", userId).single(),
         supabase.from("user_patterns").select("theme, occurrence, first_seen").eq("user_id", userId),
       ]);
-      if (profileResult.data?.age_group) {
-        validatedAgeGroup = profileResult.data.age_group;
-      }
-      if (profileResult.data?.role) {
-        userRole = profileResult.data.role;
-      }
-      if (patternsResult.data) {
-        userPatterns = patternsResult.data;
-      }
+      if (profileResult.data?.age_group) validatedAgeGroup = profileResult.data.age_group;
+      if (profileResult.data?.role) userRole = profileResult.data.role;
+      if (patternsResult.data) userPatterns = patternsResult.data;
 
       if (profileResult.data?.plan === "trial" && profileResult.data?.trial_ends_at) {
         const trialEnd = new Date(profileResult.data.trial_ends_at);
@@ -321,43 +371,47 @@ serve(async (req) => {
       const ANON_LIMIT = 10;
 
       const { data: rateRow } = await supabase
-        .from("rate_limits_anonymous")
-        .select("count")
-        .eq("key", windowKey)
-        .single();
-
+        .from("rate_limits_anonymous").select("count").eq("key", windowKey).single();
       const currentCount = rateRow?.count ?? 0;
-
       if (currentCount >= ANON_LIMIT) {
         return new Response(
           JSON.stringify({ error: "rate_limited", message: "Please sign up for unlimited access." }),
           { status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" } }
         );
       }
-
       await supabase
         .from("rate_limits_anonymous")
         .upsert({ key: windowKey, count: currentCount + 1, created_at: new Date().toISOString() });
     }
 
-    const crisisKeywords = getCrisisKeywords(validatedAgeGroup);
-    const lowerQuestion = question.toLowerCase();
-    for (const keyword of crisisKeywords) {
-      if (lowerQuestion.includes(keyword)) {
-        await logSession(supabase, userId, question, CRISIS_RESPONSE.response, []);
-        return new Response(JSON.stringify(CRISIS_RESPONSE), {
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-        });
+    // ── Crisis detection ──
+    const crisisResult = detectCrisis(question, validatedAgeGroup);
+
+    if (crisisResult.detected && crisisResult.keyword) {
+      // Log to crisis_log (no user identity, no message content)
+      const logPromise = supabase.from("crisis_log").insert({
+        keyword_matched: crisisResult.keyword,
+        severity: crisisResult.severity,
+        session_id: null, // will update after session is created
+      });
+
+      if (crisisResult.severity === "crisis") {
+        // Set pending_checkin on user profile
+        if (userId) {
+          await supabase.from("profiles").update({ pending_checkin: true } as any).eq("user_id", userId);
+        }
+        // Send admin email alert (fire and forget)
+        sendCrisisAdminEmail(supabase, crisisResult.keyword);
       }
+
+      await logPromise;
     }
 
     const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
-    if (!LOVABLE_API_KEY) {
-      throw new Error("LOVABLE_API_KEY is not configured");
-    }
+    if (!LOVABLE_API_KEY) throw new Error("LOVABLE_API_KEY is not configured");
 
     const patternContext = buildPatternContext(userPatterns);
-    const systemPrompt = getSystemPrompt(validatedAgeGroup, patternContext, safeLang, safeVersion);
+    const systemPrompt = getSystemPrompt(validatedAgeGroup, patternContext, safeLang, safeVersion, crisisResult.severity);
 
     // ── Streaming AI call ──
     const aiResponse = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
@@ -395,7 +449,6 @@ serve(async (req) => {
       throw new Error("Failed to receive wisdom");
     }
 
-    // Accumulate full text for post-processing
     let fullText = "";
     const encoder = new TextEncoder();
     const decoder = new TextDecoder();
@@ -404,15 +457,13 @@ serve(async (req) => {
       async start(controller) {
         try {
           const reader = aiResponse.body!.getReader();
-
           let buffer = "";
+
           while (true) {
             const { done, value } = await reader.read();
             if (done) break;
-
             buffer += decoder.decode(value, { stream: true });
             const lines = buffer.split("\n");
-            // Keep the last potentially incomplete line in buffer
             buffer = lines.pop() || "";
 
             for (const line of lines) {
@@ -420,38 +471,28 @@ serve(async (req) => {
               if (!trimmed || !trimmed.startsWith("data: ")) continue;
               const payload = trimmed.slice(6);
               if (payload === "[DONE]") continue;
-
               try {
                 const parsed = JSON.parse(payload);
                 const text = parsed.choices?.[0]?.delta?.content ?? "";
-                if (text) {
-                  fullText += text;
-                  controller.enqueue(encoder.encode(text));
-                }
-              } catch {
-                // skip malformed chunks
-              }
+                if (text) { fullText += text; controller.enqueue(encoder.encode(text)); }
+              } catch { /* skip malformed */ }
             }
           }
 
-          // Process any remaining buffer
           if (buffer.trim()) {
             const trimmed = buffer.trim();
             if (trimmed.startsWith("data: ") && trimmed.slice(6) !== "[DONE]") {
               try {
                 const parsed = JSON.parse(trimmed.slice(6));
                 const text = parsed.choices?.[0]?.delta?.content ?? "";
-                if (text) {
-                  fullText += text;
-                  controller.enqueue(encoder.encode(text));
-                }
+                if (text) { fullText += text; controller.enqueue(encoder.encode(text)); }
               } catch { /* skip */ }
             }
           }
 
           controller.close();
 
-          // ── Post-processing (after stream completes) ──
+          // ── Post-processing ──
           const responseText = fullText.trim();
           const scriptureBlocks: { reference: string; text: string }[] = [];
           const scriptureRegex = /\[SCRIPTURE\]\s*\nreference:\s*(.+)\ntext:\s*(.+)\n\[\/SCRIPTURE\]/g;
@@ -463,35 +504,37 @@ serve(async (req) => {
 
           const sessionId = await logSession(supabase, userId, question, responseText, scriptures);
 
+          // Update crisis_log with session_id
+          if (crisisResult.detected && crisisResult.keyword && sessionId) {
+            await supabase.from("crisis_log")
+              .update({ session_id: sessionId })
+              .eq("keyword_matched", crisisResult.keyword)
+              .is("session_id", null)
+              .order("triggered_at", { ascending: false })
+              .limit(1);
+          }
+
           if (userId && sessionId) {
             const detectedThemes = detectThemes(question + " " + responseText);
             if (detectedThemes.length > 0) {
               await supabase.from("session_themes").insert(
                 detectedThemes.map((t) => ({
-                  session_id: sessionId,
-                  theme: t.theme,
-                  confidence: t.confidence,
+                  session_id: sessionId, theme: t.theme, confidence: t.confidence,
                 }))
               );
 
               await Promise.all(detectedThemes.map(async (t) => {
                 const { data: existing } = await supabase
-                  .from("user_patterns")
-                  .select("id, occurrence")
-                  .eq("user_id", userId)
-                  .eq("theme", t.theme)
-                  .single();
+                  .from("user_patterns").select("id, occurrence")
+                  .eq("user_id", userId).eq("theme", t.theme).single();
 
                 if (existing) {
-                  await supabase
-                    .from("user_patterns")
+                  await supabase.from("user_patterns")
                     .update({ occurrence: existing.occurrence + 1, last_seen: new Date().toISOString() })
                     .eq("id", existing.id);
                 } else {
                   await supabase.from("user_patterns").insert({
-                    user_id: userId,
-                    theme: t.theme,
-                    occurrence: 1,
+                    user_id: userId, theme: t.theme, occurrence: 1,
                   });
                 }
               }));
@@ -509,6 +552,7 @@ serve(async (req) => {
         ...corsHeaders,
         "Content-Type": "text/plain; charset=utf-8",
         "X-Content-Type-Options": "nosniff",
+        "X-Crisis-Severity": crisisResult.severity || "",
       },
     });
   } catch (e) {
@@ -522,22 +566,14 @@ serve(async (req) => {
 
 async function logSession(
   supabase: ReturnType<typeof createClient>,
-  userId: string | null,
-  question: string,
-  response: string,
-  scriptures: string[]
+  userId: string | null, question: string,
+  response: string, scriptures: string[]
 ): Promise<string | null> {
   try {
     const { data } = await supabase
       .from("wisdom_sessions")
-      .insert({
-        user_id: userId || null,
-        question,
-        response,
-        scripture_refs: scriptures,
-      })
-      .select("id")
-      .single();
+      .insert({ user_id: userId || null, question, response, scripture_refs: scriptures })
+      .select("id").single();
     return data?.id || null;
   } catch (err) {
     console.error("Failed to log session:", err);
