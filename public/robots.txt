@@ -13,4 +13,4 @@ Allow: /
 User-agent: *
 Allow: /
 
-Sitemap: https://dabar.app/sitemap.xml
+Sitemap: https://dabarbible.com/sitemap.xml
