@@ -975,6 +975,11 @@ export default function AdminDashboard() {
               }`}>
               <t.icon className="w-4 h-4" />
               {t.label}
+              {t.id === "crisis" && crisisBadge > 0 && (
+                <span className="ml-auto bg-red-500/20 text-red-400 text-[10px] font-mono px-1.5 py-0.5 rounded">
+                  {crisisBadge}
+                </span>
+              )}
             </button>
           ))}
         </nav>
