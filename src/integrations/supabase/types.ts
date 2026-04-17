@@ -357,6 +357,8 @@ export type Database = {
           id: string
           name: string
           notes: string | null
+          resolved_at: string | null
+          resolved_by: string | null
         }
         Insert: {
           church_name: string
@@ -366,6 +368,8 @@ export type Database = {
           id?: string
           name: string
           notes?: string | null
+          resolved_at?: string | null
+          resolved_by?: string | null
         }
         Update: {
           church_name?: string
@@ -375,6 +379,8 @@ export type Database = {
           id?: string
           name?: string
           notes?: string | null
+          resolved_at?: string | null
+          resolved_by?: string | null
         }
         Relationships: []
       }
@@ -564,6 +570,8 @@ export type Database = {
           flag_notes: string | null
           flag_type: string
           id: string
+          resolved_at: string | null
+          resolved_by: string | null
           session_id: string | null
           user_id: string
         }
@@ -572,6 +580,8 @@ export type Database = {
           flag_notes?: string | null
           flag_type: string
           id?: string
+          resolved_at?: string | null
+          resolved_by?: string | null
           session_id?: string | null
           user_id: string
         }
@@ -580,6 +590,8 @@ export type Database = {
           flag_notes?: string | null
           flag_type?: string
           id?: string
+          resolved_at?: string | null
+          resolved_by?: string | null
           session_id?: string | null
           user_id?: string
         }
