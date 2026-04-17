@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, forwardRef } from "react";
 
 interface AskScreenProps {
   onSeekWisdom: (question: string) => void;
@@ -13,7 +13,7 @@ const SOUL_PROMPTS = [
   "I don't know what I'm supposed to do with my life...",
 ];
 
-const AskScreen = ({ onSeekWisdom, isLoading }: AskScreenProps) => {
+const AskScreen = forwardRef<HTMLDivElement, AskScreenProps>(({ onSeekWisdom, isLoading }, ref) => {
   const [question, setQuestion] = useState("");
   const [promptIndex, setPromptIndex] = useState(() =>
     Math.floor(Math.random() * SOUL_PROMPTS.length)
@@ -47,7 +47,7 @@ const AskScreen = ({ onSeekWisdom, isLoading }: AskScreenProps) => {
   };
 
   return (
-    <div className="flex flex-col items-center justify-center min-h-[calc(100vh-80px)] px-6 py-12">
+    <div ref={ref} className="flex flex-col items-center justify-center min-h-[calc(100vh-80px)] px-6 py-12">
       <h1 className="font-serif text-4xl md:text-5xl text-foreground tracking-widest text-center">
         DABAR
       </h1>
@@ -105,6 +105,8 @@ const AskScreen = ({ onSeekWisdom, isLoading }: AskScreenProps) => {
       )}
     </div>
   );
-};
+});
+
+AskScreen.displayName = "AskScreen";
 
 export default AskScreen;
