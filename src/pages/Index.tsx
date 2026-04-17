@@ -550,31 +550,39 @@ const Index = () => {
   const showDay14Banner = trial.isOnTrial && trial.daysLeft <= 16 && trial.daysLeft > 9 && !trial.trialNudgeSent.day14 && !trial.trialConverted;
   const showDay28Banner = trial.isOnTrial && trial.daysLeft <= 2 && !trial.trialConverted;
 
-  // Soft gate overlay for guest limit
+  // Soft gate overlay for guest limit (Q2+) — blurs last 60% behind paywall
   const renderSoftGate = () => {
     if (!showSoftGate || !currentResponse) return null;
     const responseLines = currentResponse.response.split("\n");
+    // Show first 40%, blur last 60%
     const cutoff = Math.floor(responseLines.length * 0.4);
 
     return (
-      <div className="mt-6">
+      <div className="mt-6 px-4">
         <div className="relative">
           <div style={{ filter: "blur(4px)", userSelect: "none", pointerEvents: "none" as const }}>
             {responseLines.slice(cutoff).map((line, i) => (
               <p key={i} className="font-serif text-base leading-relaxed text-foreground mb-2">{line}</p>
             ))}
           </div>
-          <div className="absolute inset-0 flex items-center justify-center">
-            <div className="bg-card border border-gold/20 rounded-sm p-6 text-center max-w-sm shadow-xl">
-              <p className="font-serif text-lg text-foreground mb-2">Unlock your full answer</p>
-              <p className="font-body text-xs text-muted-foreground mb-4">
-                Start your 30-day free trial — unlimited questions, full responses, journal access.
+          <div className="absolute inset-0 flex items-start justify-center pt-6">
+            <div className="bg-card border border-gold/30 rounded-sm p-6 text-center max-w-sm shadow-[0_0_32px_rgba(196,151,58,0.18)]">
+              <p className="font-serif text-lg text-foreground mb-2">You've used your 2 free questions.</p>
+              <p className="font-body text-xs text-muted-foreground mb-5 leading-relaxed">
+                Start your 30-day free trial to unlock the rest of this answer, save it to your private journal,
+                and ask without limits.
               </p>
               <button
                 onClick={() => setAuthModal({ open: true, message: "Start your 30-day free trial — unlimited questions, full responses, journal access." })}
                 className="w-full font-serif text-sm tracking-widest uppercase py-3 bg-gold text-primary-foreground rounded-sm hover:bg-gold-dark transition-all mb-2"
               >
                 Start free trial
+              </button>
+              <button
+                onClick={() => navigate("/pricing")}
+                className="w-full font-serif text-xs tracking-widest uppercase py-2.5 border border-gold/30 text-gold rounded-sm hover:bg-gold/10 transition-all mb-3"
+              >
+                See plans
               </button>
               <p className="text-xs font-body text-muted-foreground">
                 Already have an account?{" "}
@@ -629,6 +637,12 @@ const Index = () => {
               try { localStorage.setItem(ONBOARDING_KEY, "true"); } catch {}
               setHasOnboarded(true);
             }}
+            onTryAsGuest={() => {
+              try { localStorage.setItem(ONBOARDING_KEY, "true"); } catch {}
+              setHasOnboarded(true);
+              setTab("ask");
+              setScreen("ask");
+            }}
           />
         ) : showLanguageSettings && user ? (
           <Suspense fallback={<PageSpinner />}>
@@ -650,7 +664,11 @@ const Index = () => {
                 onDismiss={() => refreshProfile()}
               />
             ) : (
-              <AskScreen onSeekWisdom={seekWisdom} isLoading={isLoading} />
+              <AskScreen
+                onSeekWisdom={seekWisdom}
+                isLoading={isLoading}
+                guestQuestionsRemaining={!user ? Math.max(0, GUEST_LIMIT - getGuestQuestionsUsed()) : null}
+              />
             )
           ) : currentResponse ? (
             <>
