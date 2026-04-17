@@ -173,32 +173,50 @@ const ScriptureScreen = ({
       setVerses([]);
       const bookQuery = book.name.replace(/ /g, "+");
       const projectId = import.meta.env.VITE_SUPABASE_PROJECT_ID;
+      const availabilityKey = `${book.name}-${chapter}`;
       try {
         const res = await fetch(
           `https://${projectId}.supabase.co/functions/v1/bible-proxy?ref=${encodeURIComponent(bookQuery + "+" + chapter)}&translation=${VERSION_API_MAP[version]}`
         );
+        if (!res.ok) {
+          toast.error("Could not load chapter.");
+          return;
+        }
         const data = await res.json();
         if (data.verses) {
           const parsed = data.verses.map((v: any) => ({ verse: v.verse, text: v.text.trim() }));
           chapterCacheRef.current[cacheKey] = parsed;
           setVerses(parsed);
 
-          // Probe which other versions have data for this book (check verse 1)
-          const probeRef = `${bookQuery}+${chapter}:1`;
-          const probeResults = await Promise.allSettled(
-            VERSIONS.map(async (ver) => {
-              if (ver === version) return { ver, ok: true };
-              const r = await fetch(
-                `https://${projectId}.supabase.co/functions/v1/bible-proxy?ref=${encodeURIComponent(probeRef)}&translation=${VERSION_API_MAP[ver]}`
+          // Use cached availability if we already probed this chapter
+          const cachedAvail = availableVersionsCacheRef.current[availabilityKey];
+          if (cachedAvail) {
+            setAvailableChapterVersions(cachedAvail);
+          } else {
+            // Probe which other versions have data for this book (check verse 1)
+            const probeRef = `${bookQuery}+${chapter}:1`;
+            try {
+              const probeResults = await Promise.allSettled(
+                VERSIONS.map(async (ver) => {
+                  if (ver === version) return { ver, ok: true };
+                  const r = await fetch(
+                    `https://${projectId}.supabase.co/functions/v1/bible-proxy?ref=${encodeURIComponent(probeRef)}&translation=${VERSION_API_MAP[ver]}`
+                  );
+                  if (!r.ok) return { ver, ok: false };
+                  const d = await r.json();
+                  return { ver, ok: !!d.text?.trim() };
+                })
               );
-              const d = await r.json();
-              return { ver, ok: !!d.text?.trim() };
-            })
-          );
-          const available = probeResults
-            .filter((r) => r.status === "fulfilled" && r.value.ok)
-            .map((r) => (r as PromiseFulfilledResult<{ ver: BibleVersion; ok: boolean }>).value.ver);
-          setAvailableChapterVersions(available.length > 0 ? available : [version]);
+              const available = probeResults
+                .filter((r) => r.status === "fulfilled" && r.value.ok)
+                .map((r) => (r as PromiseFulfilledResult<{ ver: BibleVersion; ok: boolean }>).value.ver);
+              const finalList = available.length > 0 ? available : [version];
+              availableVersionsCacheRef.current[availabilityKey] = finalList;
+              setAvailableChapterVersions(finalList);
+            } catch {
+              setAvailableChapterVersions([version]);
+            }
+          }
         } else {
           toast.error("Could not load chapter.");
         }
@@ -230,36 +248,57 @@ const ScriptureScreen = ({
     }
   }, [highlightVerse, verses]);
 
-  // Preload all versions for a verse on expand
+  // Preload all versions for a verse on expand — with persistent cache
   const preloadVerseVersions = async (verseNum: number) => {
     if (!selectedBook || !selectedChapter) return;
     if (verseVersionCache[verseNum] && Object.keys(verseVersionCache[verseNum]).length >= 6) return;
 
     const bookQuery = selectedBook.name.replace(/ /g, "+");
     const ref = `${bookQuery}+${selectedChapter}:${verseNum}`;
+    const baseKey = `${selectedBook.name}-${selectedChapter}-${verseNum}`;
 
     const current = verses.find((v) => v.verse === verseNum);
     const cache: Record<string, string> = {
       [activeChapterVersion]: current?.text || "",
     };
 
-    // Fetch other versions in parallel — only cache versions that return data
-    const others = VERSIONS.filter((v) => v !== activeChapterVersion);
-    const projectId = import.meta.env.VITE_SUPABASE_PROJECT_ID;
-    const results = await Promise.allSettled(
-      others.map(async (ver) => {
-        const res = await fetch(`https://${projectId}.supabase.co/functions/v1/bible-proxy?ref=${encodeURIComponent(ref)}&translation=${VERSION_API_MAP[ver]}`);
-        const data = await res.json();
-        const text = data.text?.trim();
-        return { ver, text: text || null };
-      })
-    );
-
-    results.forEach((r) => {
-      if (r.status === "fulfilled" && r.value.text) {
-        cache[r.value.ver] = r.value.text;
-      }
+    // Hydrate from persistent cache first
+    VERSIONS.forEach((ver) => {
+      const cached = verseTextCacheRef.current[`${baseKey}::${ver}`];
+      if (cached) cache[ver] = cached;
     });
+
+    // Fetch only versions still missing
+    const missing = VERSIONS.filter((v) => v !== activeChapterVersion && !cache[v]);
+    if (missing.length > 0) {
+      const projectId = import.meta.env.VITE_SUPABASE_PROJECT_ID;
+      const results = await Promise.allSettled(
+        missing.map(async (ver) => {
+          try {
+            const res = await fetch(`https://${projectId}.supabase.co/functions/v1/bible-proxy?ref=${encodeURIComponent(ref)}&translation=${VERSION_API_MAP[ver]}`);
+            if (!res.ok) return { ver, text: null };
+            const data = await res.json();
+            const text = data.text?.trim();
+            return { ver, text: text || null };
+          } catch {
+            return { ver, text: null };
+          }
+        })
+      );
+      results.forEach((r) => {
+        if (r.status === "fulfilled" && r.value.text) {
+          cache[r.value.ver] = r.value.text;
+          verseTextCacheRef.current[`${baseKey}::${r.value.ver}`] = r.value.text;
+        }
+      });
+      persistVerseCache();
+    }
+
+    // Persist active version's text too
+    if (current?.text) {
+      verseTextCacheRef.current[`${baseKey}::${activeChapterVersion}`] = current.text;
+      persistVerseCache();
+    }
 
     setVerseVersionCache((prev) => ({ ...prev, [verseNum]: cache }));
   };
@@ -296,35 +335,50 @@ const ScriptureScreen = ({
     if (!selectedBook || !selectedChapter) return;
 
     const key = `${selectedBook.name}-${selectedChapter}-${verseData.verse}`;
+    if (savingVerse === key) return; // prevent double-tap
     setSavingVerse(key);
 
-    if (savedVerseKeys.has(key)) {
-      const existing = savedVerses.find(
-        (v) => v.book === selectedBook.name && v.chapter === selectedChapter && v.verse_number === verseData.verse
-      );
-      if (existing) {
-        await supabase.from("saved_verses").delete().eq("id", existing.id);
-        toast.success("Verse removed.");
+    try {
+      if (savedVerseKeys.has(key)) {
+        const existing = savedVerses.find(
+          (v) => v.book === selectedBook.name && v.chapter === selectedChapter && v.verse_number === verseData.verse
+        );
+        if (existing) {
+          const { error } = await supabase.from("saved_verses").delete().eq("id", existing.id);
+          if (error) throw error;
+          toast.success("Verse removed.");
+        }
+      } else {
+        const verseVersion = verseActiveVersion[verseData.verse] || activeChapterVersion;
+        const verseText =
+          verseVersionCache[verseData.verse]?.[verseVersion] || verseData.text;
+
+        const { error } = await supabase.from("saved_verses").insert({
+          user_id: user.id,
+          book: selectedBook.name,
+          chapter: selectedChapter,
+          verse_number: verseData.verse,
+          verse_text: verseText,
+          version: verseVersion,
+        } as any);
+        if (error) {
+          // Unique-violation = already saved (race) — treat as success
+          if ((error as any).code === "23505") {
+            toast.success("Verse saved.");
+          } else {
+            throw error;
+          }
+        } else {
+          toast.success("Verse saved.");
+        }
       }
-    } else {
-      // Save with the currently active version for this verse
-      const verseVersion = verseActiveVersion[verseData.verse] || activeChapterVersion;
-      const verseText =
-        verseVersionCache[verseData.verse]?.[verseVersion] || verseData.text;
-
-      await supabase.from("saved_verses").insert({
-        user_id: user.id,
-        book: selectedBook.name,
-        chapter: selectedChapter,
-        verse_number: verseData.verse,
-        verse_text: verseText,
-        version: verseVersion,
-      } as any);
-      toast.success("Verse saved.");
+      await fetchSavedVerses();
+    } catch (e) {
+      console.error("Save verse failed:", e);
+      toast.error("Couldn't update saved verses. Try again.");
+    } finally {
+      setSavingVerse(null);
     }
-
-    await fetchSavedVerses();
-    setSavingVerse(null);
   };
 
   const otBooks = kjvBooks.filter((b) => b.testament === "OT");
@@ -428,9 +482,14 @@ const ScriptureScreen = ({
         <h1 className="font-serif text-2xl text-foreground tracking-wide mb-6">Saved Verses</h1>
 
         {savedVerses.length === 0 ? (
-          <p className="font-body text-sm text-muted-foreground italic">
-            No saved verses yet. Long-press any verse to save it.
-          </p>
+          <div className="text-center py-12">
+            <p className="font-serif text-base text-muted-foreground italic mb-2">
+              No saved verses yet.
+            </p>
+            <p className="font-body text-sm text-muted-foreground/60">
+              Tap the bookmark icon next to any verse to save it here.
+            </p>
+          </div>
         ) : (
           <div className="space-y-5">
             {savedVerses.map((sv) => {
