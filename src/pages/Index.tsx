@@ -345,7 +345,24 @@ const Index = () => {
         while ((match = regex.exec(fullText)) !== null) {
           scriptureRefs.push(match[1].trim());
         }
-        setCurrentResponse({ question, response: fullText, scriptures: scriptureRefs });
+        // Look up the session id the edge function just created (so flag/save can target it)
+        let createdSessionId: string | null = null;
+        if (user) {
+          try {
+            const { data: recent } = await supabase
+              .from("wisdom_sessions")
+              .select("id")
+              .eq("user_id", user.id)
+              .eq("question", question)
+              .order("created_at", { ascending: false })
+              .limit(1);
+            createdSessionId = recent?.[0]?.id ?? null;
+          } catch {
+            // non-fatal — flag button just won't render
+          }
+        }
+
+        setCurrentResponse({ question, response: fullText, scriptures: scriptureRefs, sessionId: createdSessionId });
 
         if (!user) {
           incrementGuestQuestions();
