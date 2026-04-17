@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 
 interface OnboardingScreenProps {
   onBegin: () => void;
+  onTryAsGuest?: () => void;
 }
 
 const CtaButton = ({
@@ -26,7 +27,7 @@ const CtaButton = ({
   </div>
 );
 
-const OnboardingScreen = ({ onBegin }: OnboardingScreenProps) => {
+const OnboardingScreen = ({ onBegin, onTryAsGuest }: OnboardingScreenProps) => {
   const [visible, setVisible] = useState(false);
 
   useEffect(() => {
@@ -88,12 +89,16 @@ const OnboardingScreen = ({ onBegin }: OnboardingScreenProps) => {
           </button>
           <button
             onClick={() => {
-              const el = document.getElementById("sample-answer");
-              el?.scrollIntoView({ behavior: "smooth", block: "start" });
+              if (onTryAsGuest) {
+                onTryAsGuest();
+              } else {
+                const el = document.getElementById("sample-answer");
+                el?.scrollIntoView({ behavior: "smooth", block: "start" });
+              }
             }}
             className="font-body text-sm text-gold/80 hover:text-gold transition-colors underline-offset-4 hover:underline"
           >
-            Try a free question first →
+            Try without signing up →
           </button>
         </div>
 
