@@ -265,6 +265,10 @@ const Index = () => {
           throw new Error(err.message || err.error || "Something went wrong");
         }
 
+        // Capture session ID from response headers (set by edge function)
+        const sessionIdHeader = response.headers.get("X-Session-Id");
+        if (sessionIdHeader) setCurrentSessionId(sessionIdHeader);
+
         // Set up streaming response
         setCurrentResponse({ question, response: "", scriptures: [] });
         setScreen("response");
@@ -312,6 +316,10 @@ const Index = () => {
           await incrementDailyUsage();
         }
       } catch (err: any) {
+        if (err?.name === "AbortError") {
+          // User navigated away or started a new request — silent
+          return;
+        }
         toast.error(err.message || "Could not seek wisdom at this time.");
       } finally {
         clearTimeout(t1);
@@ -342,19 +350,25 @@ const Index = () => {
 
     setIsSaving(true);
     try {
-      const { data: sessions } = await supabase
-        .from("wisdom_sessions")
-        .select("id")
-        .eq("user_id", user.id)
-        .eq("question", currentResponse.question)
-        .order("created_at", { ascending: false })
-        .limit(1);
+      let sessionId = currentSessionId;
 
-      if (sessions && sessions.length > 0) {
+      // Fallback: if header wasn't captured (older guest path), look up by question
+      if (!sessionId) {
+        const { data: sessions } = await supabase
+          .from("wisdom_sessions")
+          .select("id")
+          .eq("user_id", user.id)
+          .eq("question", currentResponse.question)
+          .order("created_at", { ascending: false })
+          .limit(1);
+        sessionId = sessions?.[0]?.id ?? null;
+      }
+
+      if (sessionId) {
         await supabase
           .from("wisdom_sessions")
           .update({ saved_to_journal: true })
-          .eq("id", sessions[0].id);
+          .eq("id", sessionId);
       }
       setIsSaved(true);
       toast.success("Saved to your journal.");
@@ -363,7 +377,7 @@ const Index = () => {
     } finally {
       setIsSaving(false);
     }
-  }, [user, currentResponse, hasFullAccess, navigate]);
+  }, [user, currentResponse, currentSessionId, hasFullAccess, navigate]);
 
   const handleScriptureDeepLink = useCallback((ref: string, version?: string) => {
     const parsed = parseScriptureRef(ref);
