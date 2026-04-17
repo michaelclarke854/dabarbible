@@ -106,6 +106,8 @@ const Index = () => {
 
   // Soft gate state for guest limit
   const [showSoftGate, setShowSoftGate] = useState(false);
+  // Soft capture nudge — shown after Q1 (not yet at hard limit)
+  const [showSoftCapture, setShowSoftCapture] = useState(false);
 
   // Downgrade loading
   const [downgradeLoading, setDowngradeLoading] = useState(false);
@@ -387,8 +389,15 @@ const Index = () => {
 
         if (!user) {
           incrementGuestQuestions();
-          if (isGuestAtLimit || getGuestQuestionsUsed() >= GUEST_LIMIT) {
+          const used = getGuestQuestionsUsed();
+          // Q1 done (used == 1) → soft nudge above response, no blur
+          // Q2 done (used >= 2) → next attempt will be blocked; show soft gate now
+          if (used >= GUEST_LIMIT) {
             setShowSoftGate(true);
+            setShowSoftCapture(false);
+          } else {
+            setShowSoftCapture(true);
+            setShowSoftGate(false);
           }
         } else {
           await incrementDailyUsage();
