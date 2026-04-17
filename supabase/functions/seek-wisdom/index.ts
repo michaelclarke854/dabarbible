@@ -565,15 +565,19 @@ serve(async (req) => {
               const bookName = ref.replace(/\s+\d.*$/, "").trim();
               if (bookName && !KNOWN_BIBLE_BOOKS.has(bookName)) {
                 console.warn("Possible hallucinated scripture reference:", ref);
-                try {
-                  await supabase.from("response_flags").insert({
-                    session_id: sessionId,
-                    user_id: userId,
-                    flag_type: "possible_hallucinated_scripture",
-                    flag_notes: `Cited reference: ${ref}`,
-                  });
-                } catch (e) {
-                  console.error("Failed to log hallucination flag:", e);
+                // Only log to response_flags for authenticated sessions —
+                // the table requires user_id NOT NULL.
+                if (userId) {
+                  try {
+                    await supabase.from("response_flags").insert({
+                      session_id: sessionId,
+                      user_id: userId,
+                      flag_type: "possible_hallucinated_scripture",
+                      flag_notes: `Cited reference: ${ref}`,
+                    });
+                  } catch (e) {
+                    console.error("Failed to log hallucination flag:", e);
+                  }
                 }
               }
             }
