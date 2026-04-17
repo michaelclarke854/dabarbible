@@ -550,6 +550,7 @@ serve(async (req) => {
     return new Response(readableStream, {
       headers: {
         ...corsHeaders,
+        "Access-Control-Expose-Headers": "X-Crisis-Severity",
         "Content-Type": "text/plain; charset=utf-8",
         "X-Content-Type-Options": "nosniff",
         "X-Crisis-Severity": crisisResult.severity || "",
