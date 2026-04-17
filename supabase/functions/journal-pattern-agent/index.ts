@@ -57,13 +57,8 @@ serve(async (req) => {
 
     let cronAuthenticated = false;
     if (providedSecret) {
-      const { data: vaultRow } = await adminClient
-        .schema("vault")
-        .from("decrypted_secrets")
-        .select("decrypted_secret")
-        .eq("name", "cron_shared_secret")
-        .maybeSingle();
-      if (vaultRow?.decrypted_secret && providedSecret === vaultRow.decrypted_secret) {
+      const { data: vaultSecret } = await adminClient.rpc("get_cron_shared_secret");
+      if (vaultSecret && providedSecret === vaultSecret) {
         cronAuthenticated = true;
       }
     }
