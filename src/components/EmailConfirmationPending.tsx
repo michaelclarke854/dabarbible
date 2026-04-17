@@ -1,26 +1,47 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 
 interface EmailConfirmationPendingProps {
   email: string;
 }
 
+const COOLDOWN_SECONDS = 60;
+
 const EmailConfirmationPending = ({ email }: EmailConfirmationPendingProps) => {
-  const [resent, setResent] = useState(false);
-  const [cooldown, setCooldown] = useState(false);
+  const [secondsLeft, setSecondsLeft] = useState(0);
+  const [sending, setSending] = useState(false);
+  const [justSent, setJustSent] = useState(false);
+
+  useEffect(() => {
+    if (secondsLeft <= 0) return;
+    const t = setInterval(() => setSecondsLeft((s) => Math.max(0, s - 1)), 1000);
+    return () => clearInterval(t);
+  }, [secondsLeft]);
 
   const handleResend = async () => {
-    if (cooldown) return;
-    setCooldown(true);
-    await supabase.auth.resend({ type: "signup", email });
-    setResent(true);
-    setTimeout(() => setResent(false), 3000);
-    setTimeout(() => setCooldown(false), 60000);
+    if (secondsLeft > 0 || sending) return;
+    setSending(true);
+    try {
+      await supabase.auth.resend({ type: "signup", email });
+      setJustSent(true);
+      setSecondsLeft(COOLDOWN_SECONDS);
+      setTimeout(() => setJustSent(false), 3000);
+    } finally {
+      setSending(false);
+    }
   };
 
   const handleSignOut = async () => {
     await supabase.auth.signOut();
   };
+
+  const buttonLabel = sending
+    ? "Sending…"
+    : justSent
+      ? "Sent ✓"
+      : secondsLeft > 0
+        ? `Resend in ${secondsLeft}s`
+        : "Resend confirmation email";
 
   return (
     <div className="min-h-screen flex flex-col items-center justify-center px-6 text-center">
@@ -44,10 +65,10 @@ const EmailConfirmationPending = ({ email }: EmailConfirmationPendingProps) => {
 
       <button
         onClick={handleResend}
-        disabled={cooldown}
+        disabled={secondsLeft > 0 || sending}
         className="font-serif text-sm tracking-widest uppercase px-6 py-3 border border-gold/30 text-gold rounded-sm hover:border-gold transition-all disabled:opacity-40 mb-4"
       >
-        {resent ? "Sent!" : cooldown ? "Check your inbox" : "Resend confirmation email"}
+        {buttonLabel}
       </button>
 
       <button

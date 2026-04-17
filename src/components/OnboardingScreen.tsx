@@ -4,13 +4,13 @@ interface OnboardingScreenProps {
   onBegin: () => void;
 }
 
-const CtaButton = ({
+const PrimaryCta = ({
   text,
   subtext,
   onClick,
 }: {
   text: string;
-  subtext: string;
+  subtext?: string;
   onClick: () => void;
 }) => (
   <div className="flex flex-col items-center">
@@ -20,10 +20,22 @@ const CtaButton = ({
     >
       {text}
     </button>
-    <p className="font-['Playfair_Display'] italic text-muted-foreground/60 text-xs mt-3">
-      {subtext}
-    </p>
+    {subtext && (
+      <p className="font-['Playfair_Display'] italic text-muted-foreground/60 text-xs mt-3">
+        {subtext}
+      </p>
+    )}
   </div>
+);
+
+// Soft, secondary continue link — used between sections to keep flow without CTA fatigue
+const ContinueLink = ({ text, onClick }: { text: string; onClick: () => void }) => (
+  <button
+    onClick={onClick}
+    className="font-['Playfair_Display'] italic text-gold/80 hover:text-gold text-sm tracking-wide transition-colors"
+  >
+    {text} →
+  </button>
 );
 
 const OnboardingScreen = ({ onBegin }: OnboardingScreenProps) => {
@@ -55,8 +67,8 @@ const OnboardingScreen = ({ onBegin }: OnboardingScreenProps) => {
 
       <div className="w-12 h-px bg-gold mb-8" />
 
-      {/* 1. Hero CTA */}
-      <CtaButton
+      {/* 1. Hero CTA — primary */}
+      <PrimaryCta
         text="Ask your first question — free"
         subtext="Try free for 30 days — no card needed."
         onClick={onBegin}
@@ -123,18 +135,14 @@ const OnboardingScreen = ({ onBegin }: OnboardingScreenProps) => {
           </div>
         </div>
 
-        {/* 2. Post-structure CTA */}
-        <div className="pt-4">
-          <CtaButton
-            text="Begin seeking"
-            subtext="30 days free. No credit card. Cancel anytime."
-            onClick={onBegin}
-          />
+        {/* Soft secondary action — keeps flow without shouting */}
+        <div className="pt-6">
+          <ContinueLink text="See an example response" onClick={onBegin} />
         </div>
 
         <div className="w-8 h-px bg-gold/40 mx-auto my-8" />
 
-        {/* 3. Example Response Section */}
+        {/* Example Response Section */}
         <div className="text-left">
           <p className="font-body text-xs uppercase tracking-widest text-muted-foreground text-center mb-6">
             This is what receiving looks like
@@ -174,25 +182,17 @@ const OnboardingScreen = ({ onBegin }: OnboardingScreenProps) => {
           </div>
 
           {/* Threshold Question */}
-          <div className="mb-6">
+          <div className="mb-2">
             <p className="font-serif text-xs text-gold tracking-wide uppercase mb-2">The Threshold Question</p>
             <p className="font-['Playfair_Display'] italic leading-relaxed text-gold-light text-base">
               What would it look like to release this decision into the hands that were guiding you before you ever made it?
             </p>
           </div>
-
-          <div className="text-center">
-            <CtaButton
-              text="Experience this for yourself →"
-              subtext=""
-              onClick={onBegin}
-            />
-          </div>
         </div>
 
         <div className="w-8 h-px bg-gold/40 mx-auto my-8" />
 
-        {/* 4. Privacy Section */}
+        {/* Privacy Section — secondary action only */}
         <div className="text-center py-4">
           <p className="font-serif text-foreground tracking-wide text-2xl">
             Your words stay yours.
@@ -200,42 +200,37 @@ const OnboardingScreen = ({ onBegin }: OnboardingScreenProps) => {
           <p className="font-body text-sm text-muted-foreground leading-relaxed mt-4 max-w-sm mx-auto">
             Your private journal preserves every response and reflection. No one can see it — not other members, not us.
           </p>
-          <div className="mt-6">
-            <CtaButton
-              text="Start your free trial"
-              subtext=""
-              onClick={onBegin}
-            />
-          </div>
         </div>
 
         <div className="w-8 h-px bg-gold/40 mx-auto my-8" />
 
-        {/* Closing scripture */}
-        <div className="pb-8">
+        {/* Closing scripture + final primary CTA */}
+        <div className="pb-4">
           <p className="font-serif text-base text-foreground/80 italic leading-relaxed">
             "Is not my word like as a fire? saith the LORD; and like a hammer
             that breaketh the rock in pieces?"
           </p>
-          <p className="text-gold font-serif text-sm tracking-wide mt-3">
+          <p className="text-gold font-serif text-sm tracking-wide mt-3 mb-8">
             — Jeremiah 23:29 (KJV)
           </p>
+
+          {/* 2. Final primary CTA */}
+          <PrimaryCta
+            text="Begin seeking"
+            subtext="30 days free. No credit card. Cancel anytime."
+            onClick={onBegin}
+          />
         </div>
       </div>
       </div>{/* end centered content wrapper */}
 
-      {/* 6. Footer */}
-      <footer className="w-full py-10 px-6 bg-nav">
+      {/* Footer */}
+      <footer className="w-full py-10 px-6 bg-nav mt-10">
         <div className="max-w-md mx-auto text-center space-y-6">
-          {/* App Store badges */}
-          <div className="flex items-center justify-center gap-4">
-            <div className="px-4 py-2 rounded border border-gold/30 text-gold font-body text-xs tracking-wide opacity-60">
-              App Store — Coming Soon
-            </div>
-            <div className="px-4 py-2 rounded border border-gold/30 text-gold font-body text-xs tracking-wide opacity-60">
-              Google Play — Coming Soon
-            </div>
-          </div>
+          {/* Mobile apps disclaimer (subtle, not button-styled) */}
+          <p className="font-body text-xs text-gold/60 tracking-wide">
+            iOS &amp; Android apps coming soon
+          </p>
 
           {/* Links */}
           <div className="flex items-center justify-center gap-4 text-xs font-body text-gold/70">

@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 
@@ -48,6 +49,11 @@ const AgeGateScreen = () => {
       return;
     }
     clearAgeGate();
+  };
+
+  const handleSignOut = async () => {
+    await supabase.auth.signOut();
+    toast.success("Signed out. You can sign in with a different account anytime.");
   };
 
   return (
@@ -119,7 +125,7 @@ const AgeGateScreen = () => {
         <p className="text-xs font-body text-muted-foreground">
           Wrong account?{" "}
           <button
-            onClick={() => supabase.auth.signOut()}
+            onClick={handleSignOut}
             className="text-muted-foreground hover:text-foreground underline text-xs bg-transparent border-none cursor-pointer"
           >
             Sign out
