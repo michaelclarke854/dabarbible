@@ -1108,6 +1108,7 @@ export default function AdminDashboard() {
     users: <UsersTab callerRole={role} onEditUser={id => setEditingUserId(id)} />,
     subscriptions: <SubscriptionsTab />,
     monitor: <MonitorTab />,
+    review: <ReviewTab />,
     flagged: <FlaggedTab />,
     crisis: <CrisisTab />,
     prompts: <PromptsTab />,
