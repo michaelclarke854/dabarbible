@@ -221,19 +221,39 @@ const Index = () => {
       const t2 = setTimeout(() => setAgentStage("reflecting"), 1800);
 
       try {
-        const { data: { session: authSession } } = await supabase.auth.getSession();
+        let { data: { session: authSession } } = await supabase.auth.getSession();
+
+        // If we have a logged-in user but no access_token, try refreshing once
+        // before falling back. Never silently downgrade an authenticated user
+        // to a guest request — that would attribute their session to user_id=NULL.
+        if (user && !authSession?.access_token) {
+          const { data: refreshed } = await supabase.auth.refreshSession();
+          authSession = refreshed.session ?? authSession;
+        }
+
+        if (user && !authSession?.access_token) {
+          clearTimeout(t1); clearTimeout(t2);
+          setIsLoading(false);
+          setAgentStage(null);
+          toast.error("Session expired", {
+            description: "Please sign in again to continue.",
+          });
+          return;
+        }
 
         // Use scripture-research-agent for authenticated users, seek-wisdom for guests
         const endpoint = user
           ? `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/scripture-research-agent`
           : `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/seek-wisdom`;
 
+        const bearer = authSession?.access_token ?? import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
+
         const response = await fetch(endpoint, {
           method: "POST",
           signal: controller.signal,
           headers: {
             "Content-Type": "application/json",
-            Authorization: `Bearer ${authSession?.access_token ?? import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
+            Authorization: `Bearer ${bearer}`,
             apikey: import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
           },
           body: JSON.stringify({
