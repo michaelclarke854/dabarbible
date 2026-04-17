@@ -38,11 +38,14 @@ const LanguageSettings = ({
 
   const handleSelect = async (lang: LanguageOption) => {
     if (lang.available) {
-      // Set language preference
-      await supabase
+      const { error } = await supabase
         .from("profiles")
         .update({ language_preference: lang.code })
         .eq("user_id", userId);
+      if (error) {
+        toast.error("Could not update language. Please try again.");
+        return;
+      }
       onLanguageChanged(lang.code);
       toast.success("Language updated.");
     } else {
@@ -59,7 +62,10 @@ const LanguageSettings = ({
         email: waitlistEmail.trim(),
         language_code: waitlistLang,
       });
-      if (error && error.code === "23505") {
+      const isDuplicate =
+        error?.code === "23505" ||
+        /duplicate|already exists|unique/i.test(error?.message || "");
+      if (isDuplicate) {
         toast.info("You're already on this list. We'll reach out soon.");
       } else if (error) {
         throw error;
