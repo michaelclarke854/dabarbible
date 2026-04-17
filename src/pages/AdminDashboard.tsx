@@ -27,6 +27,7 @@ const tabs: { id: AdminTab; label: string; icon: typeof LayoutDashboard }[] = [
   { id: "users", label: "Users", icon: Users },
   { id: "subscriptions", label: "Subscriptions", icon: CreditCard },
   { id: "monitor", label: "Response Monitor", icon: MessageSquare },
+  { id: "review", label: "Review Queue", icon: Inbox },
   { id: "flagged", label: "Flagged", icon: Flag },
   { id: "crisis", label: "Crisis Log", icon: AlertTriangle },
   { id: "prompts", label: "System Prompt", icon: FileText },
