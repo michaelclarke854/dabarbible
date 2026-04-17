@@ -678,7 +678,7 @@ const Index = () => {
                 scriptures={currentResponse.scriptures}
                 isStreaming={isStreaming}
                 agentStage={agentStage}
-                onAskAgain={() => { setScreen("ask"); setCurrentResponse(null); setShowSoftGate(false); }}
+                onAskAgain={() => { setScreen("ask"); setCurrentResponse(null); setShowSoftGate(false); setShowSoftCapture(false); }}
                 onReflect={reflectOnThis}
                 onStir={(thresholdQ) => {
                   reflectOnThis().then(() => {
@@ -696,6 +696,14 @@ const Index = () => {
                 onProfileVersionChanged={(v) => setPreferredBibleVersion(v)}
                 sessionId={currentResponse.sessionId ?? null}
               />
+              {showSoftCapture && !user && !showSoftGate && (
+                <Suspense fallback={null}>
+                  <SoftCaptureCard
+                    questionsRemaining={Math.max(0, GUEST_LIMIT - getGuestQuestionsUsed())}
+                    onSignUp={() => setAuthModal({ open: true, message: "Create a free account to save this reflection — 30 days free, no card needed." })}
+                  />
+                </Suspense>
+              )}
               {renderSoftGate()}
             </>
           ) : null
