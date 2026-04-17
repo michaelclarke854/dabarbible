@@ -4,7 +4,7 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2.103.0";
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers":
-    "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
+    "authorization, x-client-info, apikey, content-type, x-anon-id, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
 
 // ── Crisis keyword lists ──────────────────
@@ -365,23 +365,55 @@ serve(async (req) => {
         );
       }
     } else {
+      // ── Anonymous rate limiting ──
+      // Combine two signals so neither alone can be bypassed:
+      //   1. client IP (catches users that wipe localStorage / private mode)
+      //   2. localStorage UUID sent as x-anon-id (catches NAT / shared offices)
+      // Limit applies per HOUR. The stricter of the two wins.
       const clientIp = req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ?? "unknown";
+      const anonIdRaw = req.headers.get("x-anon-id")?.trim() ?? "";
+      // Simple validation: only accept UUID-shaped values, never trust client text
+      const anonId = /^[a-f0-9-]{8,64}$/i.test(anonIdRaw) ? anonIdRaw : "none";
       const hourBucket = Math.floor(Date.now() / 3_600_000);
-      const windowKey = `anon_${clientIp}_${hourBucket}`;
-      const ANON_LIMIT = 10;
+      const ANON_LIMIT = 2; // Q1 full, Q2 blurred — Solution 3
+      const RECENT_LIMIT = 10; // wider IP-only safety net (anti-abuse)
 
-      const { data: rateRow } = await supabase
-        .from("rate_limits_anonymous").select("count").eq("key", windowKey).single();
-      const currentCount = rateRow?.count ?? 0;
-      if (currentCount >= ANON_LIMIT) {
+      const ipKey = `anon_ip_${clientIp}_${hourBucket}`;
+      const idKey = `anon_id_${anonId}_${hourBucket}`;
+
+      // Read both buckets in parallel
+      const [ipRow, idRow] = await Promise.all([
+        supabase.from("rate_limits_anonymous").select("count").eq("key", ipKey).maybeSingle(),
+        anonId !== "none"
+          ? supabase.from("rate_limits_anonymous").select("count").eq("key", idKey).maybeSingle()
+          : Promise.resolve({ data: null }),
+      ]);
+      const ipCount = ipRow.data?.count ?? 0;
+      const idCount = idRow.data?.count ?? 0;
+
+      // Hard cap on either signal
+      if (idCount >= ANON_LIMIT || ipCount >= RECENT_LIMIT) {
         return new Response(
-          JSON.stringify({ error: "rate_limited", message: "Please sign up for unlimited access." }),
+          JSON.stringify({
+            error: "rate_limited",
+            message: "Sign up free to keep going — 30-day trial, no credit card.",
+          }),
           { status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" } }
         );
       }
-      await supabase
-        .from("rate_limits_anonymous")
-        .upsert({ key: windowKey, count: currentCount + 1, created_at: new Date().toISOString() });
+
+      // Increment both buckets (so future requests see the new totals)
+      const upserts: Promise<unknown>[] = [
+        supabase.from("rate_limits_anonymous").upsert({
+          key: ipKey, count: ipCount + 1, created_at: new Date().toISOString(),
+        }),
+      ];
+      if (anonId !== "none") {
+        upserts.push(supabase.from("rate_limits_anonymous").upsert({
+          key: idKey, count: idCount + 1, created_at: new Date().toISOString(),
+        }));
+      }
+      await Promise.all(upserts);
     }
 
     // ── Crisis detection ──

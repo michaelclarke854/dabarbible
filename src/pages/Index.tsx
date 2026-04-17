@@ -25,20 +25,39 @@ const ScriptureScreen = lazy(() => import("@/components/ScriptureScreen"));
 const HistoryScreen = lazy(() => import("@/components/HistoryScreen"));
 const LanguageSettings = lazy(() => import("@/components/LanguageSettings"));
 const PrivacySettings = lazy(() => import("@/components/PrivacySettings"));
+const SoftCaptureCard = lazy(() => import("@/components/SoftCaptureCard"));
 
 type Tab = "ask" | "scripture" | "history" | "journal";
 type Screen = "ask" | "response";
 
-const GUEST_LIMIT = 3;
+// Solution 3 — Anonymous gate:
+//   Q1 → full answer + soft capture nudge
+//   Q2 → full answer (still allowed) but next attempt is blurred behind hard paywall
+const GUEST_LIMIT = 2;
 const FREE_DAILY_LIMIT = 3;
 const STORAGE_KEY = "dabar-questions-used";
 const ONBOARDING_KEY = "dabar-onboarded";
+const ANON_ID_KEY = "dabar_anon_id";
 
 const getGuestQuestionsUsed = (): number => {
   try { return parseInt(localStorage.getItem(STORAGE_KEY) || "0", 10); } catch { return 0; }
 };
 const incrementGuestQuestions = () => {
   try { localStorage.setItem(STORAGE_KEY, String(getGuestQuestionsUsed() + 1)); } catch {}
+};
+
+/** Get-or-create a stable per-device anonymous id. Used (alongside IP) by
+ *  the seek-wisdom edge function to enforce the 2-question guest limit. */
+const getOrCreateAnonId = (): string => {
+  try {
+    const existing = localStorage.getItem(ANON_ID_KEY);
+    if (existing && /^[a-f0-9-]{8,64}$/i.test(existing)) return existing;
+    const fresh = (crypto.randomUUID?.() ?? `${Date.now()}-${Math.random().toString(16).slice(2)}`);
+    localStorage.setItem(ANON_ID_KEY, fresh);
+    return fresh;
+  } catch {
+    return "no-storage";
+  }
 };
 
 const PageSpinner = () => (
@@ -87,6 +106,8 @@ const Index = () => {
 
   // Soft gate state for guest limit
   const [showSoftGate, setShowSoftGate] = useState(false);
+  // Soft capture nudge — shown after Q1 (not yet at hard limit)
+  const [showSoftCapture, setShowSoftCapture] = useState(false);
 
   // Downgrade loading
   const [downgradeLoading, setDowngradeLoading] = useState(false);
@@ -259,6 +280,7 @@ const Index = () => {
       setIsLoading(true);
       setIsSaved(false);
       setShowSoftGate(false);
+      setShowSoftCapture(false);
 
       // Timed stage progression
       setAgentStage("thinking");
@@ -279,6 +301,8 @@ const Index = () => {
             "Content-Type": "application/json",
             Authorization: `Bearer ${authSession?.access_token ?? import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
             apikey: import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
+            // Anonymous device id — only used by edge function when userId is null
+            ...(user ? {} : { "x-anon-id": getOrCreateAnonId() }),
           },
           body: JSON.stringify({
             question,
@@ -366,8 +390,15 @@ const Index = () => {
 
         if (!user) {
           incrementGuestQuestions();
-          if (isGuestAtLimit || getGuestQuestionsUsed() >= GUEST_LIMIT) {
+          const used = getGuestQuestionsUsed();
+          // Q1 done (used == 1) → soft nudge above response, no blur
+          // Q2 done (used >= 2) → next attempt will be blocked; show soft gate now
+          if (used >= GUEST_LIMIT) {
             setShowSoftGate(true);
+            setShowSoftCapture(false);
+          } else {
+            setShowSoftCapture(true);
+            setShowSoftGate(false);
           }
         } else {
           await incrementDailyUsage();
@@ -519,31 +550,39 @@ const Index = () => {
   const showDay14Banner = trial.isOnTrial && trial.daysLeft <= 16 && trial.daysLeft > 9 && !trial.trialNudgeSent.day14 && !trial.trialConverted;
   const showDay28Banner = trial.isOnTrial && trial.daysLeft <= 2 && !trial.trialConverted;
 
-  // Soft gate overlay for guest limit
+  // Soft gate overlay for guest limit (Q2+) — blurs last 60% behind paywall
   const renderSoftGate = () => {
     if (!showSoftGate || !currentResponse) return null;
     const responseLines = currentResponse.response.split("\n");
+    // Show first 40%, blur last 60%
     const cutoff = Math.floor(responseLines.length * 0.4);
 
     return (
-      <div className="mt-6">
+      <div className="mt-6 px-4">
         <div className="relative">
           <div style={{ filter: "blur(4px)", userSelect: "none", pointerEvents: "none" as const }}>
             {responseLines.slice(cutoff).map((line, i) => (
               <p key={i} className="font-serif text-base leading-relaxed text-foreground mb-2">{line}</p>
             ))}
           </div>
-          <div className="absolute inset-0 flex items-center justify-center">
-            <div className="bg-card border border-gold/20 rounded-sm p-6 text-center max-w-sm shadow-xl">
-              <p className="font-serif text-lg text-foreground mb-2">Unlock your full answer</p>
-              <p className="font-body text-xs text-muted-foreground mb-4">
-                Start your 30-day free trial — unlimited questions, full responses, journal access.
+          <div className="absolute inset-0 flex items-start justify-center pt-6">
+            <div className="bg-card border border-gold/30 rounded-sm p-6 text-center max-w-sm shadow-[0_0_32px_rgba(196,151,58,0.18)]">
+              <p className="font-serif text-lg text-foreground mb-2">You've used your 2 free questions.</p>
+              <p className="font-body text-xs text-muted-foreground mb-5 leading-relaxed">
+                Start your 30-day free trial to unlock the rest of this answer, save it to your private journal,
+                and ask without limits.
               </p>
               <button
                 onClick={() => setAuthModal({ open: true, message: "Start your 30-day free trial — unlimited questions, full responses, journal access." })}
                 className="w-full font-serif text-sm tracking-widest uppercase py-3 bg-gold text-primary-foreground rounded-sm hover:bg-gold-dark transition-all mb-2"
               >
                 Start free trial
+              </button>
+              <button
+                onClick={() => navigate("/pricing")}
+                className="w-full font-serif text-xs tracking-widest uppercase py-2.5 border border-gold/30 text-gold rounded-sm hover:bg-gold/10 transition-all mb-3"
+              >
+                See plans
               </button>
               <p className="text-xs font-body text-muted-foreground">
                 Already have an account?{" "}
@@ -598,6 +637,12 @@ const Index = () => {
               try { localStorage.setItem(ONBOARDING_KEY, "true"); } catch {}
               setHasOnboarded(true);
             }}
+            onTryAsGuest={() => {
+              try { localStorage.setItem(ONBOARDING_KEY, "true"); } catch {}
+              setHasOnboarded(true);
+              setTab("ask");
+              setScreen("ask");
+            }}
           />
         ) : showLanguageSettings && user ? (
           <Suspense fallback={<PageSpinner />}>
@@ -619,7 +664,11 @@ const Index = () => {
                 onDismiss={() => refreshProfile()}
               />
             ) : (
-              <AskScreen onSeekWisdom={seekWisdom} isLoading={isLoading} />
+              <AskScreen
+                onSeekWisdom={seekWisdom}
+                isLoading={isLoading}
+                guestQuestionsRemaining={!user ? Math.max(0, GUEST_LIMIT - getGuestQuestionsUsed()) : null}
+              />
             )
           ) : currentResponse ? (
             <>
@@ -629,7 +678,7 @@ const Index = () => {
                 scriptures={currentResponse.scriptures}
                 isStreaming={isStreaming}
                 agentStage={agentStage}
-                onAskAgain={() => { setScreen("ask"); setCurrentResponse(null); setShowSoftGate(false); }}
+                onAskAgain={() => { setScreen("ask"); setCurrentResponse(null); setShowSoftGate(false); setShowSoftCapture(false); }}
                 onReflect={reflectOnThis}
                 onStir={(thresholdQ) => {
                   reflectOnThis().then(() => {
@@ -647,6 +696,14 @@ const Index = () => {
                 onProfileVersionChanged={(v) => setPreferredBibleVersion(v)}
                 sessionId={currentResponse.sessionId ?? null}
               />
+              {showSoftCapture && !user && !showSoftGate && (
+                <Suspense fallback={null}>
+                  <SoftCaptureCard
+                    questionsRemaining={Math.max(0, GUEST_LIMIT - getGuestQuestionsUsed())}
+                    onSignUp={() => setAuthModal({ open: true, message: "Create a free account to save this reflection — 30 days free, no card needed." })}
+                  />
+                </Suspense>
+              )}
               {renderSoftGate()}
             </>
           ) : null
