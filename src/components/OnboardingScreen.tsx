@@ -188,7 +188,7 @@ const OnboardingScreen = ({ onBegin }: OnboardingScreenProps) => {
         <div className="w-8 h-px bg-gold/40 mx-auto my-8" />
 
         {/* 3. Example Response Section */}
-        <div className="text-left">
+        <div id="sample-answer" className="text-left scroll-mt-8">
           <p className="font-body text-xs uppercase tracking-widest text-muted-foreground text-center mb-6">
             This is what receiving looks like
           </p>
