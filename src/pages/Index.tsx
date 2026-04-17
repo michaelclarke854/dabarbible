@@ -298,6 +298,8 @@ const Index = () => {
             "Content-Type": "application/json",
             Authorization: `Bearer ${authSession?.access_token ?? import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
             apikey: import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
+            // Anonymous device id — only used by edge function when userId is null
+            ...(user ? {} : { "x-anon-id": getOrCreateAnonId() }),
           },
           body: JSON.stringify({
             question,
