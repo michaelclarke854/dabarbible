@@ -25,19 +25,15 @@ Deno.serve(async (req) => {
         { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
-    const { data: vaultRow, error: vaultErr } = await supabase
-      .schema("vault")
-      .from("decrypted_secrets")
-      .select("decrypted_secret")
-      .eq("name", "cron_shared_secret")
-      .maybeSingle();
-    if (vaultErr || !vaultRow?.decrypted_secret) {
+    const { data: vaultSecret, error: vaultErr } = await supabase
+      .rpc("get_cron_shared_secret");
+    if (vaultErr || !vaultSecret) {
       return new Response(
-        JSON.stringify({ error: "cron_shared_secret not configured in Vault" }),
+        JSON.stringify({ error: "cron_shared_secret not configured" }),
         { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
-    if (provided !== vaultRow.decrypted_secret) {
+    if (provided !== vaultSecret) {
       return new Response(
         JSON.stringify({ error: "Unauthorized" }),
         { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
