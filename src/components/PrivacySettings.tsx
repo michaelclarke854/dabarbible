@@ -174,6 +174,15 @@ const PrivacySettings = ({ userId, onClose }: PrivacySettingsProps) => {
             </button>
           </div>
         </div>
+
+        <div className="text-center pt-4">
+          <a
+            href="/privacy-promise"
+            className="font-body text-xs text-gold/70 hover:text-gold transition-colors underline-offset-4 hover:underline"
+          >
+            Read our Privacy Promise →
+          </a>
+        </div>
       </div>
     </div>
   );

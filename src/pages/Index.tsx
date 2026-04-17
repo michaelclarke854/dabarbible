@@ -67,6 +67,7 @@ const Index = () => {
     question: string;
     response: string;
     scriptures: string[];
+    sessionId?: string | null;
   } | null>(null);
   const [isStreaming, setIsStreaming] = useState(false);
   const [agentStage, setAgentStage] = useState<"thinking" | "scripture" | "reflecting" | null>(null);
@@ -627,6 +628,7 @@ const Index = () => {
                 userId={user?.id}
                 profileVersion={preferredBibleVersion}
                 onProfileVersionChanged={(v) => setPreferredBibleVersion(v)}
+                sessionId={currentResponse.sessionId ?? null}
               />
               {renderSoftGate()}
             </>

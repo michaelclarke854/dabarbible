@@ -291,10 +291,18 @@ const OnboardingScreen = ({ onBegin }: OnboardingScreenProps) => {
           </div>
 
           {/* Links */}
-          <div className="flex items-center justify-center gap-4 text-xs font-body text-gold/70">
+          <div className="flex flex-wrap items-center justify-center gap-x-3 gap-y-2 text-xs font-body text-gold/70">
             <a href="/pricing" className="hover:text-gold transition-colors">Pricing</a>
             <span>·</span>
-            <a href="/privacy" className="hover:text-gold transition-colors">Privacy Policy</a>
+            <a href="/for-pastors" className="hover:text-gold transition-colors">For pastors</a>
+            <span>·</span>
+            <a href="/about-our-faith" className="hover:text-gold transition-colors">Our faith</a>
+            <span>·</span>
+            <a href="/how-it-works" className="hover:text-gold transition-colors">How it works</a>
+            <span>·</span>
+            <a href="/privacy-promise" className="hover:text-gold transition-colors">Privacy promise</a>
+            <span>·</span>
+            <a href="/privacy" className="hover:text-gold transition-colors">Privacy policy</a>
             <span>·</span>
             <a href="/terms" className="hover:text-gold transition-colors">Terms</a>
           </div>
