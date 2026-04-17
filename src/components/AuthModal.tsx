@@ -1,4 +1,4 @@
-import { useState, forwardRef } from "react";
+import { useState, useEffect, forwardRef } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { lovable } from "@/integrations/lovable/index";
 import { toast } from "sonner";
@@ -9,11 +9,19 @@ interface AuthModalProps {
   onClose: () => void;
   onSignedUp?: () => void;
   message?: string;
+  defaultMode?: "signin" | "signup";
 }
 
-const AuthModal = forwardRef<HTMLDivElement, AuthModalProps>(({ isOpen, onClose, onSignedUp, message }, _ref) => {
+const RETURNING_USER_KEY = "dabar_has_signed_up";
+
+const AuthModal = forwardRef<HTMLDivElement, AuthModalProps>(({ isOpen, onClose, onSignedUp, message, defaultMode }, _ref) => {
   const { setPendingConfirmation } = useAuth();
-  const [mode, setMode] = useState<"signin" | "signup" | "forgot">("signup");
+
+  // Returning users see Sign In first; new users see Create Account.
+  const initialMode: "signin" | "signup" =
+    defaultMode ?? (typeof window !== "undefined" && localStorage.getItem(RETURNING_USER_KEY) ? "signin" : "signup");
+
+  const [mode, setMode] = useState<"signin" | "signup" | "forgot">(initialMode);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [dobMonth, setDobMonth] = useState("");
@@ -24,6 +32,15 @@ const AuthModal = forwardRef<HTMLDivElement, AuthModalProps>(({ isOpen, onClose,
   const [oauthError, setOauthError] = useState<string | null>(null);
   const [forgotSent, setForgotSent] = useState(false);
   const [forgotError, setForgotError] = useState("");
+
+  // Re-evaluate initial mode whenever the modal re-opens
+  useEffect(() => {
+    if (isOpen) {
+      setMode(defaultMode ?? (localStorage.getItem(RETURNING_USER_KEY) ? "signin" : "signup"));
+      setOauthError(null);
+      setOauthLoading(false);
+    }
+  }, [isOpen, defaultMode]);
 
   if (!isOpen) return null;
 
@@ -102,6 +119,9 @@ const AuthModal = forwardRef<HTMLDivElement, AuthModalProps>(({ isOpen, onClose,
         });
         if (error) throw error;
 
+        // Mark this device as having attempted signup so future opens default to Sign In
+        localStorage.setItem(RETURNING_USER_KEY, "1");
+
         toast.success("Check your email to confirm your account.");
         setPendingConfirmation(email);
         onSignedUp?.();
@@ -112,6 +132,8 @@ const AuthModal = forwardRef<HTMLDivElement, AuthModalProps>(({ isOpen, onClose,
           password,
         });
         if (error) throw error;
+
+        localStorage.setItem(RETURNING_USER_KEY, "1");
 
         // One-time hint if user also has a Google identity linked
         const identities = signInData?.user?.identities ?? [];
@@ -138,6 +160,9 @@ const AuthModal = forwardRef<HTMLDivElement, AuthModalProps>(({ isOpen, onClose,
     setOauthLoading(true);
     setOauthError(null);
 
+    // Mark as returning so the next visit defaults to Sign In
+    localStorage.setItem(RETURNING_USER_KEY, "1");
+
     const result = await lovable.auth.signInWithOAuth("google", {
       redirect_uri: window.location.origin,
     });
@@ -153,13 +178,16 @@ const AuthModal = forwardRef<HTMLDivElement, AuthModalProps>(({ isOpen, onClose,
       setOauthError("Google sign-in could not complete. Please try again or use email.");
       return;
     }
-    // Redirect in progress — loading persists until return
+    // Redirect in progress — overlay persists until return
   };
 
-  const inputClass = "w-full bg-transparent border-b border-border pb-2 text-sm font-body outline-none focus:border-gold transition-colors";
+  const inputClass = "w-full bg-transparent border-b border-border pb-2 text-sm font-body outline-none focus:border-gold transition-colors disabled:opacity-50";
 
   const dobFields = (
     <div className="pt-2">
+      <p className="text-xs font-body text-muted-foreground mb-2 leading-relaxed">
+        We ask for your birth month and year so responses are appropriate for where you are in life. We never store your full date of birth.
+      </p>
       <label className="block text-xs font-body text-foreground/70 mb-1">
         Your birth year and month
       </label>
@@ -167,7 +195,8 @@ const AuthModal = forwardRef<HTMLDivElement, AuthModalProps>(({ isOpen, onClose,
         <select
           value={dobMonth}
           onChange={(e) => setDobMonth(e.target.value)}
-          className="bg-transparent border-b border-border pb-2 text-sm font-body outline-none focus:border-gold transition-colors flex-1"
+          disabled={oauthLoading}
+          className="bg-transparent border-b border-border pb-2 text-sm font-body outline-none focus:border-gold transition-colors flex-1 disabled:opacity-50"
         >
           <option value="">Month</option>
           {["January","February","March","April","May","June","July","August","September","October","November","December"].map((m, i) => (
@@ -182,14 +211,12 @@ const AuthModal = forwardRef<HTMLDivElement, AuthModalProps>(({ isOpen, onClose,
           onChange={(e) => setDobYear(e.target.value.replace(/\D/g, ""))}
           placeholder="Year"
           required
-          className="bg-transparent border-b border-border pb-2 text-sm font-body outline-none focus:border-gold transition-colors text-center w-24"
+          disabled={oauthLoading}
+          className="bg-transparent border-b border-border pb-2 text-sm font-body outline-none focus:border-gold transition-colors text-center w-24 disabled:opacity-50"
         />
       </div>
-      <p className="text-xs text-muted-foreground/60 mt-2 font-body">
-        So your experience feels right for where you are in life.
-      </p>
       {dobError && (
-        <p className="text-xs text-destructive mt-1 font-body">{dobError}</p>
+        <p className="text-xs text-destructive mt-2 font-body">{dobError}</p>
       )}
     </div>
   );
@@ -202,6 +229,7 @@ const AuthModal = forwardRef<HTMLDivElement, AuthModalProps>(({ isOpen, onClose,
         <div className="bg-card rounded-sm shadow-xl max-w-sm w-full p-8 relative max-h-[90vh] overflow-y-auto border border-border">
           <button
             onClick={onClose}
+            aria-label="Close"
             className="absolute top-4 right-4 text-muted-foreground hover:text-foreground text-lg"
           >
             ×
@@ -212,13 +240,13 @@ const AuthModal = forwardRef<HTMLDivElement, AuthModalProps>(({ isOpen, onClose,
           </h3>
 
           {forgotSent ? (
-            <div className="text-center">
-              <p className="font-body text-sm text-foreground/80 leading-relaxed mb-6">
+            <div className="text-center space-y-5">
+              <p className="font-body text-sm text-foreground/80 leading-relaxed">
                 We sent a reset link to <span className="text-gold">{email}</span>. Check your inbox.
               </p>
               <button
                 onClick={() => { setMode("signin"); setForgotSent(false); }}
-                className="text-gold hover:underline text-sm font-body"
+                className="w-full font-serif text-sm tracking-widest uppercase py-3 bg-gold text-primary-foreground rounded-sm transition-all hover:bg-gold-dark"
               >
                 Back to sign in
               </button>
@@ -247,7 +275,7 @@ const AuthModal = forwardRef<HTMLDivElement, AuthModalProps>(({ isOpen, onClose,
                 {loading ? "…" : "Send reset link"}
               </button>
               <p className="text-center text-xs font-body text-muted-foreground">
-                <button onClick={() => setMode("signin")} className="text-gold hover:underline">
+                <button type="button" onClick={() => setMode("signin")} className="text-gold hover:underline">
                   Back to sign in
                 </button>
               </p>
@@ -261,9 +289,19 @@ const AuthModal = forwardRef<HTMLDivElement, AuthModalProps>(({ isOpen, onClose,
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm px-6">
       <div className="bg-card rounded-sm shadow-xl max-w-sm w-full p-8 relative max-h-[90vh] overflow-y-auto border border-border">
+        {/* Full-modal overlay during OAuth redirect */}
+        {oauthLoading && (
+          <div className="absolute inset-0 z-10 flex flex-col items-center justify-center bg-card/95 backdrop-blur-sm rounded-sm">
+            <div className="w-6 h-6 border-2 border-gold/30 border-t-gold rounded-full animate-spin mb-4" />
+            <p className="font-body text-sm text-foreground/80">Connecting to Google…</p>
+          </div>
+        )}
+
         <button
           onClick={onClose}
-          className="absolute top-4 right-4 text-muted-foreground hover:text-foreground text-lg"
+          disabled={oauthLoading}
+          aria-label="Close"
+          className="absolute top-4 right-4 text-muted-foreground hover:text-foreground text-lg disabled:opacity-30"
         >
           ×
         </button>
@@ -285,15 +323,17 @@ const AuthModal = forwardRef<HTMLDivElement, AuthModalProps>(({ isOpen, onClose,
             onChange={(e) => setEmail(e.target.value)}
             placeholder="Email"
             required
+            disabled={oauthLoading}
             className={inputClass}
           />
           <input
             type="password"
             value={password}
             onChange={(e) => setPassword(e.target.value)}
-            placeholder="Password"
+            placeholder={mode === "signup" ? "Password (min 8 characters)" : "Password"}
             required
-            minLength={6}
+            minLength={8}
+            disabled={oauthLoading}
             className={inputClass}
           />
 
@@ -311,7 +351,7 @@ const AuthModal = forwardRef<HTMLDivElement, AuthModalProps>(({ isOpen, onClose,
 
           <button
             type="submit"
-            disabled={loading}
+            disabled={loading || oauthLoading}
             className="w-full font-serif text-sm tracking-widest uppercase py-3 bg-gold text-primary-foreground rounded-sm transition-all hover:bg-gold-dark disabled:opacity-50"
           >
             {loading ? "…" : mode === "signup" ? "Create Account" : "Sign In"}
@@ -326,7 +366,7 @@ const AuthModal = forwardRef<HTMLDivElement, AuthModalProps>(({ isOpen, onClose,
 
         <button
           onClick={handleGoogle}
-          disabled={oauthLoading}
+          disabled={oauthLoading || loading}
           className="w-full font-body text-sm py-3 border border-border rounded-sm hover:border-gold transition-colors disabled:opacity-50"
         >
           {oauthLoading ? "Connecting…" : "Continue with Google"}
