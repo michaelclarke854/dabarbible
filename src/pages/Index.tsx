@@ -618,7 +618,12 @@ const Index = () => {
           </Suspense>
         ) : (
           <Suspense fallback={<PageSpinner />}>
-            <JournalScreen stirPrompt={stirPrompt} onStirConsumed={() => setStirPrompt(null)} />
+            <JournalScreen
+              stirPrompt={stirPrompt}
+              onStirConsumed={() => setStirPrompt(null)}
+              isFreePlan={plan === "free"}
+              onUpgrade={handleUpgrade}
+            />
           </Suspense>
         )}
       </main>
