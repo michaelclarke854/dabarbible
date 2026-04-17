@@ -1,7 +1,8 @@
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { formatTimestamp, wasEdited } from "@/utils/formatTimestamp";
+import { toast } from "sonner";
 import ReflectionsSection from "./ReflectionsSection";
 import UndoToast from "./UndoToast";
 import { MoreVertical } from "lucide-react";
@@ -19,21 +20,35 @@ type JournalTab = "voice" | "reflections";
 
 const JournalScreen = ({ stirPrompt, onStirConsumed }: { stirPrompt?: string | null; onStirConsumed?: () => void }) => {
   const [activeTab, setActiveTab] = useState<JournalTab>(stirPrompt ? "reflections" : "voice");
+  const [searchInput, setSearchInput] = useState("");
   const [search, setSearch] = useState("");
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [menuOpenId, setMenuOpenId] = useState<string | null>(null);
   const [unsaveToast, setUnsaveToast] = useState<{ id: string } | null>(null);
   const queryClient = useQueryClient();
 
-  const { data: entries = [], isLoading } = useQuery({
-    queryKey: ["journal"],
+  // Debounce search → server-side
+  useEffect(() => {
+    const t = setTimeout(() => setSearch(searchInput.trim()), 300);
+    return () => clearTimeout(t);
+  }, [searchInput]);
+
+  const { data: entries = [], isLoading, error } = useQuery({
+    queryKey: ["journal", search],
     queryFn: async () => {
-      const { data, error } = await supabase
+      let query = supabase
         .from("wisdom_sessions")
         .select("*")
         .eq("saved_to_journal", true)
         .order("created_at", { ascending: false })
-        .limit(100);
+        .limit(200);
+
+      if (search) {
+        const escaped = search.replace(/[%_]/g, (m) => `\\${m}`);
+        query = query.or(`question.ilike.%${escaped}%,response.ilike.%${escaped}%`);
+      }
+
+      const { data, error } = await query;
       if (error) throw error;
       return data as WisdomEntry[];
     },
@@ -43,32 +58,36 @@ const JournalScreen = ({ stirPrompt, onStirConsumed }: { stirPrompt?: string | n
     ? entries[0].response.split("\n").find((l) => l.trim().endsWith("?"))?.trim()
     : undefined;
 
-  const filtered = search.trim()
-    ? entries.filter(
-        (e) =>
-          e.question.toLowerCase().includes(search.toLowerCase()) ||
-          e.response.toLowerCase().includes(search.toLowerCase())
-      )
-    : entries;
-
   const unsaveEntry = useCallback(async (entryId: string) => {
     setMenuOpenId(null);
+    // Snapshot for rollback
+    const previous = queryClient.getQueryData<WisdomEntry[]>(["journal", search]);
     // Optimistic removal
-    queryClient.setQueryData(["journal"], (old: WisdomEntry[] | undefined) =>
+    queryClient.setQueryData(["journal", search], (old: WisdomEntry[] | undefined) =>
       (old || []).filter((e) => e.id !== entryId)
     );
-    await supabase
+    const { error } = await supabase
       .from("wisdom_sessions")
       .update({ saved_to_journal: false })
       .eq("id", entryId);
+    if (error) {
+      // Rollback
+      if (previous) queryClient.setQueryData(["journal", search], previous);
+      toast.error("Couldn't remove from journal. Try again.");
+      return;
+    }
     setUnsaveToast({ id: entryId });
-  }, [queryClient]);
+  }, [queryClient, search]);
 
   const undoUnsave = useCallback(async (entryId: string) => {
-    await supabase
+    const { error } = await supabase
       .from("wisdom_sessions")
       .update({ saved_to_journal: true })
       .eq("id", entryId);
+    if (error) {
+      toast.error("Couldn't restore entry. Try again.");
+      return;
+    }
     setUnsaveToast(null);
     queryClient.invalidateQueries({ queryKey: ["journal"] });
   }, [queryClient]);
@@ -109,8 +128,8 @@ const JournalScreen = ({ stirPrompt, onStirConsumed }: { stirPrompt?: string | n
         <>
           <input
             type="text"
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
+            value={searchInput}
+            onChange={(e) => setSearchInput(e.target.value)}
             placeholder="Search saved wisdom…"
             className="w-full bg-transparent border-b border-border pb-2 mb-8 text-sm font-body text-foreground placeholder:text-muted-foreground/50 outline-none focus:border-gold transition-colors"
           />
@@ -119,7 +138,14 @@ const JournalScreen = ({ stirPrompt, onStirConsumed }: { stirPrompt?: string | n
             <div className="flex justify-center py-20">
               <div className="w-3 h-3 rounded-full bg-gold animate-candle-glow" />
             </div>
-          ) : filtered.length === 0 ? (
+          ) : error ? (
+            <div className="text-center py-16">
+              <p className="font-serif text-lg text-muted-foreground">Couldn't load journal.</p>
+              <p className="font-body text-sm text-muted-foreground/60 mt-2">
+                Check your connection and try again.
+              </p>
+            </div>
+          ) : entries.length === 0 ? (
             <div className="text-center py-16">
               <p className="font-serif text-lg text-muted-foreground">
                 {search ? "No entries found." : "No saved wisdom yet."}
@@ -130,7 +156,7 @@ const JournalScreen = ({ stirPrompt, onStirConsumed }: { stirPrompt?: string | n
             </div>
           ) : (
             <div className="space-y-8">
-              {filtered.map((entry) => (
+              {entries.map((entry) => (
                 <article
                   key={entry.id}
                   className="pb-8 border-b border-border/50 last:border-none relative group"
