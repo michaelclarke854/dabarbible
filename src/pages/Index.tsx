@@ -280,6 +280,7 @@ const Index = () => {
       setIsLoading(true);
       setIsSaved(false);
       setShowSoftGate(false);
+      setShowSoftCapture(false);
 
       // Timed stage progression
       setAgentStage("thinking");
