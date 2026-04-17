@@ -152,21 +152,32 @@ serve(async (req) => {
     const question = typeof body.question === "string" ? body.question.trim() : "";
     const ageGroup = typeof body.ageGroup === "string" ? body.ageGroup : null;
 
-    // SECURITY: derive userId from JWT, never trust body. Anonymous if no auth header.
+    // SECURITY: derive userId from JWT, never trust body. Anonymous if no auth header
+    // OR if the bearer is the publishable anon key (role === "anon").
     let userId: string | null = null;
     const authHeader = req.headers.get("Authorization");
     if (authHeader?.startsWith("Bearer ")) {
-      const anonClient = createClient(
-        Deno.env.get("SUPABASE_URL")!,
-        Deno.env.get("SUPABASE_ANON_KEY")!,
-        { global: { headers: { Authorization: authHeader } } }
-      );
-      const { data: userData, error: userErr } = await anonClient.auth.getUser();
-      if (userErr || !userData.user) {
-        return new Response(JSON.stringify({ error: "Unauthorized" }),
-          { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+      const token = authHeader.slice(7);
+      let isAnonKey = false;
+      try {
+        const payload = JSON.parse(atob(token.split(".")[1]));
+        isAnonKey = payload?.role === "anon";
+      } catch {
+        isAnonKey = true;
       }
-      userId = userData.user.id;
+      if (!isAnonKey) {
+        const anonClient = createClient(
+          Deno.env.get("SUPABASE_URL")!,
+          Deno.env.get("SUPABASE_ANON_KEY")!,
+          { global: { headers: { Authorization: authHeader } } }
+        );
+        const { data: userData, error: userErr } = await anonClient.auth.getUser();
+        if (userErr || !userData.user) {
+          return new Response(JSON.stringify({ error: "Unauthorized" }),
+            { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+        }
+        userId = userData.user.id;
+      }
     }
 
     if (!question || question.length === 0) {
