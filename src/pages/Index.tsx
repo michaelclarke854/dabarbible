@@ -67,6 +67,7 @@ const Index = () => {
     question: string;
     response: string;
     scriptures: string[];
+    sessionId?: string | null;
   } | null>(null);
   const [isStreaming, setIsStreaming] = useState(false);
   const [agentStage, setAgentStage] = useState<"thinking" | "scripture" | "reflecting" | null>(null);
