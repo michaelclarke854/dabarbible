@@ -1,5 +1,5 @@
-import { useState, useMemo, useCallback } from "react";
-import { useQuery, useInfiniteQuery } from "@tanstack/react-query";
+import { useState, useMemo, useEffect } from "react";
+import { useInfiniteQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { formatTimestamp } from "@/utils/formatTimestamp";
 import { parseResponse, ScriptureCard } from "./WisdomResponseBlocks";
@@ -16,8 +16,15 @@ interface HistoryEntryData {
 const HISTORY_PAGE_SIZE = 20;
 
 const HistoryScreen = () => {
+  const [searchInput, setSearchInput] = useState("");
   const [search, setSearch] = useState("");
   const [expandedId, setExpandedId] = useState<string | null>(null);
+
+  // Debounce search input → server query
+  useEffect(() => {
+    const t = setTimeout(() => setSearch(searchInput.trim()), 300);
+    return () => clearTimeout(t);
+  }, [searchInput]);
 
   const {
     data,
@@ -25,14 +32,20 @@ const HistoryScreen = () => {
     fetchNextPage,
     hasNextPage,
     isFetchingNextPage,
+    error,
   } = useInfiniteQuery({
-    queryKey: ["history"],
+    queryKey: ["history", search],
     queryFn: async ({ pageParam }: { pageParam: string | undefined }) => {
       let query = supabase
         .from("wisdom_sessions")
         .select("*")
         .order("created_at", { ascending: false })
         .limit(HISTORY_PAGE_SIZE + 1);
+
+      if (search) {
+        const escaped = search.replace(/[%_]/g, (m) => `\\${m}`);
+        query = query.or(`question.ilike.%${escaped}%,response.ilike.%${escaped}%`);
+      }
 
       if (pageParam) {
         query = query.lt("created_at", pageParam);
@@ -56,14 +69,6 @@ const HistoryScreen = () => {
 
   const entries = data?.pages.flatMap((p) => p.items) ?? [];
 
-  const filtered = search.trim()
-    ? entries.filter(
-        (e) =>
-          e.question.toLowerCase().includes(search.toLowerCase()) ||
-          e.response.toLowerCase().includes(search.toLowerCase())
-      )
-    : entries;
-
   return (
     <div className="min-h-[calc(100vh-80px)] px-6 py-8 max-w-2xl mx-auto">
       <h2 className="font-serif text-2xl text-foreground tracking-wide mb-6">
@@ -72,8 +77,8 @@ const HistoryScreen = () => {
 
       <input
         type="text"
-        value={search}
-        onChange={(e) => setSearch(e.target.value)}
+        value={searchInput}
+        onChange={(e) => setSearchInput(e.target.value)}
         placeholder="Search past questions…"
         className="w-full bg-transparent border-b border-border pb-2 mb-8 text-sm font-body text-foreground placeholder:text-muted-foreground/50 outline-none focus:border-gold transition-colors"
       />
@@ -82,7 +87,14 @@ const HistoryScreen = () => {
         <div className="flex justify-center py-20">
           <div className="w-3 h-3 rounded-full bg-gold animate-candle-glow" />
         </div>
-      ) : filtered.length === 0 ? (
+      ) : error ? (
+        <div className="text-center py-16">
+          <p className="font-serif text-lg text-muted-foreground">Couldn't load history.</p>
+          <p className="font-body text-sm text-muted-foreground/60 mt-2">
+            Check your connection and try again.
+          </p>
+        </div>
+      ) : entries.length === 0 ? (
         <div className="text-center py-16">
           <p className="font-serif text-lg text-muted-foreground">
             {search ? "No entries found." : "No history yet."}
@@ -93,7 +105,7 @@ const HistoryScreen = () => {
         </div>
       ) : (
         <div className="space-y-8">
-          {filtered.map((entry) => {
+          {entries.map((entry) => {
             const isExpanded = expandedId === entry.id;
             return (
               <HistoryEntry
@@ -104,7 +116,7 @@ const HistoryScreen = () => {
               />
             );
           })}
-          {hasNextPage && !search.trim() && (
+          {hasNextPage && (
             <div className="text-center py-4">
               <button
                 onClick={() => fetchNextPage()}

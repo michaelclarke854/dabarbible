@@ -1,7 +1,8 @@
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { formatTimestamp, wasEdited } from "@/utils/formatTimestamp";
+import { toast } from "sonner";
 import ReflectionsSection from "./ReflectionsSection";
 import UndoToast from "./UndoToast";
 import { MoreVertical } from "lucide-react";
@@ -19,21 +20,35 @@ type JournalTab = "voice" | "reflections";
 
 const JournalScreen = ({ stirPrompt, onStirConsumed }: { stirPrompt?: string | null; onStirConsumed?: () => void }) => {
   const [activeTab, setActiveTab] = useState<JournalTab>(stirPrompt ? "reflections" : "voice");
+  const [searchInput, setSearchInput] = useState("");
   const [search, setSearch] = useState("");
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [menuOpenId, setMenuOpenId] = useState<string | null>(null);
   const [unsaveToast, setUnsaveToast] = useState<{ id: string } | null>(null);
   const queryClient = useQueryClient();
 
-  const { data: entries = [], isLoading } = useQuery({
-    queryKey: ["journal"],
+  // Debounce search → server-side
+  useEffect(() => {
+    const t = setTimeout(() => setSearch(searchInput.trim()), 300);
+    return () => clearTimeout(t);
+  }, [searchInput]);
+
+  const { data: entries = [], isLoading, error } = useQuery({
+    queryKey: ["journal", search],
     queryFn: async () => {
-      const { data, error } = await supabase
+      let query = supabase
         .from("wisdom_sessions")
         .select("*")
         .eq("saved_to_journal", true)
         .order("created_at", { ascending: false })
-        .limit(100);
+        .limit(200);
+
+      if (search) {
+        const escaped = search.replace(/[%_]/g, (m) => `\\${m}`);
+        query = query.or(`question.ilike.%${escaped}%,response.ilike.%${escaped}%`);
+      }
+
+      const { data, error } = await query;
       if (error) throw error;
       return data as WisdomEntry[];
     },
@@ -43,32 +58,36 @@ const JournalScreen = ({ stirPrompt, onStirConsumed }: { stirPrompt?: string | n
     ? entries[0].response.split("\n").find((l) => l.trim().endsWith("?"))?.trim()
     : undefined;
 
-  const filtered = search.trim()
-    ? entries.filter(
-        (e) =>
-          e.question.toLowerCase().includes(search.toLowerCase()) ||
-          e.response.toLowerCase().includes(search.toLowerCase())
-      )
-    : entries;
-
   const unsaveEntry = useCallback(async (entryId: string) => {
     setMenuOpenId(null);
+    // Snapshot for rollback
+    const previous = queryClient.getQueryData<WisdomEntry[]>(["journal", search]);
     // Optimistic removal
-    queryClient.setQueryData(["journal"], (old: WisdomEntry[] | undefined) =>
+    queryClient.setQueryData(["journal", search], (old: WisdomEntry[] | undefined) =>
       (old || []).filter((e) => e.id !== entryId)
     );
-    await supabase
+    const { error } = await supabase
       .from("wisdom_sessions")
       .update({ saved_to_journal: false })
       .eq("id", entryId);
+    if (error) {
+      // Rollback
+      if (previous) queryClient.setQueryData(["journal", search], previous);
+      toast.error("Couldn't remove from journal. Try again.");
+      return;
+    }
     setUnsaveToast({ id: entryId });
-  }, [queryClient]);
+  }, [queryClient, search]);
 
   const undoUnsave = useCallback(async (entryId: string) => {
-    await supabase
+    const { error } = await supabase
       .from("wisdom_sessions")
       .update({ saved_to_journal: true })
       .eq("id", entryId);
+    if (error) {
+      toast.error("Couldn't restore entry. Try again.");
+      return;
+    }
     setUnsaveToast(null);
     queryClient.invalidateQueries({ queryKey: ["journal"] });
   }, [queryClient]);
