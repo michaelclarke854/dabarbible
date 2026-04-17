@@ -643,6 +643,15 @@ const Index = () => {
               setTab("ask");
               setScreen("ask");
             }}
+            onAskQuestion={async (q) => {
+              // Onboard the visitor immediately so the response renders
+              // inside the normal in-app shell (with bottom nav, soft-gate, etc.)
+              try { localStorage.setItem(ONBOARDING_KEY, "true"); } catch {}
+              setHasOnboarded(true);
+              setTab("ask");
+              await seekWisdom(q);
+            }}
+            guestQuestionsRemaining={Math.max(0, GUEST_LIMIT - getGuestQuestionsUsed())}
           />
         ) : showLanguageSettings && user ? (
           <Suspense fallback={<PageSpinner />}>
