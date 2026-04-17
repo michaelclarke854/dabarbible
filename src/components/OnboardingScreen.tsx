@@ -40,29 +40,82 @@ const OnboardingScreen = ({ onBegin }: OnboardingScreenProps) => {
         visible ? "opacity-100" : "opacity-0"
       }`}
     >
-      <div className="flex flex-col items-center px-6 pt-16 md:pt-24 flex-1">
+      <div className="flex flex-col items-center px-6 pt-10 md:pt-16 flex-1">
 
-      {/* Hero */}
-      <div className="text-center mb-10">
-        <h1 className="font-serif text-5xl md:text-6xl text-foreground tracking-[0.25em]">
+      {/* Brand mark */}
+      <div className="text-center mb-6">
+        <h1 className="font-serif text-4xl md:text-5xl text-foreground tracking-[0.25em]">
           DABAR
         </h1>
-        <p className="text-gold font-serif text-lg tracking-wider mt-2">דָּבָר</p>
-        <p className="font-['Playfair_Display'] italic text-muted-foreground text-base tracking-wide mt-2">
-          The word that finds you.
-        </p>
+        <p className="text-gold font-serif text-base tracking-wider mt-1">דָּבָר</p>
       </div>
 
-      <div className="w-12 h-px bg-gold mb-8" />
+      {/* HERO — above the fold */}
+      <section className="w-full max-w-2xl text-center mb-8">
+        <h2 className="font-serif text-3xl md:text-4xl text-foreground leading-tight tracking-tight mb-4">
+          Ask the Bible anything.
+          <span className="block text-gold-light italic font-['Playfair_Display'] text-2xl md:text-3xl mt-2 tracking-normal">
+            Get wisdom for where you are today.
+          </span>
+        </h2>
 
-      {/* 1. Hero CTA */}
-      <CtaButton
-        text="Ask your first question — free"
-        subtext="Try free for 30 days — no card needed."
-        onClick={onBegin}
-      />
+        <p className="font-body text-base md:text-lg text-muted-foreground leading-relaxed max-w-xl mx-auto mb-8">
+          Dabar searches all 66 books of Scripture to answer your deepest questions —
+          with context, reflection, and a journal to track how God is speaking to you.
+        </p>
 
-      <div className="w-8 h-px bg-gold/40 mx-auto my-10" />
+        {/* Sample Q+A card — concrete value above fold */}
+        <div className="bg-scripture-card border border-gold/15 rounded-sm p-5 md:p-6 text-left max-w-xl mx-auto mb-8 shadow-[0_0_24px_rgba(196,151,58,0.06)]">
+          <p className="font-['Playfair_Display'] italic text-foreground/70 text-sm md:text-base mb-4 leading-relaxed">
+            "How do I trust God when everything feels uncertain?"
+          </p>
+          <div className="w-6 h-px bg-gold/50 mb-4" />
+          <p className="font-serif text-xs tracking-widest uppercase text-gold mb-2">
+            Proverbs 3:5–6
+          </p>
+          <p className="font-['Playfair_Display'] italic text-foreground/85 leading-relaxed text-base md:text-lg">
+            "Trust in the LORD with all thine heart; and lean not unto thine own understanding…"
+          </p>
+        </div>
+
+        {/* Dual CTA */}
+        <div className="flex flex-col sm:flex-row items-center justify-center gap-4 mb-3">
+          <button
+            onClick={onBegin}
+            className="font-serif tracking-widest text-sm uppercase px-8 py-4 rounded-sm bg-gold text-primary-foreground border border-gold/40 transition-all duration-300 hover:shadow-[0_0_18px_rgba(196,151,58,0.35)] hover:bg-gold-dark animate-golden-pulse"
+          >
+            Start your 30-day free trial
+          </button>
+          <button
+            onClick={() => {
+              const el = document.getElementById("sample-answer");
+              el?.scrollIntoView({ behavior: "smooth", block: "start" });
+            }}
+            className="font-body text-sm text-gold/80 hover:text-gold transition-colors underline-offset-4 hover:underline"
+          >
+            Try a free question first →
+          </button>
+        </div>
+
+        <p className="font-['Playfair_Display'] italic text-muted-foreground/70 text-xs">
+          Joined by 2,400+ believers seeking wisdom daily
+        </p>
+      </section>
+
+      {/* TRUST BAR */}
+      <div className="w-full max-w-3xl border-y border-gold/10 py-4 mb-12">
+        <ul className="flex flex-wrap items-center justify-center gap-x-6 gap-y-2 text-[11px] font-body uppercase tracking-widest text-muted-foreground/80">
+          <li>All 66 books</li>
+          <li className="text-gold/40">·</li>
+          <li>30-day free trial</li>
+          <li className="text-gold/40">·</li>
+          <li>Private &amp; encrypted</li>
+          <li className="text-gold/40">·</li>
+          <li>Cancel anytime</li>
+        </ul>
+      </div>
+
+      <div className="w-8 h-px bg-gold/40 mx-auto mb-10" />
 
       {/* Body */}
       <div className="max-w-md w-full space-y-6 text-center">
@@ -135,7 +188,7 @@ const OnboardingScreen = ({ onBegin }: OnboardingScreenProps) => {
         <div className="w-8 h-px bg-gold/40 mx-auto my-8" />
 
         {/* 3. Example Response Section */}
-        <div className="text-left">
+        <div id="sample-answer" className="text-left scroll-mt-8">
           <p className="font-body text-xs uppercase tracking-widest text-muted-foreground text-center mb-6">
             This is what receiving looks like
           </p>
