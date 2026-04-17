@@ -18,6 +18,7 @@ import EmailConfirmationPending from "@/components/EmailConfirmationPending";
 import AgeGateScreen from "@/components/AgeGateScreen";
 import { parseScriptureRef } from "@/data/kjvBooks";
 import { useAuth } from "@/contexts/AuthContext";
+import { trackPageview } from "@/utils/trackPageview";
 
 const JournalScreen = lazy(() => import("@/components/JournalScreen"));
 const ScriptureScreen = lazy(() => import("@/components/ScriptureScreen"));
