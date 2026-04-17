@@ -628,6 +628,7 @@ const Index = () => {
                 userId={user?.id}
                 profileVersion={preferredBibleVersion}
                 onProfileVersionChanged={(v) => setPreferredBibleVersion(v)}
+                sessionId={currentResponse.sessionId ?? null}
               />
               {renderSoftGate()}
             </>
