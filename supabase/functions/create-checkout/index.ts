@@ -24,10 +24,9 @@ const PRICE_MAP: Record<string, Record<string, string>> = {
   community: {
     monthly: "price_1TL431EGixGZ7aNIiFgz6a5n",
   },
-  gift: {
-    annual: "price_1TL434EGixGZ7aNIvRSJ4qEX",
-  },
 };
+
+const ALLOWED_PLANS = new Set(["personal", "family", "community"]);
 
 serve(async (req) => {
   if (req.method === "OPTIONS") {
@@ -41,36 +40,42 @@ serve(async (req) => {
     const stripe = new Stripe(stripeKey, { apiVersion: "2024-12-18.acacia" });
 
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
+    const supabaseAnonKey = Deno.env.get("SUPABASE_ANON_KEY")!;
     const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+
+    // ---- Authenticate caller (security fix: never trust body userId/email) ----
+    const authHeader = req.headers.get("Authorization");
+    if (!authHeader?.startsWith("Bearer ")) {
+      return new Response(
+        JSON.stringify({ error: "Unauthorized" }),
+        { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+    const anonClient = createClient(supabaseUrl, supabaseAnonKey, {
+      global: { headers: { Authorization: authHeader } },
+    });
+    const { data: userData, error: userErr } = await anonClient.auth.getUser();
+    if (userErr || !userData.user?.email) {
+      return new Response(
+        JSON.stringify({ error: "Unauthorized" }),
+        { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+    const userId = userData.user.id;
+    const email = userData.user.email;
+
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
     const body = await req.json();
-
-    // Input validation
     const planKey = typeof body.planKey === "string" ? body.planKey.trim() : "";
     const cycle = typeof body.cycle === "string" ? body.cycle.trim() : "monthly";
-    const userId = typeof body.userId === "string" ? body.userId.trim() : "";
-    const email = typeof body.email === "string" ? body.email.trim() : "";
-    const isStudent = body.isStudent === true;
-    const returnUrl = typeof body.returnUrl === "string" ? body.returnUrl.trim() : "";
 
-    if (!planKey || !userId || !email) {
+    if (!planKey || !ALLOWED_PLANS.has(planKey)) {
       return new Response(
-        JSON.stringify({ error: "Missing required fields" }),
+        JSON.stringify({ error: "Invalid plan" }),
         { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
-
-    // Validate email format
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if (!emailRegex.test(email)) {
-      return new Response(
-        JSON.stringify({ error: "Invalid email format" }),
-        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
-    }
-
-    // Validate cycle
     if (!["monthly", "annual"].includes(cycle)) {
       return new Response(
         JSON.stringify({ error: "Invalid billing cycle" }),
@@ -78,24 +83,27 @@ serve(async (req) => {
       );
     }
 
-    // Derive origin from request headers
-    const origin = req.headers.get("origin")
-      ?? req.headers.get("referer")?.split("/").slice(0, 3).join("/")
-      ?? "https://dabarbible.com";
+    // Server-side student detection from profile (don't trust client flag)
+    const { data: profile } = await supabase
+      .from("profiles")
+      .select("age_group, stripe_customer_id, role")
+      .eq("user_id", userId)
+      .maybeSingle();
 
-    // Determine price
-    let effectiveKey = planKey;
-    if (planKey === "personal" && isStudent) effectiveKey = "personal_student";
-
-    const cyclePrices = PRICE_MAP[effectiveKey];
-    if (!cyclePrices) {
+    // Block protected roles from self-checkout
+    if (profile?.role && ["super_admin", "admin", "beta", "suspended"].includes(profile.role)) {
       return new Response(
-        JSON.stringify({ error: "Invalid plan" }),
+        JSON.stringify({ error: "Your account already has full access." }),
         { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
-    const priceId = cyclePrices[cycle || "monthly"];
+    const isStudent = ["youth", "young_adult"].includes(profile?.age_group || "");
+    let effectiveKey = planKey;
+    if (planKey === "personal" && isStudent) effectiveKey = "personal_student";
+
+    const cyclePrices = PRICE_MAP[effectiveKey];
+    const priceId = cyclePrices?.[cycle];
     if (!priceId) {
       return new Response(
         JSON.stringify({ error: "Invalid billing cycle for this plan" }),
@@ -103,12 +111,9 @@ serve(async (req) => {
       );
     }
 
-    // Look up existing Stripe customer from profile
-    const { data: profile } = await supabase
-      .from("profiles")
-      .select("stripe_customer_id")
-      .eq("user_id", userId)
-      .single();
+    const origin = req.headers.get("origin")
+      ?? req.headers.get("referer")?.split("/").slice(0, 3).join("/")
+      ?? "https://dabarbible.com";
 
     let customerId = profile?.stripe_customer_id;
 
@@ -121,7 +126,14 @@ serve(async (req) => {
       metadata: {
         user_id: userId,
         plan_type: planKey,
-        billing_cycle: cycle || "monthly",
+        billing_cycle: cycle,
+      },
+      subscription_data: {
+        metadata: {
+          user_id: userId,
+          plan_type: planKey,
+          billing_cycle: cycle,
+        },
       },
     };
 
@@ -133,7 +145,6 @@ serve(async (req) => {
 
     const session = await stripe.checkout.sessions.create(sessionParams);
 
-    // Store customer ID back to profile if newly created
     if (!customerId && session.customer) {
       await supabase
         .from("profiles")

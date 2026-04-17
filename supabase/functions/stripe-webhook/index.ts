@@ -4,6 +4,10 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2.103.0";
 
 const PROTECTED_ROLES = ["super_admin", "admin", "beta", "suspended"];
 
+const log = (step: string, details?: any) => {
+  console.log(`[stripe-webhook] ${step}${details ? " " + JSON.stringify(details) : ""}`);
+};
+
 serve(async (req) => {
   try {
     const stripeKey = Deno.env.get("STRIPE_SECRET_KEY");
@@ -32,15 +36,18 @@ serve(async (req) => {
     const supabaseKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const supabase = createClient(supabaseUrl, supabaseKey);
 
+    log("Event received", { type: event.type, id: event.id });
+
     // Idempotency check
     const eventId = event.id;
     const { data: existing } = await supabase
       .from("processed_webhook_events")
       .select("event_id")
       .eq("event_id", eventId)
-      .single();
+      .maybeSingle();
 
     if (existing) {
+      log("Duplicate event, skipping");
       return new Response(JSON.stringify({ received: true, duplicate: true }), {
         status: 200,
         headers: { "Content-Type": "application/json" },
@@ -56,83 +63,115 @@ serve(async (req) => {
 
     if (configData) {
       for (const c of configData) {
-        // Strip "stripe_price_" prefix and billing cycle suffix to get plan name
         const plan = c.key.replace("stripe_price_", "").replace(/_(monthly|annual|student)$/, "");
         if (c.value) PLAN_MAP[c.value] = plan;
       }
     }
 
-    const handleSubscriptionChange = async (subscription: Stripe.Subscription, deleted = false) => {
-      const customerId = subscription.customer as string;
-
-      // Look up user by stripe customer ID in subscriptions table
+    // Resolve user_id from a subscription via three fallback strategies
+    const resolveUserId = async (subscription: Stripe.Subscription): Promise<string | null> => {
+      // 1) by stripe_subscription_id in subscriptions table
       const { data: subRecord } = await supabase
         .from("subscriptions")
         .select("user_id")
         .eq("stripe_subscription_id", subscription.id)
-        .single();
+        .maybeSingle();
+      if (subRecord?.user_id) return subRecord.user_id;
 
-      let userId = subRecord?.user_id;
+      // 2) by subscription metadata (set in create-checkout)
+      const metaUserId = subscription.metadata?.user_id;
+      if (metaUserId) return metaUserId;
 
-      if (!userId) {
-        // Try to find by customer email
+      // 3) by stripe_customer_id on profile
+      const customerId = subscription.customer as string;
+      const { data: profileByCustomer } = await supabase
+        .from("profiles")
+        .select("user_id")
+        .eq("stripe_customer_id", customerId)
+        .maybeSingle();
+      if (profileByCustomer?.user_id) return profileByCustomer.user_id;
+
+      // 4) by customer email → auth.users
+      try {
         const customer = await stripe.customers.retrieve(customerId);
         if ("email" in customer && customer.email) {
-          console.log("Could not find user for subscription:", subscription.id);
-          return;
+          const { data: userByEmail } = await supabase.auth.admin.listUsers();
+          const match = userByEmail.users.find((u) => u.email === customer.email);
+          if (match) return match.id;
         }
+      } catch (e) {
+        log("Customer lookup failed", { err: String(e) });
+      }
+
+      return null;
+    };
+
+    const handleSubscriptionChange = async (subscription: Stripe.Subscription, deleted = false) => {
+      const userId = await resolveUserId(subscription);
+      if (!userId) {
+        log("Could not resolve user for subscription", { subscriptionId: subscription.id });
         return;
       }
 
-      // Get current profile role
       const { data: profile } = await supabase
         .from("profiles")
-        .select("role, plan")
+        .select("role, plan, stripe_customer_id")
         .eq("user_id", userId)
-        .single();
-
-      if (!profile) return;
-
-      if (PROTECTED_ROLES.includes(profile.role)) {
-        if (deleted) {
-          await supabase.from("profiles").update({ plan: "free" }).eq("user_id", userId);
-          await supabase.from("subscriptions")
-            .update({ status: "cancelled", plan_type: "free" })
-            .eq("stripe_subscription_id", subscription.id);
-        } else {
-          const priceId = subscription.items.data[0]?.price?.id;
-          const newPlan = PLAN_MAP[priceId] || "personal";
-          await supabase.from("profiles").update({ plan: newPlan, trial_converted: true }).eq("user_id", userId);
-          await supabase.from("subscriptions")
-            .update({ plan_type: newPlan, status: "active" })
-            .eq("stripe_subscription_id", subscription.id);
-        }
+        .maybeSingle();
+      if (!profile) {
+        log("Profile not found", { userId });
         return;
       }
 
+      // Backfill stripe_customer_id if missing
+      if (!profile.stripe_customer_id && subscription.customer) {
+        await supabase
+          .from("profiles")
+          .update({ stripe_customer_id: subscription.customer as string })
+          .eq("user_id", userId);
+      }
+
+      const priceId = subscription.items.data[0]?.price?.id;
+      const newPlan = PLAN_MAP[priceId] || "personal";
+      const isProtected = PROTECTED_ROLES.includes(profile.role);
+
       if (deleted) {
-        await supabase.from("profiles").update({ plan: "free", role: "free" }).eq("user_id", userId);
+        await supabase.from("profiles").update(
+          isProtected ? { plan: "free" } : { plan: "free", role: "free" }
+        ).eq("user_id", userId);
+
+        // Update subscription row by user_id (works even if stripe_subscription_id wasn't set yet)
         await supabase.from("subscriptions")
           .update({ status: "cancelled", plan_type: "free", billing_cycle: null })
-          .eq("stripe_subscription_id", subscription.id);
+          .eq("user_id", userId);
+        log("Subscription deleted", { userId });
       } else {
-        const priceId = subscription.items.data[0]?.price?.id;
-        const newPlan = PLAN_MAP[priceId] || "personal";
-        let newRole = "personal";
-        if (newPlan === "personal") newRole = "personal";
-
+        const newRole = isProtected ? profile.role : (newPlan === "personal" ? "personal" : profile.role);
         await supabase.from("profiles").update({
           plan: newPlan,
           role: newRole,
           trial_converted: true,
         }).eq("user_id", userId);
-        await supabase.from("subscriptions")
-          .update({
-            plan_type: newPlan,
-            status: "active",
-            stripe_subscription_id: subscription.id,
-          })
-          .eq("user_id", userId);
+
+        // Upsert subscription row
+        const { data: existingSub } = await supabase
+          .from("subscriptions")
+          .select("id")
+          .eq("user_id", userId)
+          .maybeSingle();
+
+        const subUpdate = {
+          plan_type: newPlan,
+          status: "active",
+          stripe_subscription_id: subscription.id,
+        };
+
+        if (existingSub) {
+          await supabase.from("subscriptions").update(subUpdate).eq("id", existingSub.id);
+        } else {
+          await supabase.from("subscriptions").insert({ user_id: userId, ...subUpdate });
+        }
+        log("Subscription activated", { userId, plan: newPlan });
       }
     };
 
@@ -156,7 +195,7 @@ serve(async (req) => {
             .from("subscriptions")
             .select("user_id")
             .eq("stripe_subscription_id", invoice.subscription as string)
-            .single();
+            .maybeSingle();
 
           if (subRecord?.user_id) {
             await supabase.from("profiles")
@@ -177,12 +216,10 @@ serve(async (req) => {
         const planType = session.metadata?.plan_type;
         const billingCycle = session.metadata?.billing_cycle;
 
-        // Read presentment details (Adaptive Pricing)
         const presentmentCurrency = (session as any).presentment_details?.presentment_currency ?? null;
         const presentmentAmount = (session as any).presentment_details?.presentment_amount ?? null;
 
         if (userId && planType) {
-          // Store stripe customer ID on profile
           if (session.customer) {
             await supabase.from("profiles")
               .update({ stripe_customer_id: session.customer as string })
@@ -193,7 +230,7 @@ serve(async (req) => {
             .from("subscriptions")
             .select("id")
             .eq("user_id", userId)
-            .single();
+            .maybeSingle();
 
           const subData = {
             plan_type: planType,
@@ -205,22 +242,16 @@ serve(async (req) => {
           };
 
           if (existingSub) {
-            await supabase.from("subscriptions")
-              .update(subData)
-              .eq("id", existingSub.id);
+            await supabase.from("subscriptions").update(subData).eq("id", existingSub.id);
           } else {
-            await supabase.from("subscriptions").insert({
-              user_id: userId,
-              ...subData,
-            });
+            await supabase.from("subscriptions").insert({ user_id: userId, ...subData });
           }
 
-          // Update profile
           const { data: profile } = await supabase
             .from("profiles")
             .select("role")
             .eq("user_id", userId)
-            .single();
+            .maybeSingle();
 
           if (profile && !PROTECTED_ROLES.includes(profile.role)) {
             await supabase.from("profiles")
@@ -235,12 +266,14 @@ serve(async (req) => {
               .update({ plan: planType, trial_converted: true })
               .eq("user_id", userId);
           }
+          log("Checkout completed", { userId, planType });
+        } else {
+          log("Checkout missing metadata", { sessionId: session.id });
         }
         break;
       }
     }
 
-    // Record as processed
     await supabase
       .from("processed_webhook_events")
       .insert({ event_id: eventId, event_type: event.type });
