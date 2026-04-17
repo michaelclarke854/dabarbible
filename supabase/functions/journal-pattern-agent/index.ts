@@ -88,7 +88,7 @@ serve(async (req) => {
       userId = userData.user.id;
     }
 
-    const supabase = createClient(supabaseUrl, supabaseKey);
+    const supabase = adminClient;
     const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
     if (!LOVABLE_API_KEY) throw new Error("LOVABLE_API_KEY not configured");
 
