@@ -348,6 +348,42 @@ export type Database = {
         }
         Relationships: []
       }
+      pastoral_inquiries: {
+        Row: {
+          church_name: string
+          congregation_size: string | null
+          created_at: string
+          email: string
+          id: string
+          name: string
+          notes: string | null
+          resolved_at: string | null
+          resolved_by: string | null
+        }
+        Insert: {
+          church_name: string
+          congregation_size?: string | null
+          created_at?: string
+          email: string
+          id?: string
+          name: string
+          notes?: string | null
+          resolved_at?: string | null
+          resolved_by?: string | null
+        }
+        Update: {
+          church_name?: string
+          congregation_size?: string | null
+          created_at?: string
+          email?: string
+          id?: string
+          name?: string
+          notes?: string | null
+          resolved_at?: string | null
+          resolved_by?: string | null
+        }
+        Relationships: []
+      }
       processed_webhook_events: {
         Row: {
           event_id: string
@@ -527,6 +563,47 @@ export type Database = {
           writing_prompt?: string | null
         }
         Relationships: []
+      }
+      response_flags: {
+        Row: {
+          created_at: string
+          flag_notes: string | null
+          flag_type: string
+          id: string
+          resolved_at: string | null
+          resolved_by: string | null
+          session_id: string | null
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          flag_notes?: string | null
+          flag_type: string
+          id?: string
+          resolved_at?: string | null
+          resolved_by?: string | null
+          session_id?: string | null
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          flag_notes?: string | null
+          flag_type?: string
+          id?: string
+          resolved_at?: string | null
+          resolved_by?: string | null
+          session_id?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "response_flags_session_id_fkey"
+            columns: ["session_id"]
+            isOneToOne: false
+            referencedRelation: "wisdom_sessions"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       role_change_log: {
         Row: {
