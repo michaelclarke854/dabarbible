@@ -25,20 +25,39 @@ const ScriptureScreen = lazy(() => import("@/components/ScriptureScreen"));
 const HistoryScreen = lazy(() => import("@/components/HistoryScreen"));
 const LanguageSettings = lazy(() => import("@/components/LanguageSettings"));
 const PrivacySettings = lazy(() => import("@/components/PrivacySettings"));
+const SoftCaptureCard = lazy(() => import("@/components/SoftCaptureCard"));
 
 type Tab = "ask" | "scripture" | "history" | "journal";
 type Screen = "ask" | "response";
 
-const GUEST_LIMIT = 3;
+// Solution 3 — Anonymous gate:
+//   Q1 → full answer + soft capture nudge
+//   Q2 → full answer (still allowed) but next attempt is blurred behind hard paywall
+const GUEST_LIMIT = 2;
 const FREE_DAILY_LIMIT = 3;
 const STORAGE_KEY = "dabar-questions-used";
 const ONBOARDING_KEY = "dabar-onboarded";
+const ANON_ID_KEY = "dabar_anon_id";
 
 const getGuestQuestionsUsed = (): number => {
   try { return parseInt(localStorage.getItem(STORAGE_KEY) || "0", 10); } catch { return 0; }
 };
 const incrementGuestQuestions = () => {
   try { localStorage.setItem(STORAGE_KEY, String(getGuestQuestionsUsed() + 1)); } catch {}
+};
+
+/** Get-or-create a stable per-device anonymous id. Used (alongside IP) by
+ *  the seek-wisdom edge function to enforce the 2-question guest limit. */
+const getOrCreateAnonId = (): string => {
+  try {
+    const existing = localStorage.getItem(ANON_ID_KEY);
+    if (existing && /^[a-f0-9-]{8,64}$/i.test(existing)) return existing;
+    const fresh = (crypto.randomUUID?.() ?? `${Date.now()}-${Math.random().toString(16).slice(2)}`);
+    localStorage.setItem(ANON_ID_KEY, fresh);
+    return fresh;
+  } catch {
+    return "no-storage";
+  }
 };
 
 const PageSpinner = () => (
