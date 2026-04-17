@@ -89,6 +89,24 @@ const ScriptureScreen = ({
   // Chapter cache — instant same-session navigation
   const chapterCacheRef = useRef<Record<string, VerseData[]>>({});
 
+  // Per-book/chapter cache of which versions are available — avoids probe storm on every open
+  const availableVersionsCacheRef = useRef<Record<string, BibleVersion[]>>({});
+
+  // Per-verse version text cache, persisted to localStorage
+  const VERSE_CACHE_KEY = "scripture_verse_version_cache_v1";
+  const verseTextCacheRef = useRef<Record<string, string>>({});
+  useEffect(() => {
+    try {
+      const raw = localStorage.getItem(VERSE_CACHE_KEY);
+      if (raw) verseTextCacheRef.current = JSON.parse(raw);
+    } catch { /* ignore */ }
+  }, []);
+  const persistVerseCache = () => {
+    try {
+      localStorage.setItem(VERSE_CACHE_KEY, JSON.stringify(verseTextCacheRef.current));
+    } catch { /* quota or private mode */ }
+  };
+
   // Fetch saved verses
   const fetchSavedVerses = useCallback(async () => {
     if (!user) return;
