@@ -690,6 +690,158 @@ function MonitorTab() {
   );
 }
 
+function ReviewTab() {
+  const [tab, setTab] = useState<"flags" | "inquiries">("flags");
+  const [showResolved, setShowResolved] = useState(false);
+  const [flags, setFlags] = useState<any[]>([]);
+  const [inquiries, setInquiries] = useState<any[]>([]);
+  const [sessionMap, setSessionMap] = useState<Record<string, { question: string; response: string }>>({});
+
+  const fetchAll = useCallback(async () => {
+    const [{ data: f }, { data: i }] = await Promise.all([
+      supabase.from("response_flags")
+        .select("id, session_id, flag_type, flag_notes, created_at, resolved_at, user_id")
+        .order("created_at", { ascending: false }).limit(200),
+      supabase.from("pastoral_inquiries")
+        .select("*")
+        .order("created_at", { ascending: false }).limit(200),
+    ]);
+    setFlags(f || []);
+    setInquiries(i || []);
+
+    const ids = (f || []).map(x => x.session_id).filter(Boolean) as string[];
+    if (ids.length) {
+      const { data: sess } = await supabase.from("wisdom_sessions")
+        .select("id, question, response").in("id", ids);
+      const map: Record<string, { question: string; response: string }> = {};
+      (sess || []).forEach((s: any) => { map[s.id] = { question: s.question, response: s.response }; });
+      setSessionMap(map);
+    }
+  }, []);
+
+  useEffect(() => { fetchAll(); }, [fetchAll]);
+
+  const markFlagResolved = async (id: string) => {
+    const { data: { user } } = await supabase.auth.getUser();
+    await supabase.from("response_flags").update({
+      resolved_at: new Date().toISOString(), resolved_by: user?.id ?? null,
+    }).eq("id", id);
+    fetchAll();
+  };
+  const markInquiryResolved = async (id: string) => {
+    const { data: { user } } = await supabase.auth.getUser();
+    await supabase.from("pastoral_inquiries").update({
+      resolved_at: new Date().toISOString(), resolved_by: user?.id ?? null,
+    }).eq("id", id);
+    fetchAll();
+  };
+
+  const visibleFlags = flags.filter(f => showResolved || !f.resolved_at);
+  const visibleInquiries = inquiries.filter(i => showResolved || !i.resolved_at);
+  const openFlags = flags.filter(f => !f.resolved_at).length;
+  const openInquiries = inquiries.filter(i => !i.resolved_at).length;
+
+  return (
+    <div className="space-y-4">
+      <div className="flex items-center gap-2 border-b border-border">
+        <button
+          onClick={() => setTab("flags")}
+          className={`px-4 py-2 text-sm font-body border-b-2 -mb-px transition-colors ${
+            tab === "flags" ? "border-gold text-gold" : "border-transparent text-muted-foreground hover:text-foreground"
+          }`}
+        >
+          Response Flags <span className="ml-1 text-xs opacity-70">({openFlags})</span>
+        </button>
+        <button
+          onClick={() => setTab("inquiries")}
+          className={`px-4 py-2 text-sm font-body border-b-2 -mb-px transition-colors ${
+            tab === "inquiries" ? "border-gold text-gold" : "border-transparent text-muted-foreground hover:text-foreground"
+          }`}
+        >
+          Pastoral Inquiries <span className="ml-1 text-xs opacity-70">({openInquiries})</span>
+        </button>
+        <label className="ml-auto flex items-center gap-2 text-xs text-muted-foreground font-body">
+          <input type="checkbox" checked={showResolved} onChange={e => setShowResolved(e.target.checked)} />
+          Show resolved
+        </label>
+      </div>
+
+      {tab === "flags" && (
+        <div className="space-y-3">
+          {visibleFlags.map(f => {
+            const s = f.session_id ? sessionMap[f.session_id] : null;
+            return (
+              <div key={f.id} className={`bg-card border rounded-sm p-4 ${f.resolved_at ? "border-border opacity-60" : "border-amber-500/40"}`}>
+                <div className="flex items-start justify-between gap-3 mb-2">
+                  <div>
+                    <p className="text-xs uppercase tracking-widest text-amber-500 font-body">{f.flag_type}</p>
+                    <p className="text-xs text-muted-foreground mt-0.5">{new Date(f.created_at).toLocaleString()}</p>
+                  </div>
+                  {f.resolved_at ? (
+                    <span className="text-xs text-green-500 font-body inline-flex items-center gap-1"><Check size={12} /> Resolved</span>
+                  ) : (
+                    <button
+                      onClick={() => markFlagResolved(f.id)}
+                      className="text-xs px-3 py-1.5 border border-gold/40 text-gold rounded-sm hover:bg-gold/10 transition-colors"
+                    >
+                      Mark resolved
+                    </button>
+                  )}
+                </div>
+                {f.flag_notes && (
+                  <p className="text-sm text-foreground/90 mt-2 italic">"{f.flag_notes}"</p>
+                )}
+                {s && (
+                  <div className="mt-3 pt-3 border-t border-border space-y-2">
+                    <p className="text-xs text-muted-foreground"><span className="uppercase tracking-widest">Question:</span> {s.question}</p>
+                    <p className="text-xs text-foreground/80 line-clamp-3">{s.response}</p>
+                  </div>
+                )}
+              </div>
+            );
+          })}
+          {visibleFlags.length === 0 && (
+            <p className="text-muted-foreground text-sm italic">No {showResolved ? "" : "open "}flags.</p>
+          )}
+        </div>
+      )}
+
+      {tab === "inquiries" && (
+        <div className="space-y-3">
+          {visibleInquiries.map(i => (
+            <div key={i.id} className={`bg-card border rounded-sm p-4 ${i.resolved_at ? "border-border opacity-60" : "border-gold/30"}`}>
+              <div className="flex items-start justify-between gap-3 mb-2">
+                <div>
+                  <p className="text-sm font-serif text-foreground">{i.name} — <span className="text-muted-foreground">{i.church_name}</span></p>
+                  <p className="text-xs text-muted-foreground mt-0.5">
+                    <a href={`mailto:${i.email}`} className="hover:text-gold underline">{i.email}</a>
+                    {i.congregation_size && <> · {i.congregation_size}</>}
+                    {" · "}{new Date(i.created_at).toLocaleString()}
+                  </p>
+                </div>
+                {i.resolved_at ? (
+                  <span className="text-xs text-green-500 font-body inline-flex items-center gap-1"><Check size={12} /> Resolved</span>
+                ) : (
+                  <button
+                    onClick={() => markInquiryResolved(i.id)}
+                    className="text-xs px-3 py-1.5 border border-gold/40 text-gold rounded-sm hover:bg-gold/10 transition-colors"
+                  >
+                    Mark resolved
+                  </button>
+                )}
+              </div>
+              {i.notes && <p className="text-sm text-foreground/85 mt-2 whitespace-pre-wrap">{i.notes}</p>}
+            </div>
+          ))}
+          {visibleInquiries.length === 0 && (
+            <p className="text-muted-foreground text-sm italic">No {showResolved ? "" : "open "}inquiries.</p>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
 function FlaggedTab() {
   const [sessions, setSessions] = useState<any[]>([]);
   useEffect(() => {
