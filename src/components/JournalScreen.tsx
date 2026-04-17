@@ -18,7 +18,17 @@ interface WisdomEntry {
 
 type JournalTab = "voice" | "reflections";
 
-const JournalScreen = ({ stirPrompt, onStirConsumed }: { stirPrompt?: string | null; onStirConsumed?: () => void }) => {
+const JournalScreen = ({
+  stirPrompt,
+  onStirConsumed,
+  isFreePlan = false,
+  onUpgrade,
+}: {
+  stirPrompt?: string | null;
+  onStirConsumed?: () => void;
+  isFreePlan?: boolean;
+  onUpgrade?: () => void;
+}) => {
   const [activeTab, setActiveTab] = useState<JournalTab>(stirPrompt ? "reflections" : "voice");
   const [searchInput, setSearchInput] = useState("");
   const [search, setSearch] = useState("");
