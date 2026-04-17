@@ -317,6 +317,10 @@ serve(async (req) => {
       throw new Error("Synthesis call failed");
     }
 
+    // ── Pre-create session row so we can return its ID in headers ──
+    const scriptureRefs = verses.map(v => v.ref);
+    const sessionId = await createSession(supabase, userId, question, scriptureRefs);
+
     // ── Stream to client ──
     let fullText = "";
     const encoder = new TextEncoder();
@@ -365,9 +369,12 @@ serve(async (req) => {
 
           controller.close();
 
-          // ── Post-stream: log session ──
-          const scriptureRefs = verses.map(v => v.ref);
-          await logSession(supabase, userId, question, fullText.trim(), scriptureRefs);
+          // ── Post-stream: persist response text ──
+          if (sessionId) {
+            await supabase.from("wisdom_sessions")
+              .update({ response: fullText.trim() })
+              .eq("id", sessionId);
+          }
         } catch (err) {
           console.error("Stream error:", err);
           controller.error(err);
@@ -378,8 +385,10 @@ serve(async (req) => {
     return new Response(readableStream, {
       headers: {
         ...corsHeaders,
+        "Access-Control-Expose-Headers": "X-Session-Id",
         "Content-Type": "text/plain; charset=utf-8",
         "X-Content-Type-Options": "nosniff",
+        "X-Session-Id": sessionId || "",
       },
     });
   } catch (e) {
@@ -391,15 +400,17 @@ serve(async (req) => {
   }
 });
 
-async function logSession(
+async function createSession(
   supabase: ReturnType<typeof createClient>,
-  userId: string | null, question: string, response: string, scriptures: string[]
-): Promise<void> {
+  userId: string | null, question: string, scriptures: string[]
+): Promise<string | null> {
   try {
-    await supabase.from("wisdom_sessions").insert({
-      user_id: userId || null, question, response, scripture_refs: scriptures,
-    });
+    const { data } = await supabase.from("wisdom_sessions").insert({
+      user_id: userId || null, question, response: "", scripture_refs: scriptures,
+    }).select("id").single();
+    return (data as any)?.id || null;
   } catch (err) {
-    console.error("Failed to log session:", err);
+    console.error("Failed to create session:", err);
+    return null;
   }
 }

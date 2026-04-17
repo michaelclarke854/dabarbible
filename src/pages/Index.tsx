@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, lazy, Suspense } from "react";
+import { useState, useEffect, useCallback, useRef, lazy, Suspense } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { useNavigate } from "react-router-dom";
@@ -77,6 +77,11 @@ const Index = () => {
     try { return localStorage.getItem(ONBOARDING_KEY) === "true"; } catch { return false; }
   });
   const [scriptureDeepLink, setScriptureDeepLink] = useState<{ book: string; chapter: number; verse: number; version?: string } | null>(null);
+  const [currentSessionId, setCurrentSessionId] = useState<string | null>(null);
+  const abortRef = useRef<AbortController | null>(null);
+
+  // Cancel in-flight request on unmount
+  useEffect(() => () => abortRef.current?.abort(), []);
 
   // Trial nudge state — derived from profile, not React state
   const [showInterstitial, setShowInterstitial] = useState(false);
@@ -203,6 +208,12 @@ const Index = () => {
       setIsLoading(true);
       setIsSaved(false);
       setShowSoftGate(false);
+      setCurrentSessionId(null);
+
+      // Cancel any prior in-flight request and create a fresh controller
+      abortRef.current?.abort();
+      const controller = new AbortController();
+      abortRef.current = controller;
 
       // Timed stage progression
       setAgentStage("thinking");
@@ -219,6 +230,7 @@ const Index = () => {
 
         const response = await fetch(endpoint, {
           method: "POST",
+          signal: controller.signal,
           headers: {
             "Content-Type": "application/json",
             Authorization: `Bearer ${authSession?.access_token ?? import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
@@ -252,6 +264,10 @@ const Index = () => {
           }
           throw new Error(err.message || err.error || "Something went wrong");
         }
+
+        // Capture session ID from response headers (set by edge function)
+        const sessionIdHeader = response.headers.get("X-Session-Id");
+        if (sessionIdHeader) setCurrentSessionId(sessionIdHeader);
 
         // Set up streaming response
         setCurrentResponse({ question, response: "", scriptures: [] });
@@ -300,6 +316,10 @@ const Index = () => {
           await incrementDailyUsage();
         }
       } catch (err: any) {
+        if (err?.name === "AbortError") {
+          // User navigated away or started a new request — silent
+          return;
+        }
         toast.error(err.message || "Could not seek wisdom at this time.");
       } finally {
         clearTimeout(t1);
@@ -330,19 +350,25 @@ const Index = () => {
 
     setIsSaving(true);
     try {
-      const { data: sessions } = await supabase
-        .from("wisdom_sessions")
-        .select("id")
-        .eq("user_id", user.id)
-        .eq("question", currentResponse.question)
-        .order("created_at", { ascending: false })
-        .limit(1);
+      let sessionId = currentSessionId;
 
-      if (sessions && sessions.length > 0) {
+      // Fallback: if header wasn't captured (older guest path), look up by question
+      if (!sessionId) {
+        const { data: sessions } = await supabase
+          .from("wisdom_sessions")
+          .select("id")
+          .eq("user_id", user.id)
+          .eq("question", currentResponse.question)
+          .order("created_at", { ascending: false })
+          .limit(1);
+        sessionId = sessions?.[0]?.id ?? null;
+      }
+
+      if (sessionId) {
         await supabase
           .from("wisdom_sessions")
           .update({ saved_to_journal: true })
-          .eq("id", sessions[0].id);
+          .eq("id", sessionId);
       }
       setIsSaved(true);
       toast.success("Saved to your journal.");
@@ -351,7 +377,7 @@ const Index = () => {
     } finally {
       setIsSaving(false);
     }
-  }, [user, currentResponse, hasFullAccess, navigate]);
+  }, [user, currentResponse, currentSessionId, hasFullAccess, navigate]);
 
   const handleScriptureDeepLink = useCallback((ref: string, version?: string) => {
     const parsed = parseScriptureRef(ref);

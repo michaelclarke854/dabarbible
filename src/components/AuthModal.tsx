@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, forwardRef } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { lovable } from "@/integrations/lovable/index";
 import { toast } from "sonner";
@@ -11,7 +11,7 @@ interface AuthModalProps {
   message?: string;
 }
 
-const AuthModal = ({ isOpen, onClose, onSignedUp, message }: AuthModalProps) => {
+const AuthModal = forwardRef<HTMLDivElement, AuthModalProps>(({ isOpen, onClose, onSignedUp, message }, _ref) => {
   const { setPendingConfirmation } = useAuth();
   const [mode, setMode] = useState<"signin" | "signup" | "forgot">("signup");
   const [email, setEmail] = useState("");
@@ -356,6 +356,8 @@ const AuthModal = ({ isOpen, onClose, onSignedUp, message }: AuthModalProps) => 
       </div>
     </div>
   );
-};
+});
+
+AuthModal.displayName = "AuthModal";
 
 export default AuthModal;
