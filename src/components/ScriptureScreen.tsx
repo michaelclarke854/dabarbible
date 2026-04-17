@@ -319,10 +319,14 @@ const ScriptureScreen = ({
 
   const setAsProfileDefault = async (version: BibleVersion) => {
     if (!user) return;
-    await supabase
+    const { error } = await supabase
       .from("profiles")
       .update({ preferred_bible_version: version } as any)
       .eq("user_id", user.id);
+    if (error) {
+      toast.error("Couldn't update default translation. Try again.");
+      return;
+    }
     toast.success(`${version} is now your default translation.`);
     onProfileVersionChanged?.(version);
   };
