@@ -128,8 +128,8 @@ const JournalScreen = ({ stirPrompt, onStirConsumed }: { stirPrompt?: string | n
         <>
           <input
             type="text"
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
+            value={searchInput}
+            onChange={(e) => setSearchInput(e.target.value)}
             placeholder="Search saved wisdom…"
             className="w-full bg-transparent border-b border-border pb-2 mb-8 text-sm font-body text-foreground placeholder:text-muted-foreground/50 outline-none focus:border-gold transition-colors"
           />
@@ -138,7 +138,14 @@ const JournalScreen = ({ stirPrompt, onStirConsumed }: { stirPrompt?: string | n
             <div className="flex justify-center py-20">
               <div className="w-3 h-3 rounded-full bg-gold animate-candle-glow" />
             </div>
-          ) : filtered.length === 0 ? (
+          ) : error ? (
+            <div className="text-center py-16">
+              <p className="font-serif text-lg text-muted-foreground">Couldn't load journal.</p>
+              <p className="font-body text-sm text-muted-foreground/60 mt-2">
+                Check your connection and try again.
+              </p>
+            </div>
+          ) : entries.length === 0 ? (
             <div className="text-center py-16">
               <p className="font-serif text-lg text-muted-foreground">
                 {search ? "No entries found." : "No saved wisdom yet."}
@@ -149,7 +156,7 @@ const JournalScreen = ({ stirPrompt, onStirConsumed }: { stirPrompt?: string | n
             </div>
           ) : (
             <div className="space-y-8">
-              {filtered.map((entry) => (
+              {entries.map((entry) => (
                 <article
                   key={entry.id}
                   className="pb-8 border-b border-border/50 last:border-none relative group"
