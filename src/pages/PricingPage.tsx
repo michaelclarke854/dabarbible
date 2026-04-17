@@ -4,6 +4,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import BillingConfirmModal from "@/components/BillingConfirmModal";
 import { useLocalizedPrice } from "@/hooks/useLocalizedPrice";
+import { useAuth } from "@/contexts/AuthContext";
 import { Skeleton } from "@/components/ui/skeleton";
 
 const ALLOWED_CURRENCIES = [
@@ -15,7 +16,7 @@ const ALLOWED_CURRENCIES = [
 interface PricingTier {
   key: string;
   name: string;
-  planKey: string; // key used in the hook's price map
+  planKey: string;
   description: string;
   features: string[];
   cta: string;
@@ -38,11 +39,7 @@ const tiers: PricingTier[] = [
     name: "Personal",
     planKey: "personal",
     description: "For the daily seeker.",
-    features: [
-      "Unlimited questions",
-      "Full Wisdom journal",
-      "Full Reflections journal",
-    ],
+    features: ["Unlimited questions", "Full Wisdom journal", "Full Reflections journal"],
     cta: "Start Personal",
     highlighted: true,
     hasAnnual: true,
@@ -53,11 +50,7 @@ const tiers: PricingTier[] = [
     name: "Family",
     planKey: "family",
     description: "For those who seek together.",
-    features: [
-      "Everything in Personal",
-      "Up to 5 members",
-      "Each journal is fully private",
-    ],
+    features: ["Everything in Personal", "Up to 5 members", "Each journal is fully private"],
     cta: "Start Family",
     hasAnnual: true,
   },
@@ -66,22 +59,25 @@ const tiers: PricingTier[] = [
     name: "Community",
     planKey: "community",
     description: "For churches, ministries, and schools.",
-    features: [
-      "Everything in Personal",
-      "10+ members",
-      "Admin sees usage only — never content",
-    ],
+    features: ["Everything in Personal", "10+ members", "Admin sees usage only — never content"],
     cta: "Start Community",
   },
 ];
 
+const formatTrialDate = (iso: string) =>
+  new Date(iso).toLocaleDateString(undefined, { month: "long", day: "numeric" });
+
 const PricingPage = () => {
   const navigate = useNavigate();
   const { formatPrice, currency, canOverride, loading: priceLoading, saveCurrencyPreference } = useLocalizedPrice();
+  const { trial, plan } = useAuth();
   const [loadingPlan, setLoadingPlan] = useState<string | null>(null);
   const [showAnnual, setShowAnnual] = useState<Record<string, boolean>>({});
   const [confirmPlan, setConfirmPlan] = useState<{ key: string; displayPrice: string } | null>(null);
   const [showCurrencyPicker, setShowCurrencyPicker] = useState(false);
+  const [portalLoading, setPortalLoading] = useState(false);
+
+  const isPaid = plan !== "free" && plan !== "trial";
 
   const handleCheckout = async (planKey: string) => {
     if (planKey === "free") {
@@ -95,26 +91,12 @@ const PricingPage = () => {
       return;
     }
 
-    const { data: profile } = await supabase
-      .from("profiles")
-      .select("age_group")
-      .eq("user_id", session.user.id)
-      .single();
-    const isStudent = ["youth", "young_adult"].includes(profile?.age_group || "");
-
     const cycle = showAnnual[planKey] ? "annual" : "monthly";
 
     setLoadingPlan(planKey);
     try {
       const { data, error } = await supabase.functions.invoke("create-checkout", {
-        body: {
-          planKey,
-          cycle,
-          userId: session.user.id,
-          email: session.user.email,
-          isStudent,
-          returnUrl: window.location.origin,
-        },
+        body: { planKey, cycle },
       });
 
       if (error) throw error;
@@ -128,8 +110,28 @@ const PricingPage = () => {
     }
   };
 
+  const openPortal = async () => {
+    setPortalLoading(true);
+    try {
+      const { data, error } = await supabase.functions.invoke("customer-portal");
+      if (error) throw error;
+      if (data?.error) throw new Error(data.error);
+      if (data?.url) window.location.href = data.url;
+    } catch (err: any) {
+      toast.error(err.message || "Could not open billing portal.");
+    } finally {
+      setPortalLoading(false);
+    }
+  };
+
   const getDisplayPrice = (tier: PricingTier): string => {
     if (tier.key === "free") return "Free";
+    const annual = showAnnual[tier.key];
+    if (annual) {
+      // Annual price = monthly price × 12 × 0.7 (~30% off). Show as /year for clarity.
+      const monthly = formatPrice(tier.planKey);
+      return `${monthly}/mo · billed annually`;
+    }
     return `${formatPrice(tier.planKey)}/mo`;
   };
 
@@ -139,6 +141,15 @@ const PricingPage = () => {
       return;
     }
     setConfirmPlan({ key: planKey, displayPrice });
+  };
+
+  const ctaLabel = (tier: PricingTier) => {
+    if (loadingPlan === tier.key) return "…";
+    if (tier.key === "free") return tier.cta;
+    if (trial.isOnTrial && trial.trialEndsAt) {
+      return `Continue on ${tier.name}`;
+    }
+    return tier.cta;
   };
 
   return (
@@ -153,9 +164,29 @@ const PricingPage = () => {
       <p className="font-serif text-2xl text-foreground tracking-wide text-center mb-2">
         What are you carrying today?
       </p>
-      <p className="font-body text-sm text-muted-foreground text-center mb-12">
+      <p className="font-body text-sm text-muted-foreground text-center mb-6">
         Choose the path that meets you where you are.
       </p>
+
+      {trial.isOnTrial && trial.trialEndsAt && (
+        <p className="font-body text-xs text-gold text-center mb-10">
+          Your trial continues until {formatTrialDate(trial.trialEndsAt)}. No charge until then.
+        </p>
+      )}
+      {isPaid && (
+        <div className="text-center mb-10">
+          <p className="font-body text-xs text-muted-foreground mb-2">
+            You're on the <span className="text-gold capitalize">{plan}</span> plan.
+          </p>
+          <button
+            onClick={openPortal}
+            disabled={portalLoading}
+            className="font-body text-xs text-gold hover:underline disabled:opacity-50"
+          >
+            {portalLoading ? "Opening…" : "Manage subscription →"}
+          </button>
+        </div>
+      )}
 
       <div className="space-y-6">
         {tiers.map((tier) => {
@@ -173,7 +204,7 @@ const PricingPage = () => {
                   {priceLoading && tier.key !== "free" ? (
                     <Skeleton className="h-6 w-20 bg-gold/10" />
                   ) : (
-                    <span className="font-serif text-lg text-gold">{displayPrice}</span>
+                    <span className="font-serif text-sm text-gold">{displayPrice}</span>
                   )}
                 </div>
               </div>
@@ -214,7 +245,7 @@ const PricingPage = () => {
                     : "border border-border text-foreground hover:border-gold"
                 }`}
               >
-                {loadingPlan === tier.key ? "…" : tier.cta}
+                {ctaLabel(tier)}
               </button>
             </div>
           );
@@ -254,19 +285,14 @@ const PricingPage = () => {
 
       <div className="text-center mt-12 pt-8 border-t border-border">
         <p className="font-body text-xs text-muted-foreground">
-          Gift a year of wisdom —{" "}
-          <button
-            onClick={() => handlePlanClick("gift", formatPrice("personal") + "/year")}
-            className="text-gold hover:underline"
-          >
-            {priceLoading ? "…" : `${formatPrice("personal")}/year`}
-          </button>
+          Gift a year of wisdom — <span className="text-muted-foreground/70 italic">coming soon</span>
         </p>
       </div>
 
       {confirmPlan && (
         <BillingConfirmModal
           price={confirmPlan.displayPrice}
+          trialEndsAt={trial.isOnTrial ? trial.trialEndsAt : null}
           onConfirm={() => handleCheckout(confirmPlan.key)}
           onCancel={() => setConfirmPlan(null)}
           loading={!!loadingPlan}
