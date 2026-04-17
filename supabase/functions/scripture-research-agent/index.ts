@@ -150,8 +150,24 @@ serve(async (req) => {
   try {
     const body = await req.json();
     const question = typeof body.question === "string" ? body.question.trim() : "";
-    const userId = typeof body.userId === "string" ? body.userId : null;
     const ageGroup = typeof body.ageGroup === "string" ? body.ageGroup : null;
+
+    // SECURITY: derive userId from JWT, never trust body. Anonymous if no auth header.
+    let userId: string | null = null;
+    const authHeader = req.headers.get("Authorization");
+    if (authHeader?.startsWith("Bearer ")) {
+      const anonClient = createClient(
+        Deno.env.get("SUPABASE_URL")!,
+        Deno.env.get("SUPABASE_ANON_KEY")!,
+        { global: { headers: { Authorization: authHeader } } }
+      );
+      const { data: userData, error: userErr } = await anonClient.auth.getUser();
+      if (userErr || !userData.user) {
+        return new Response(JSON.stringify({ error: "Unauthorized" }),
+          { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+      }
+      userId = userData.user.id;
+    }
 
     if (!question || question.length === 0) {
       return new Response(JSON.stringify({ error: "Please provide a question." }),
