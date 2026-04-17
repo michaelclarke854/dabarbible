@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, lazy, Suspense } from "react";
+import { useState, useEffect, useCallback, useRef, lazy, Suspense } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { useNavigate } from "react-router-dom";
@@ -77,6 +77,11 @@ const Index = () => {
     try { return localStorage.getItem(ONBOARDING_KEY) === "true"; } catch { return false; }
   });
   const [scriptureDeepLink, setScriptureDeepLink] = useState<{ book: string; chapter: number; verse: number; version?: string } | null>(null);
+  const [currentSessionId, setCurrentSessionId] = useState<string | null>(null);
+  const abortRef = useRef<AbortController | null>(null);
+
+  // Cancel in-flight request on unmount
+  useEffect(() => () => abortRef.current?.abort(), []);
 
   // Trial nudge state — derived from profile, not React state
   const [showInterstitial, setShowInterstitial] = useState(false);
@@ -203,6 +208,12 @@ const Index = () => {
       setIsLoading(true);
       setIsSaved(false);
       setShowSoftGate(false);
+      setCurrentSessionId(null);
+
+      // Cancel any prior in-flight request and create a fresh controller
+      abortRef.current?.abort();
+      const controller = new AbortController();
+      abortRef.current = controller;
 
       // Timed stage progression
       setAgentStage("thinking");
@@ -219,6 +230,7 @@ const Index = () => {
 
         const response = await fetch(endpoint, {
           method: "POST",
+          signal: controller.signal,
           headers: {
             "Content-Type": "application/json",
             Authorization: `Bearer ${authSession?.access_token ?? import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
