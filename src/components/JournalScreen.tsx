@@ -18,7 +18,17 @@ interface WisdomEntry {
 
 type JournalTab = "voice" | "reflections";
 
-const JournalScreen = ({ stirPrompt, onStirConsumed }: { stirPrompt?: string | null; onStirConsumed?: () => void }) => {
+const JournalScreen = ({
+  stirPrompt,
+  onStirConsumed,
+  isFreePlan = false,
+  onUpgrade,
+}: {
+  stirPrompt?: string | null;
+  onStirConsumed?: () => void;
+  isFreePlan?: boolean;
+  onUpgrade?: () => void;
+}) => {
   const [activeTab, setActiveTab] = useState<JournalTab>(stirPrompt ? "reflections" : "voice");
   const [searchInput, setSearchInput] = useState("");
   const [search, setSearch] = useState("");
@@ -121,6 +131,26 @@ const JournalScreen = ({ stirPrompt, onStirConsumed }: { stirPrompt?: string | n
           My Reflections
         </button>
       </div>
+
+      {isFreePlan && (
+        <div className="mb-8 rounded-sm border border-gold/30 bg-gold/5 p-6 text-center shadow-sm">
+          <p className="font-serif-display text-[10px] tracking-[0.12em] text-gold/80 uppercase mb-3">
+            Personal plan required
+          </p>
+          <h3 className="font-serif text-xl text-foreground mb-3">
+            Your reflections deserve a home.
+          </h3>
+          <p className="font-body text-sm text-muted-foreground leading-relaxed mb-5 max-w-sm mx-auto">
+            On the free plan, wisdom passes through but isn't kept. Upgrade to save what speaks to you and return to it any time.
+          </p>
+          <button
+            onClick={() => onUpgrade?.()}
+            className="font-body text-xs tracking-[0.15em] uppercase text-parchment bg-gold hover:bg-gold/90 transition-colors px-6 py-3 rounded-sm"
+          >
+            View Plans
+          </button>
+        </div>
+      )}
 
       {activeTab === "reflections" ? (
         <ReflectionsSection latestPrompt={latestPrompt} stirPrompt={stirPrompt} onStirConsumed={onStirConsumed} />
