@@ -124,6 +124,60 @@ const Index = () => {
     }
   }, [authLoading, isSuspended, navigate]);
 
+  // Virtual pageview tracking — fire on every meaningful screen transition so
+  // SPA navigation is recorded in analytics (otherwise everything looks like
+  // a single bounced session on `/`).
+  useEffect(() => {
+    if (isHydrating || authLoading) return;
+    if (isSuspended) return;
+    if (emailUnconfirmed) {
+      trackPageview({ screen: "email-confirmation", title: "Confirm your email" });
+      return;
+    }
+    if (needsAgeGate) {
+      trackPageview({ screen: "age-gate", title: "Age verification" });
+      return;
+    }
+    if (!hasOnboarded && !user) {
+      trackPageview({ screen: "onboarding", title: "Welcome" });
+      return;
+    }
+    if (showLanguageSettings) {
+      trackPageview({ screen: "settings/language", title: "Language settings" });
+      return;
+    }
+    if (showPrivacySettings) {
+      trackPageview({ screen: "settings/privacy", title: "Privacy settings" });
+      return;
+    }
+    if (tab === "ask") {
+      if (pendingCheckin && user) {
+        trackPageview({ screen: "ask/checkin", title: "Pastoral check-in" });
+      } else if (screen === "response") {
+        trackPageview({ screen: "ask/response", title: "Wisdom response" });
+      } else {
+        trackPageview({ screen: "ask", title: "Ask" });
+      }
+      return;
+    }
+    if (tab === "scripture") {
+      trackPageview({ screen: "scripture", title: "Scripture" });
+      return;
+    }
+    if (tab === "history") {
+      trackPageview({ screen: "history", title: "History" });
+      return;
+    }
+    if (tab === "journal") {
+      trackPageview({ screen: "journal", title: "Journal" });
+      return;
+    }
+  }, [
+    isHydrating, authLoading, isSuspended, emailUnconfirmed, needsAgeGate,
+    hasOnboarded, user, showLanguageSettings, showPrivacySettings,
+    tab, screen, pendingCheckin,
+  ]);
+
 
 
 
