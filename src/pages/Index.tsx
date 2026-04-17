@@ -235,10 +235,8 @@ const Index = () => {
           clearTimeout(t1); clearTimeout(t2);
           setIsLoading(false);
           setAgentStage(null);
-          toast({
-            title: "Session expired",
+          toast.error("Session expired", {
             description: "Please sign in again to continue.",
-            variant: "destructive",
           });
           return;
         }
