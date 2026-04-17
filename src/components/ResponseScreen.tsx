@@ -1,6 +1,5 @@
 import { useEffect, useState, useMemo } from "react";
 import { parseResponse, extractThresholdQuestion, ScriptureCard, type ContentBlock } from "./WisdomResponseBlocks";
-import ResponseFlagButton from "./ResponseFlagButton";
 
 const CRISIS_RESOURCE_MARKERS = [
   "you don't have to carry this alone",
@@ -31,7 +30,6 @@ interface ResponseScreenProps {
   userId?: string;
   profileVersion?: string;
   onProfileVersionChanged?: (v: string) => void;
-  sessionId?: string | null;
 }
 
 const STAGE_LABELS: Record<string, string> = {
@@ -55,7 +53,6 @@ const ResponseScreen = ({
   userId,
   profileVersion,
   onProfileVersionChanged,
-  sessionId,
 }: ResponseScreenProps) => {
   const [visibleBlocks, setVisibleBlocks] = useState(0);
   const blocks = useMemo(() => parseResponse(response), [response]);
@@ -158,15 +155,6 @@ const ResponseScreen = ({
               "What did this stir in you?" →
             </button>
           )}
-
-          {/* Humility footer + flag */}
-          <div className="mt-8 pt-6 border-t border-gold/10 space-y-4">
-            <p className="font-['Playfair_Display'] italic text-xs text-muted-foreground/70 leading-relaxed">
-              This reflection is a starting point. Bring important questions to your pastor,
-              your study group, and your own reading of Scripture.
-            </p>
-            <ResponseFlagButton sessionId={sessionId ?? null} userId={userId ?? null} />
-          </div>
         </div>
       )}
     </div>

@@ -19,12 +19,7 @@ const AdminDashboard = lazy(() => import("./pages/AdminDashboard.tsx"));
 const SuspendedPage = lazy(() => import("./pages/SuspendedPage.tsx"));
 const ResetPasswordPage = lazy(() => import("./pages/ResetPasswordPage.tsx"));
 const PaymentSuccessPage = lazy(() => import("./pages/PaymentSuccessPage.tsx"));
-const PrivacyPromisePage = lazy(() => import("./pages/PrivacyPromisePage.tsx"));
-const AboutOurFaithPage = lazy(() => import("./pages/AboutOurFaithPage.tsx"));
-const ForPastorsPage = lazy(() => import("./pages/ForPastorsPage.tsx"));
-const HowItWorksPage = lazy(() => import("./pages/HowItWorksPage.tsx"));
 const NotFound = lazy(() => import("./pages/NotFound.tsx"));
-import InstallPrompt from "./components/InstallPrompt";
 
 const queryClient = new QueryClient();
 
@@ -53,15 +48,10 @@ const App = () => (
               <Route path="/suspended" element={<SuspendedPage />} />
               <Route path="/reset-password" element={<ResetPasswordPage />} />
               <Route path="/payment-success" element={<PaymentSuccessPage />} />
-              <Route path="/privacy-promise" element={<PrivacyPromisePage />} />
-              <Route path="/about-our-faith" element={<AboutOurFaithPage />} />
-              <Route path="/for-pastors" element={<ForPastorsPage />} />
-              <Route path="/how-it-works" element={<HowItWorksPage />} />
               {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
               <Route path="*" element={<NotFound />} />
             </Routes>
           </Suspense>
-          <InstallPrompt />
         </AuthProvider>
       </BrowserRouter>
     </TooltipProvider>

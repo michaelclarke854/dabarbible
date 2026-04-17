@@ -3,7 +3,6 @@ import { useState, useEffect, useRef } from "react";
 interface AskScreenProps {
   onSeekWisdom: (question: string) => void;
   isLoading: boolean;
-  guestQuestionsRemaining?: number | null;
 }
 
 const SOUL_PROMPTS = [
@@ -14,7 +13,7 @@ const SOUL_PROMPTS = [
   "I don't know what I'm supposed to do with my life...",
 ];
 
-const AskScreen = ({ onSeekWisdom, isLoading, guestQuestionsRemaining }: AskScreenProps) => {
+const AskScreen = ({ onSeekWisdom, isLoading }: AskScreenProps) => {
   const [question, setQuestion] = useState("");
   const [promptIndex, setPromptIndex] = useState(() =>
     Math.floor(Math.random() * SOUL_PROMPTS.length)
@@ -56,14 +55,6 @@ const AskScreen = ({ onSeekWisdom, isLoading, guestQuestionsRemaining }: AskScre
       <p className="font-['Playfair_Display'] italic text-muted-foreground text-sm tracking-wide mb-2">
         The word that finds you.
       </p>
-
-      {typeof guestQuestionsRemaining === "number" && guestQuestionsRemaining > 0 && (
-        <span className="mt-2 inline-flex items-center gap-1.5 px-3 py-1 rounded-full border border-gold/30 bg-scripture-card text-[11px] font-body uppercase tracking-widest text-gold/90">
-          <span className="w-1.5 h-1.5 rounded-full bg-gold/80" />
-          Free question {3 - guestQuestionsRemaining} of 2 · no sign-up
-        </span>
-      )}
-
       <div className="w-12 h-px bg-gold my-6" />
 
       <div className="w-full max-w-lg">

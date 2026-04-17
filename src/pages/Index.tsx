@@ -18,46 +18,26 @@ import EmailConfirmationPending from "@/components/EmailConfirmationPending";
 import AgeGateScreen from "@/components/AgeGateScreen";
 import { parseScriptureRef } from "@/data/kjvBooks";
 import { useAuth } from "@/contexts/AuthContext";
-import { trackPageview } from "@/utils/trackPageview";
 
 const JournalScreen = lazy(() => import("@/components/JournalScreen"));
 const ScriptureScreen = lazy(() => import("@/components/ScriptureScreen"));
 const HistoryScreen = lazy(() => import("@/components/HistoryScreen"));
 const LanguageSettings = lazy(() => import("@/components/LanguageSettings"));
 const PrivacySettings = lazy(() => import("@/components/PrivacySettings"));
-const SoftCaptureCard = lazy(() => import("@/components/SoftCaptureCard"));
 
 type Tab = "ask" | "scripture" | "history" | "journal";
 type Screen = "ask" | "response";
 
-// Solution 3 — Anonymous gate:
-//   Q1 → full answer + soft capture nudge
-//   Q2 → full answer (still allowed) but next attempt is blurred behind hard paywall
-const GUEST_LIMIT = 2;
+const GUEST_LIMIT = 3;
 const FREE_DAILY_LIMIT = 3;
 const STORAGE_KEY = "dabar-questions-used";
 const ONBOARDING_KEY = "dabar-onboarded";
-const ANON_ID_KEY = "dabar_anon_id";
 
 const getGuestQuestionsUsed = (): number => {
   try { return parseInt(localStorage.getItem(STORAGE_KEY) || "0", 10); } catch { return 0; }
 };
 const incrementGuestQuestions = () => {
   try { localStorage.setItem(STORAGE_KEY, String(getGuestQuestionsUsed() + 1)); } catch {}
-};
-
-/** Get-or-create a stable per-device anonymous id. Used (alongside IP) by
- *  the seek-wisdom edge function to enforce the 2-question guest limit. */
-const getOrCreateAnonId = (): string => {
-  try {
-    const existing = localStorage.getItem(ANON_ID_KEY);
-    if (existing && /^[a-f0-9-]{8,64}$/i.test(existing)) return existing;
-    const fresh = (crypto.randomUUID?.() ?? `${Date.now()}-${Math.random().toString(16).slice(2)}`);
-    localStorage.setItem(ANON_ID_KEY, fresh);
-    return fresh;
-  } catch {
-    return "no-storage";
-  }
 };
 
 const PageSpinner = () => (
@@ -86,7 +66,6 @@ const Index = () => {
     question: string;
     response: string;
     scriptures: string[];
-    sessionId?: string | null;
   } | null>(null);
   const [isStreaming, setIsStreaming] = useState(false);
   const [agentStage, setAgentStage] = useState<"thinking" | "scripture" | "reflecting" | null>(null);
@@ -106,8 +85,6 @@ const Index = () => {
 
   // Soft gate state for guest limit
   const [showSoftGate, setShowSoftGate] = useState(false);
-  // Soft capture nudge — shown after Q1 (not yet at hard limit)
-  const [showSoftCapture, setShowSoftCapture] = useState(false);
 
   // Downgrade loading
   const [downgradeLoading, setDowngradeLoading] = useState(false);
@@ -145,60 +122,6 @@ const Index = () => {
       navigate("/suspended", { replace: true });
     }
   }, [authLoading, isSuspended, navigate]);
-
-  // Virtual pageview tracking — fire on every meaningful screen transition so
-  // SPA navigation is recorded in analytics (otherwise everything looks like
-  // a single bounced session on `/`).
-  useEffect(() => {
-    if (isHydrating || authLoading) return;
-    if (isSuspended) return;
-    if (emailUnconfirmed) {
-      trackPageview({ screen: "email-confirmation", title: "Confirm your email" });
-      return;
-    }
-    if (needsAgeGate) {
-      trackPageview({ screen: "age-gate", title: "Age verification" });
-      return;
-    }
-    if (!hasOnboarded && !user) {
-      trackPageview({ screen: "onboarding", title: "Welcome" });
-      return;
-    }
-    if (showLanguageSettings) {
-      trackPageview({ screen: "settings/language", title: "Language settings" });
-      return;
-    }
-    if (showPrivacySettings) {
-      trackPageview({ screen: "settings/privacy", title: "Privacy settings" });
-      return;
-    }
-    if (tab === "ask") {
-      if (pendingCheckin && user) {
-        trackPageview({ screen: "ask/checkin", title: "Pastoral check-in" });
-      } else if (screen === "response") {
-        trackPageview({ screen: "ask/response", title: "Wisdom response" });
-      } else {
-        trackPageview({ screen: "ask", title: "Ask" });
-      }
-      return;
-    }
-    if (tab === "scripture") {
-      trackPageview({ screen: "scripture", title: "Scripture" });
-      return;
-    }
-    if (tab === "history") {
-      trackPageview({ screen: "history", title: "History" });
-      return;
-    }
-    if (tab === "journal") {
-      trackPageview({ screen: "journal", title: "Journal" });
-      return;
-    }
-  }, [
-    isHydrating, authLoading, isSuspended, emailUnconfirmed, needsAgeGate,
-    hasOnboarded, user, showLanguageSettings, showPrivacySettings,
-    tab, screen, pendingCheckin,
-  ]);
 
 
 
@@ -280,7 +203,6 @@ const Index = () => {
       setIsLoading(true);
       setIsSaved(false);
       setShowSoftGate(false);
-      setShowSoftCapture(false);
 
       // Timed stage progression
       setAgentStage("thinking");
@@ -301,8 +223,6 @@ const Index = () => {
             "Content-Type": "application/json",
             Authorization: `Bearer ${authSession?.access_token ?? import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
             apikey: import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
-            // Anonymous device id — only used by edge function when userId is null
-            ...(user ? {} : { "x-anon-id": getOrCreateAnonId() }),
           },
           body: JSON.stringify({
             question,
@@ -369,36 +289,12 @@ const Index = () => {
         while ((match = regex.exec(fullText)) !== null) {
           scriptureRefs.push(match[1].trim());
         }
-        // Look up the session id the edge function just created (so flag/save can target it)
-        let createdSessionId: string | null = null;
-        if (user) {
-          try {
-            const { data: recent } = await supabase
-              .from("wisdom_sessions")
-              .select("id")
-              .eq("user_id", user.id)
-              .eq("question", question)
-              .order("created_at", { ascending: false })
-              .limit(1);
-            createdSessionId = recent?.[0]?.id ?? null;
-          } catch {
-            // non-fatal — flag button just won't render
-          }
-        }
-
-        setCurrentResponse({ question, response: fullText, scriptures: scriptureRefs, sessionId: createdSessionId });
+        setCurrentResponse({ question, response: fullText, scriptures: scriptureRefs });
 
         if (!user) {
           incrementGuestQuestions();
-          const used = getGuestQuestionsUsed();
-          // Q1 done (used == 1) → soft nudge above response, no blur
-          // Q2 done (used >= 2) → next attempt will be blocked; show soft gate now
-          if (used >= GUEST_LIMIT) {
+          if (isGuestAtLimit || getGuestQuestionsUsed() >= GUEST_LIMIT) {
             setShowSoftGate(true);
-            setShowSoftCapture(false);
-          } else {
-            setShowSoftCapture(true);
-            setShowSoftGate(false);
           }
         } else {
           await incrementDailyUsage();
@@ -550,39 +446,31 @@ const Index = () => {
   const showDay14Banner = trial.isOnTrial && trial.daysLeft <= 16 && trial.daysLeft > 9 && !trial.trialNudgeSent.day14 && !trial.trialConverted;
   const showDay28Banner = trial.isOnTrial && trial.daysLeft <= 2 && !trial.trialConverted;
 
-  // Soft gate overlay for guest limit (Q2+) — blurs last 60% behind paywall
+  // Soft gate overlay for guest limit
   const renderSoftGate = () => {
     if (!showSoftGate || !currentResponse) return null;
     const responseLines = currentResponse.response.split("\n");
-    // Show first 40%, blur last 60%
     const cutoff = Math.floor(responseLines.length * 0.4);
 
     return (
-      <div className="mt-6 px-4">
+      <div className="mt-6">
         <div className="relative">
           <div style={{ filter: "blur(4px)", userSelect: "none", pointerEvents: "none" as const }}>
             {responseLines.slice(cutoff).map((line, i) => (
               <p key={i} className="font-serif text-base leading-relaxed text-foreground mb-2">{line}</p>
             ))}
           </div>
-          <div className="absolute inset-0 flex items-start justify-center pt-6">
-            <div className="bg-card border border-gold/30 rounded-sm p-6 text-center max-w-sm shadow-[0_0_32px_rgba(196,151,58,0.18)]">
-              <p className="font-serif text-lg text-foreground mb-2">You've used your 2 free questions.</p>
-              <p className="font-body text-xs text-muted-foreground mb-5 leading-relaxed">
-                Start your 30-day free trial to unlock the rest of this answer, save it to your private journal,
-                and ask without limits.
+          <div className="absolute inset-0 flex items-center justify-center">
+            <div className="bg-card border border-gold/20 rounded-sm p-6 text-center max-w-sm shadow-xl">
+              <p className="font-serif text-lg text-foreground mb-2">Unlock your full answer</p>
+              <p className="font-body text-xs text-muted-foreground mb-4">
+                Start your 30-day free trial — unlimited questions, full responses, journal access.
               </p>
               <button
                 onClick={() => setAuthModal({ open: true, message: "Start your 30-day free trial — unlimited questions, full responses, journal access." })}
                 className="w-full font-serif text-sm tracking-widest uppercase py-3 bg-gold text-primary-foreground rounded-sm hover:bg-gold-dark transition-all mb-2"
               >
                 Start free trial
-              </button>
-              <button
-                onClick={() => navigate("/pricing")}
-                className="w-full font-serif text-xs tracking-widest uppercase py-2.5 border border-gold/30 text-gold rounded-sm hover:bg-gold/10 transition-all mb-3"
-              >
-                See plans
               </button>
               <p className="text-xs font-body text-muted-foreground">
                 Already have an account?{" "}
@@ -637,21 +525,6 @@ const Index = () => {
               try { localStorage.setItem(ONBOARDING_KEY, "true"); } catch {}
               setHasOnboarded(true);
             }}
-            onTryAsGuest={() => {
-              try { localStorage.setItem(ONBOARDING_KEY, "true"); } catch {}
-              setHasOnboarded(true);
-              setTab("ask");
-              setScreen("ask");
-            }}
-            onAskQuestion={async (q) => {
-              // Onboard the visitor immediately so the response renders
-              // inside the normal in-app shell (with bottom nav, soft-gate, etc.)
-              try { localStorage.setItem(ONBOARDING_KEY, "true"); } catch {}
-              setHasOnboarded(true);
-              setTab("ask");
-              await seekWisdom(q);
-            }}
-            guestQuestionsRemaining={Math.max(0, GUEST_LIMIT - getGuestQuestionsUsed())}
           />
         ) : showLanguageSettings && user ? (
           <Suspense fallback={<PageSpinner />}>
@@ -673,11 +546,7 @@ const Index = () => {
                 onDismiss={() => refreshProfile()}
               />
             ) : (
-              <AskScreen
-                onSeekWisdom={seekWisdom}
-                isLoading={isLoading}
-                guestQuestionsRemaining={!user ? Math.max(0, GUEST_LIMIT - getGuestQuestionsUsed()) : null}
-              />
+              <AskScreen onSeekWisdom={seekWisdom} isLoading={isLoading} />
             )
           ) : currentResponse ? (
             <>
@@ -687,7 +556,7 @@ const Index = () => {
                 scriptures={currentResponse.scriptures}
                 isStreaming={isStreaming}
                 agentStage={agentStage}
-                onAskAgain={() => { setScreen("ask"); setCurrentResponse(null); setShowSoftGate(false); setShowSoftCapture(false); }}
+                onAskAgain={() => { setScreen("ask"); setCurrentResponse(null); setShowSoftGate(false); }}
                 onReflect={reflectOnThis}
                 onStir={(thresholdQ) => {
                   reflectOnThis().then(() => {
@@ -703,16 +572,7 @@ const Index = () => {
                 userId={user?.id}
                 profileVersion={preferredBibleVersion}
                 onProfileVersionChanged={(v) => setPreferredBibleVersion(v)}
-                sessionId={currentResponse.sessionId ?? null}
               />
-              {showSoftCapture && !user && !showSoftGate && (
-                <Suspense fallback={null}>
-                  <SoftCaptureCard
-                    questionsRemaining={Math.max(0, GUEST_LIMIT - getGuestQuestionsUsed())}
-                    onSignUp={() => setAuthModal({ open: true, message: "Create a free account to save this reflection — 30 days free, no card needed." })}
-                  />
-                </Suspense>
-              )}
               {renderSoftGate()}
             </>
           ) : null

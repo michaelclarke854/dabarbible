@@ -4,7 +4,7 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2.103.0";
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers":
-    "authorization, x-client-info, apikey, content-type, x-anon-id, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
+    "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
 
 // ── Crisis keyword lists ──────────────────
@@ -365,55 +365,23 @@ serve(async (req) => {
         );
       }
     } else {
-      // ── Anonymous rate limiting ──
-      // Combine two signals so neither alone can be bypassed:
-      //   1. client IP (catches users that wipe localStorage / private mode)
-      //   2. localStorage UUID sent as x-anon-id (catches NAT / shared offices)
-      // Limit applies per HOUR. The stricter of the two wins.
       const clientIp = req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ?? "unknown";
-      const anonIdRaw = req.headers.get("x-anon-id")?.trim() ?? "";
-      // Simple validation: only accept UUID-shaped values, never trust client text
-      const anonId = /^[a-f0-9-]{8,64}$/i.test(anonIdRaw) ? anonIdRaw : "none";
       const hourBucket = Math.floor(Date.now() / 3_600_000);
-      const ANON_LIMIT = 2; // Q1 full, Q2 blurred — Solution 3
-      const RECENT_LIMIT = 10; // wider IP-only safety net (anti-abuse)
+      const windowKey = `anon_${clientIp}_${hourBucket}`;
+      const ANON_LIMIT = 10;
 
-      const ipKey = `anon_ip_${clientIp}_${hourBucket}`;
-      const idKey = `anon_id_${anonId}_${hourBucket}`;
-
-      // Read both buckets in parallel
-      const [ipRow, idRow] = await Promise.all([
-        supabase.from("rate_limits_anonymous").select("count").eq("key", ipKey).maybeSingle(),
-        anonId !== "none"
-          ? supabase.from("rate_limits_anonymous").select("count").eq("key", idKey).maybeSingle()
-          : Promise.resolve({ data: null }),
-      ]);
-      const ipCount = ipRow.data?.count ?? 0;
-      const idCount = idRow.data?.count ?? 0;
-
-      // Hard cap on either signal
-      if (idCount >= ANON_LIMIT || ipCount >= RECENT_LIMIT) {
+      const { data: rateRow } = await supabase
+        .from("rate_limits_anonymous").select("count").eq("key", windowKey).single();
+      const currentCount = rateRow?.count ?? 0;
+      if (currentCount >= ANON_LIMIT) {
         return new Response(
-          JSON.stringify({
-            error: "rate_limited",
-            message: "Sign up free to keep going — 30-day trial, no credit card.",
-          }),
+          JSON.stringify({ error: "rate_limited", message: "Please sign up for unlimited access." }),
           { status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" } }
         );
       }
-
-      // Increment both buckets (so future requests see the new totals)
-      const upserts: Promise<unknown>[] = [
-        supabase.from("rate_limits_anonymous").upsert({
-          key: ipKey, count: ipCount + 1, created_at: new Date().toISOString(),
-        }),
-      ];
-      if (anonId !== "none") {
-        upserts.push(supabase.from("rate_limits_anonymous").upsert({
-          key: idKey, count: idCount + 1, created_at: new Date().toISOString(),
-        }));
-      }
-      await Promise.all(upserts);
+      await supabase
+        .from("rate_limits_anonymous")
+        .upsert({ key: windowKey, count: currentCount + 1, created_at: new Date().toISOString() });
     }
 
     // ── Crisis detection ──
@@ -526,15 +494,6 @@ serve(async (req) => {
 
           // ── Post-processing ──
           const responseText = fullText.trim();
-
-          // ── Circuit breaker: detect empty / truncated AI generation ──
-          // Streamed responses can't be aborted mid-flight, but we log obvious
-          // failures so admins can see them in response_flags. The user already
-          // saw the (empty) stream; the client can decide to surface a retry.
-          if (responseText.length < 50) {
-            console.error("seek-wisdom: response too short, likely generation failure", { length: responseText.length });
-          }
-
           const scriptureBlocks: { reference: string; text: string }[] = [];
           const scriptureRegex = /\[SCRIPTURE\]\s*\nreference:\s*(.+)\ntext:\s*(.+)\n\[\/SCRIPTURE\]/g;
           let match;
@@ -544,44 +503,6 @@ serve(async (req) => {
           const scriptures = scriptureBlocks.map((s) => s.reference);
 
           const sessionId = await logSession(supabase, userId, question, responseText, scriptures);
-
-          // ── Scripture hallucination check ──
-          // Validate that every cited reference uses a real canonical book name.
-          // We don't block the response (it already streamed) — we flag for review.
-          if (sessionId) {
-            const KNOWN_BIBLE_BOOKS = new Set([
-              "Genesis","Exodus","Leviticus","Numbers","Deuteronomy","Joshua","Judges","Ruth",
-              "1 Samuel","2 Samuel","1 Kings","2 Kings","1 Chronicles","2 Chronicles",
-              "Ezra","Nehemiah","Esther","Job","Psalm","Psalms","Proverbs","Ecclesiastes",
-              "Song of Solomon","Song of Songs","Isaiah","Jeremiah","Lamentations",
-              "Ezekiel","Daniel","Hosea","Joel","Amos","Obadiah","Jonah","Micah",
-              "Nahum","Habakkuk","Zephaniah","Haggai","Zechariah","Malachi",
-              "Matthew","Mark","Luke","John","Acts","Romans","1 Corinthians","2 Corinthians",
-              "Galatians","Ephesians","Philippians","Colossians","1 Thessalonians","2 Thessalonians",
-              "1 Timothy","2 Timothy","Titus","Philemon","Hebrews","James",
-              "1 Peter","2 Peter","1 John","2 John","3 John","Jude","Revelation",
-            ]);
-            for (const ref of scriptures) {
-              const bookName = ref.replace(/\s+\d.*$/, "").trim();
-              if (bookName && !KNOWN_BIBLE_BOOKS.has(bookName)) {
-                console.warn("Possible hallucinated scripture reference:", ref);
-                // Only log to response_flags for authenticated sessions —
-                // the table requires user_id NOT NULL.
-                if (userId) {
-                  try {
-                    await supabase.from("response_flags").insert({
-                      session_id: sessionId,
-                      user_id: userId,
-                      flag_type: "possible_hallucinated_scripture",
-                      flag_notes: `Cited reference: ${ref}`,
-                    });
-                  } catch (e) {
-                    console.error("Failed to log hallucination flag:", e);
-                  }
-                }
-              }
-            }
-          }
 
           // Update crisis_log with session_id
           if (crisisResult.detected && crisisResult.keyword && sessionId) {
