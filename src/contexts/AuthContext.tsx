@@ -174,6 +174,22 @@ export function AuthProvider({ children }: { children: ReactNode }) {
                 });
               }
             }
+            // Fire trial_started once per user — uses trial_nudge_sent jsonb as the persistent flag.
+            (async () => {
+              const { data: p } = await supabase
+                .from('profiles')
+                .select('plan, trial_nudge_sent')
+                .eq('user_id', u.id)
+                .single();
+              const nudge = (p?.trial_nudge_sent as Record<string, unknown>) ?? {};
+              if (p?.plan === 'trial' && !nudge.trial_started_tracked) {
+                trackEvent('trial_started', { screen: 'onboarding', userId: u.id });
+                await supabase
+                  .from('profiles')
+                  .update({ trial_nudge_sent: { ...nudge, trial_started_tracked: true } as never })
+                  .eq('user_id', u.id);
+              }
+            })();
             // Check if Google OAuth user needs age gate
             const isGoogleUser = u.app_metadata?.provider === "google";
             if (isGoogleUser) {
