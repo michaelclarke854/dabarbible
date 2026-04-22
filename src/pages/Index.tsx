@@ -548,7 +548,7 @@ const Index = () => {
                 Start your 30-day free trial — unlimited questions, full responses, journal access.
               </p>
               <button
-                onClick={() => setAuthModal({ open: true, message: "Start your 30-day free trial — unlimited questions, full responses, journal access." })}
+                onClick={() => openAuthModal('soft_gate_cta', "Start your 30-day free trial — unlimited questions, full responses, journal access.")}
                 className="w-full font-serif text-sm tracking-widest uppercase py-3 bg-gold text-primary-foreground rounded-sm hover:bg-gold-dark transition-all mb-2"
               >
                 Start free trial
@@ -556,7 +556,7 @@ const Index = () => {
               <p className="text-xs font-body text-muted-foreground">
                 Already have an account?{" "}
                 <button
-                  onClick={() => setAuthModal({ open: true })}
+                  onClick={() => openAuthModal('soft_gate_signin')}
                   className="text-gold hover:underline"
                 >
                   Sign in
