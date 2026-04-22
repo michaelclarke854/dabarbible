@@ -349,8 +349,20 @@ const Index = () => {
 
         if (!user) {
           incrementGuestQuestions();
-          if (isGuestAtLimit || getGuestQuestionsUsed() >= GUEST_LIMIT) {
+          const newCount = getGuestQuestionsUsed();
+          trackEvent('response_viewed', {
+            screen: 'response',
+            metadata: { is_guest: true, guest_question_number: newCount },
+            userId: null,
+          });
+          if (isGuestAtLimit || newCount >= GUEST_LIMIT) {
             setShowSoftGate(true);
+            const eventName = newCount > GUEST_LIMIT ? 'blur_gate_shown' : 'soft_gate_shown';
+            trackEvent(eventName, {
+              screen: 'response',
+              metadata: { guest_question_number: newCount },
+              userId: null,
+            });
           }
         } else {
           await incrementDailyUsage();
