@@ -92,6 +92,16 @@ const Index = () => {
   // Soft gate state for guest limit
   const [showSoftGate, setShowSoftGate] = useState(false);
 
+  // Centralized AuthModal opener — fires analytics in one place
+  const openAuthModal = useCallback((trigger: string, message?: string) => {
+    trackEvent('auth_modal_opened', {
+      screen: 'auth_modal',
+      metadata: { trigger },
+      userId: null,
+    });
+    setAuthModal({ open: true, message });
+  }, []);
+
   // Downgrade loading
   const [downgradeLoading, setDowngradeLoading] = useState(false);
 
