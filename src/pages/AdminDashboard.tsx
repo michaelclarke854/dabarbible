@@ -1069,29 +1069,50 @@ function TrialUtilizationTab() {
         <h3 className="font-serif text-gold text-sm uppercase tracking-widest mb-4">
           Anonymous Visitor Funnel — unique sessions, last 30 days
         </h3>
-        <div className="grid grid-cols-2 lg:grid-cols-6 gap-3">
-          {[
-            { k: "guest_question_asked", label: "Asked" },
-            { k: "response_viewed", label: "Viewed Response" },
-            { k: "soft_gate_shown", label: "Soft Gate" },
-            { k: "blur_gate_shown", label: "Blur Gate" },
-            { k: "auth_modal_opened", label: "Opened Auth" },
-            { k: "converted", label: "Signed Up" },
-          ].map(({ k, label }) => {
-            const value = (anonFunnel as any)[k] ?? 0;
-            const top = anonFunnel.guest_question_asked || 1;
-            const pct = Math.round((value / top) * 100);
-            return (
-              <div key={k} className="bg-card border border-border rounded-sm p-4">
-                <p className="text-muted-foreground text-xs uppercase tracking-widest font-body">{label}</p>
-                <p className="text-2xl font-serif text-foreground mt-2">{value}</p>
-                {k !== "guest_question_asked" && (
-                  <p className="text-[10px] font-body text-muted-foreground mt-1">{pct}% of asked</p>
-                )}
-              </div>
-            );
-          })}
-        </div>
+        {(() => {
+          const gateAny = Math.max(anonFunnel.soft_gate_shown, anonFunnel.blur_gate_shown);
+          const steps = [
+            { label: "Guest questions asked", value: anonFunnel.guest_question_asked },
+            { label: "Response viewed", value: anonFunnel.response_viewed },
+            { label: "Gate shown (any)", value: gateAny },
+            { label: "Auth modal opened", value: anonFunnel.auth_modal_opened },
+            { label: "Signed up", value: anonFunnel.converted, isConversion: true },
+          ];
+          return (
+            <div className="bg-card border border-border rounded-sm divide-y divide-border">
+              {steps.map((s, i) => {
+                const prev = i > 0 ? steps[i - 1].value : null;
+                const drop = prev && prev > 0
+                  ? Math.round(((prev - s.value) / prev) * 100)
+                  : null;
+                const conversion = s.isConversion && steps[0].value > 0
+                  ? Math.round((s.value / steps[0].value) * 100)
+                  : null;
+                return (
+                  <div key={s.label} className="flex items-center justify-between px-5 py-4">
+                    <p className="font-body text-sm text-foreground">{s.label}</p>
+                    <div className="flex items-center gap-6">
+                      <span className="font-serif text-xl text-foreground tabular-nums w-16 text-right">
+                        {s.value}
+                      </span>
+                      <span className="text-xs text-muted-foreground font-body w-24 text-right">
+                        {s.isConversion && conversion !== null ? (
+                          <span className="text-gold">{conversion}% conversion</span>
+                        ) : drop !== null ? (
+                          <span className={drop > 50 ? "text-amber-500" : "text-muted-foreground"}>
+                            -{drop}%
+                          </span>
+                        ) : (
+                          "—"
+                        )}
+                      </span>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          );
+        })()}
       </div>
 
       <div className="flex items-center justify-between gap-3">
