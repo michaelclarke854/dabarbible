@@ -293,10 +293,7 @@ const Index = () => {
           }
           if (err.error === "rate_limited" || response.status === 429) {
             if (!user) {
-              setAuthModal({
-                open: true,
-                message: "You've reached the free limit. Sign up for a 30-day free trial with unlimited questions.",
-              });
+              openAuthModal('rate_limited', "You've reached the free limit. Sign up for a 30-day free trial with unlimited questions.");
             } else {
               toast.error(err.error || "You've asked many questions recently. Please wait a while.");
             }
