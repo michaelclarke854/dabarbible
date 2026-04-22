@@ -385,8 +385,6 @@ const Index = () => {
     if (!user) {
       openAuthModal('reflect_save', "Create a free account to save this reflection — 30 days free, no card needed.");
       return;
-      });
-      return;
     }
     if (!hasFullAccess) {
       toast("Journal requires a Personal plan or above.", {
