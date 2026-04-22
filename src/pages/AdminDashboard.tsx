@@ -840,6 +840,14 @@ function TrialUtilizationTab() {
     upgrade_click: 0,
     checkout_start: 0,
   });
+  const [anonFunnel, setAnonFunnel] = useState({
+    guest_question_asked: 0,
+    response_viewed: 0,
+    soft_gate_shown: 0,
+    blur_gate_shown: 0,
+    auth_modal_opened: 0,
+    converted: 0,
+  });
   const [loading, setLoading] = useState(true);
   const [scope, setScope] = useState<"active" | "all">("active");
 
@@ -954,6 +962,45 @@ function TrialUtilizationTab() {
       });
       setFunnel(counts as any);
 
+      // Anonymous visitor funnel — unique anon_session_id per step
+      const { data: anonEvents } = await supabase
+        .from("funnel_events")
+        .select("event_name, anon_session_id")
+        .is("user_id", null)
+        .not("anon_session_id", "is", null)
+        .gte("created_at", since)
+        .limit(10000);
+
+      const sessionsByStep: Record<string, Set<string>> = {
+        guest_question_asked: new Set(),
+        response_viewed: new Set(),
+        soft_gate_shown: new Set(),
+        blur_gate_shown: new Set(),
+        auth_modal_opened: new Set(),
+      };
+      (anonEvents || []).forEach((e: any) => {
+        if (sessionsByStep[e.event_name] && e.anon_session_id) {
+          sessionsByStep[e.event_name].add(e.anon_session_id);
+        }
+      });
+
+      const { data: signupEvents } = await supabase
+        .from("funnel_events")
+        .select("anon_session_id")
+        .eq("event_name", "signup_completed")
+        .not("anon_session_id", "is", null)
+        .gte("created_at", since);
+      const convertedSessions = new Set((signupEvents || []).map((e: any) => e.anon_session_id));
+
+      setAnonFunnel({
+        guest_question_asked: sessionsByStep.guest_question_asked.size,
+        response_viewed: sessionsByStep.response_viewed.size,
+        soft_gate_shown: sessionsByStep.soft_gate_shown.size,
+        blur_gate_shown: sessionsByStep.blur_gate_shown.size,
+        auth_modal_opened: sessionsByStep.auth_modal_opened.size,
+        converted: convertedSessions.size,
+      });
+
       setLoading(false);
     })();
   }, [scope]);
@@ -1015,6 +1062,35 @@ function TrialUtilizationTab() {
               </p>
             </div>
           ))}
+        </div>
+      </div>
+
+      <div>
+        <h3 className="font-serif text-gold text-sm uppercase tracking-widest mb-4">
+          Anonymous Visitor Funnel — unique sessions, last 30 days
+        </h3>
+        <div className="grid grid-cols-2 lg:grid-cols-6 gap-3">
+          {[
+            { k: "guest_question_asked", label: "Asked" },
+            { k: "response_viewed", label: "Viewed Response" },
+            { k: "soft_gate_shown", label: "Soft Gate" },
+            { k: "blur_gate_shown", label: "Blur Gate" },
+            { k: "auth_modal_opened", label: "Opened Auth" },
+            { k: "converted", label: "Signed Up" },
+          ].map(({ k, label }) => {
+            const value = (anonFunnel as any)[k] ?? 0;
+            const top = anonFunnel.guest_question_asked || 1;
+            const pct = Math.round((value / top) * 100);
+            return (
+              <div key={k} className="bg-card border border-border rounded-sm p-4">
+                <p className="text-muted-foreground text-xs uppercase tracking-widest font-body">{label}</p>
+                <p className="text-2xl font-serif text-foreground mt-2">{value}</p>
+                {k !== "guest_question_asked" && (
+                  <p className="text-[10px] font-body text-muted-foreground mt-1">{pct}% of asked</p>
+                )}
+              </div>
+            );
+          })}
         </div>
       </div>
 
