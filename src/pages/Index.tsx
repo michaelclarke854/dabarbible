@@ -209,6 +209,15 @@ const Index = () => {
     async (question: string) => {
       const isGuestAtLimit = !user && getGuestQuestionsUsed() >= GUEST_LIMIT;
 
+      if (!user) {
+        const guestCount = getGuestQuestionsUsed();
+        trackEvent('guest_question_asked', {
+          screen: 'ask',
+          metadata: { guest_question_number: guestCount + 1 },
+          userId: null,
+        });
+      }
+
       if (user) {
         const canAsk = await checkDailyLimit();
         if (!canAsk) return;
