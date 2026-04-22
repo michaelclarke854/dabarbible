@@ -1,6 +1,7 @@
 import { createContext, useContext, useState, useEffect, useCallback, useRef, ReactNode } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import type { User } from "@supabase/supabase-js";
+import { trackEvent } from "@/lib/trackEvent";
 
 export type UserRole =
   | "super_admin" | "admin" | "beta" | "free" | "personal"
@@ -94,6 +95,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [pendingCheckin, setPendingCheckin] = useState(false);
 
   const isFetchingRef = useRef(false);
+  // Track which user IDs we've already fired signup_completed for (per session)
+  const signupTrackedRef = useRef<Set<string>>(new Set());
 
   const fetchProfile = useCallback(async (userId: string) => {
     if (isFetchingRef.current) return;
@@ -157,6 +160,20 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           setEmailUnconfirmed(false);
           setNeedsAgeGate(false);
           fetchProfile(u.id).then(() => {
+            // Fire signup_completed once per new account.
+            // Heuristic: user.created_at within 5 minutes of now → first session.
+            if (!signupTrackedRef.current.has(u.id)) {
+              signupTrackedRef.current.add(u.id);
+              const createdAt = u.created_at ? new Date(u.created_at).getTime() : 0;
+              const isNewSignup = createdAt && (Date.now() - createdAt) < 5 * 60 * 1000;
+              if (isNewSignup) {
+                trackEvent('signup_completed', {
+                  screen: 'auth',
+                  metadata: { method: u.app_metadata?.provider ?? 'email' },
+                  userId: u.id,
+                });
+              }
+            }
             // Check if Google OAuth user needs age gate
             const isGoogleUser = u.app_metadata?.provider === "google";
             if (isGoogleUser) {
