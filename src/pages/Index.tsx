@@ -18,6 +18,7 @@ import EmailConfirmationPending from "@/components/EmailConfirmationPending";
 import AgeGateScreen from "@/components/AgeGateScreen";
 import { parseScriptureRef } from "@/data/kjvBooks";
 import { useAuth } from "@/contexts/AuthContext";
+import { trackEvent } from "@/lib/trackEvent";
 
 const JournalScreen = lazy(() => import("@/components/JournalScreen"));
 const ScriptureScreen = lazy(() => import("@/components/ScriptureScreen"));
@@ -440,9 +441,17 @@ const Index = () => {
     }
     setTab(newTab);
     if (newTab === "ask") setScreen("ask");
+    trackEvent("page_view", { screen: newTab, userId: user?.id ?? null });
   };
 
-  const handleUpgrade = () => navigate("/pricing");
+  const handleUpgrade = () => {
+    trackEvent("upgrade_click", {
+      screen: "in_app",
+      metadata: { plan: plan, on_trial: trial.isOnTrial, days_left: trial.daysLeft },
+      userId: user?.id ?? null,
+    });
+    navigate("/pricing");
+  };
 
   const handleDowngradeToFree = async () => {
     if (!user) return;
@@ -479,6 +488,7 @@ const Index = () => {
 
   // Trial paywall: show if trial expired and still on trial plan
   if (user && trial.trialExpired) {
+    trackEvent("paywall_view", { screen: "trial_paywall", userId: user.id });
     return (
       <TrialPaywall
         questionCount={trialQuestionCount}

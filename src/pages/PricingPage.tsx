@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
@@ -6,6 +6,7 @@ import BillingConfirmModal from "@/components/BillingConfirmModal";
 import { useLocalizedPrice } from "@/hooks/useLocalizedPrice";
 import { useAuth } from "@/contexts/AuthContext";
 import { Skeleton } from "@/components/ui/skeleton";
+import { trackEvent } from "@/lib/trackEvent";
 
 const ALLOWED_CURRENCIES = [
   "usd", "gbp", "eur", "aud", "cad", "nzd", "ngn", "ghs", "kes", "zar", "tzs",
@@ -70,7 +71,7 @@ const formatTrialDate = (iso: string) =>
 const PricingPage = () => {
   const navigate = useNavigate();
   const { formatPrice, currency, canOverride, loading: priceLoading, saveCurrencyPreference } = useLocalizedPrice();
-  const { trial, plan } = useAuth();
+  const { trial, plan, user } = useAuth();
   const [loadingPlan, setLoadingPlan] = useState<string | null>(null);
   const [showAnnual, setShowAnnual] = useState<Record<string, boolean>>({});
   const [confirmPlan, setConfirmPlan] = useState<{ key: string; displayPrice: string } | null>(null);
@@ -79,11 +80,24 @@ const PricingPage = () => {
 
   const isPaid = plan !== "free" && plan !== "trial";
 
+  useEffect(() => {
+    trackEvent("pricing_view", {
+      screen: "pricing",
+      metadata: { plan, on_trial: trial.isOnTrial },
+      userId: user?.id ?? null,
+    });
+  }, [plan, trial.isOnTrial, user?.id]);
+
   const handleCheckout = async (planKey: string) => {
     if (planKey === "free") {
       navigate("/");
       return;
     }
+    trackEvent("checkout_start", {
+      screen: "pricing",
+      metadata: { plan: planKey, cycle: showAnnual[planKey] ? "annual" : "monthly" },
+      userId: user?.id ?? null,
+    });
 
     const { data: { session } } = await supabase.auth.getSession();
     if (!session) {
