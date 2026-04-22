@@ -23,11 +23,11 @@ export function trackEvent(
         userId = data.user?.id ?? null;
       }
       await supabase.from('funnel_events').insert({
-        user_id: userId ?? null,
+        user_id: userId ?? undefined,
         anon_session_id: anonSessionId,
         event_name: eventName,
-        screen: opts?.screen ?? null,
-        metadata: opts?.metadata ?? null,
+        screen: opts?.screen ?? undefined,
+        metadata: (opts?.metadata as never) ?? undefined,
       });
     } catch {
       // never let tracking break the UI
