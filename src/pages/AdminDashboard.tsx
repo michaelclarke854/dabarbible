@@ -9,12 +9,12 @@ import {
 import {
   LayoutDashboard, Users, CreditCard, MessageSquare,
   Flag, AlertTriangle, FileText, Settings, LogOut,
-  Activity, Server, ChevronDown, ChevronRight, Cpu,
+  Activity, Server, ChevronDown, ChevronRight, Cpu, Sparkles,
 } from "lucide-react";
 
 type AdminTab =
   | "agent-health" | "ai-gateway" | "wisdom-health" | "stripe-health"
-  | "dashboard" | "users" | "subscriptions" | "monitor"
+  | "dashboard" | "users" | "subscriptions" | "trial-utilization" | "monitor"
   | "flagged" | "crisis" | "prompts" | "settings";
 
 const tabs: { id: AdminTab; label: string; icon: typeof LayoutDashboard }[] = [
@@ -25,6 +25,7 @@ const tabs: { id: AdminTab; label: string; icon: typeof LayoutDashboard }[] = [
   { id: "dashboard", label: "Overview", icon: LayoutDashboard },
   { id: "users", label: "Users", icon: Users },
   { id: "subscriptions", label: "Subscriptions", icon: CreditCard },
+  { id: "trial-utilization", label: "Trial Utilization", icon: Sparkles },
   { id: "monitor", label: "Response Monitor", icon: MessageSquare },
   { id: "flagged", label: "Flagged", icon: Flag },
   { id: "crisis", label: "Crisis Log", icon: AlertTriangle },
