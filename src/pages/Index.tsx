@@ -92,6 +92,16 @@ const Index = () => {
   // Soft gate state for guest limit
   const [showSoftGate, setShowSoftGate] = useState(false);
 
+  // Centralized AuthModal opener — fires analytics in one place
+  const openAuthModal = useCallback((trigger: string, message?: string) => {
+    trackEvent('auth_modal_opened', {
+      screen: 'auth_modal',
+      metadata: { trigger },
+      userId: null,
+    });
+    setAuthModal({ open: true, message });
+  }, []);
+
   // Downgrade loading
   const [downgradeLoading, setDowngradeLoading] = useState(false);
 
@@ -199,6 +209,15 @@ const Index = () => {
     async (question: string) => {
       const isGuestAtLimit = !user && getGuestQuestionsUsed() >= GUEST_LIMIT;
 
+      if (!user) {
+        const guestCount = getGuestQuestionsUsed();
+        trackEvent('guest_question_asked', {
+          screen: 'ask',
+          metadata: { guest_question_number: guestCount + 1 },
+          userId: null,
+        });
+      }
+
       if (user) {
         const canAsk = await checkDailyLimit();
         if (!canAsk) return;
@@ -274,10 +293,7 @@ const Index = () => {
           }
           if (err.error === "rate_limited" || response.status === 429) {
             if (!user) {
-              setAuthModal({
-                open: true,
-                message: "You've reached the free limit. Sign up for a 30-day free trial with unlimited questions.",
-              });
+              openAuthModal('rate_limited', "You've reached the free limit. Sign up for a 30-day free trial with unlimited questions.");
             } else {
               toast.error(err.error || "You've asked many questions recently. Please wait a while.");
             }
@@ -330,8 +346,20 @@ const Index = () => {
 
         if (!user) {
           incrementGuestQuestions();
-          if (isGuestAtLimit || getGuestQuestionsUsed() >= GUEST_LIMIT) {
+          const newCount = getGuestQuestionsUsed();
+          trackEvent('response_viewed', {
+            screen: 'response',
+            metadata: { is_guest: true, guest_question_number: newCount },
+            userId: null,
+          });
+          if (isGuestAtLimit || newCount >= GUEST_LIMIT) {
             setShowSoftGate(true);
+            const eventName = newCount > GUEST_LIMIT ? 'blur_gate_shown' : 'soft_gate_shown';
+            trackEvent(eventName, {
+              screen: 'response',
+              metadata: { guest_question_number: newCount },
+              userId: null,
+            });
           }
         } else {
           await incrementDailyUsage();
@@ -355,10 +383,7 @@ const Index = () => {
 
   const reflectOnThis = useCallback(async () => {
     if (!user) {
-      setAuthModal({
-        open: true,
-        message: "Create a free account to save this reflection — 30 days free, no card needed.",
-      });
+      openAuthModal('reflect_save', "Create a free account to save this reflection — 30 days free, no card needed.");
       return;
     }
     if (!hasFullAccess) {
@@ -416,11 +441,11 @@ const Index = () => {
       return;
     }
     if (newTab === "scripture" && !user) {
-      setAuthModal({ open: true, message: "Create a free account to access the full Scripture companion — 30 days free, no card needed." });
+      openAuthModal('nav_scripture', "Create a free account to access the full Scripture companion — 30 days free, no card needed.");
       return;
     }
     if (newTab === "history" && !user) {
-      setAuthModal({ open: true, message: "Create a free account to view your history — 30 days free, no card needed." });
+      openAuthModal('nav_history', "Create a free account to view your history — 30 days free, no card needed.");
       return;
     }
     if (newTab === "history" && !hasFullAccess) {
@@ -430,7 +455,7 @@ const Index = () => {
       return;
     }
     if (newTab === "journal" && !user) {
-      setAuthModal({ open: true, message: "Create a free account to keep your journal — 30 days free, no card needed." });
+      openAuthModal('nav_journal', "Create a free account to keep your journal — 30 days free, no card needed.");
       return;
     }
     if (newTab === "journal" && !hasFullAccess) {
@@ -523,7 +548,7 @@ const Index = () => {
                 Start your 30-day free trial — unlimited questions, full responses, journal access.
               </p>
               <button
-                onClick={() => setAuthModal({ open: true, message: "Start your 30-day free trial — unlimited questions, full responses, journal access." })}
+                onClick={() => openAuthModal('soft_gate_cta', "Start your 30-day free trial — unlimited questions, full responses, journal access.")}
                 className="w-full font-serif text-sm tracking-widest uppercase py-3 bg-gold text-primary-foreground rounded-sm hover:bg-gold-dark transition-all mb-2"
               >
                 Start free trial
@@ -531,7 +556,7 @@ const Index = () => {
               <p className="text-xs font-body text-muted-foreground">
                 Already have an account?{" "}
                 <button
-                  onClick={() => setAuthModal({ open: true })}
+                  onClick={() => openAuthModal('soft_gate_signin')}
                   className="text-gold hover:underline"
                 >
                   Sign in
