@@ -1065,6 +1065,35 @@ function TrialUtilizationTab() {
         </div>
       </div>
 
+      <div>
+        <h3 className="font-serif text-gold text-sm uppercase tracking-widest mb-4">
+          Anonymous Visitor Funnel — unique sessions, last 30 days
+        </h3>
+        <div className="grid grid-cols-2 lg:grid-cols-6 gap-3">
+          {[
+            { k: "guest_question_asked", label: "Asked" },
+            { k: "response_viewed", label: "Viewed Response" },
+            { k: "soft_gate_shown", label: "Soft Gate" },
+            { k: "blur_gate_shown", label: "Blur Gate" },
+            { k: "auth_modal_opened", label: "Opened Auth" },
+            { k: "converted", label: "Signed Up" },
+          ].map(({ k, label }) => {
+            const value = (anonFunnel as any)[k] ?? 0;
+            const top = anonFunnel.guest_question_asked || 1;
+            const pct = Math.round((value / top) * 100);
+            return (
+              <div key={k} className="bg-card border border-border rounded-sm p-4">
+                <p className="text-muted-foreground text-xs uppercase tracking-widest font-body">{label}</p>
+                <p className="text-2xl font-serif text-foreground mt-2">{value}</p>
+                {k !== "guest_question_asked" && (
+                  <p className="text-[10px] font-body text-muted-foreground mt-1">{pct}% of asked</p>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      </div>
+
       <div className="flex items-center justify-between gap-3">
         <div className="flex gap-2">
           <button
