@@ -455,7 +455,7 @@ const Index = () => {
       return;
     }
     if (newTab === "journal" && !user) {
-      setAuthModal({ open: true, message: "Create a free account to keep your journal — 30 days free, no card needed." });
+      openAuthModal('nav_journal', "Create a free account to keep your journal — 30 days free, no card needed.");
       return;
     }
     if (newTab === "journal" && !hasFullAccess) {
