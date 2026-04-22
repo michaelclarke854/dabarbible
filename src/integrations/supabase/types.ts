@@ -257,6 +257,7 @@ export type Database = {
       }
       funnel_events: {
         Row: {
+          anon_session_id: string | null
           created_at: string
           event_name: string
           id: string
@@ -265,6 +266,7 @@ export type Database = {
           user_id: string | null
         }
         Insert: {
+          anon_session_id?: string | null
           created_at?: string
           event_name: string
           id?: string
@@ -273,6 +275,7 @@ export type Database = {
           user_id?: string | null
         }
         Update: {
+          anon_session_id?: string | null
           created_at?: string
           event_name?: string
           id?: string
