@@ -1,3 +1,6 @@
+import { useEffect } from "react";
+import { trackEvent } from "@/lib/trackEvent";
+
 interface TrialInterstitialProps {
   daysLeft: number;
   questionCount: number;
@@ -6,7 +9,15 @@ interface TrialInterstitialProps {
   onDismiss: () => void;
 }
 
-const TrialInterstitial = ({ daysLeft, questionCount, topTheme, onUpgrade, onDismiss }: TrialInterstitialProps) => (
+const TrialInterstitial = ({ daysLeft, questionCount, topTheme, onUpgrade, onDismiss }: TrialInterstitialProps) => {
+  useEffect(() => {
+    trackEvent("trial_interstitial_view", {
+      screen: "trial_interstitial",
+      metadata: { days_left: daysLeft, question_count: questionCount },
+    });
+  }, [daysLeft, questionCount]);
+
+  return (
   <div className="fixed inset-0 z-50 flex items-center justify-center bg-[#12100A]/90 backdrop-blur-sm px-6">
     <div className="bg-card rounded-sm shadow-xl max-w-sm w-full p-8 border border-border text-center">
       <h2 className="font-serif text-3xl text-gold tracking-[0.15em] mb-2">DABAR</h2>
@@ -30,7 +41,10 @@ const TrialInterstitial = ({ daysLeft, questionCount, topTheme, onUpgrade, onDis
       </p>
 
       <button
-        onClick={onUpgrade}
+        onClick={() => {
+          trackEvent("upgrade_click", { screen: "trial_interstitial", metadata: { days_left: daysLeft } });
+          onUpgrade();
+        }}
         className="w-full font-serif tracking-widest text-sm uppercase py-3 bg-gold text-primary-foreground rounded-sm transition-all hover:bg-gold-dark mb-3"
       >
         Continue my practice — $6.99/mo
@@ -43,6 +57,7 @@ const TrialInterstitial = ({ daysLeft, questionCount, topTheme, onUpgrade, onDis
       </button>
     </div>
   </div>
-);
+  );
+};
 
 export default TrialInterstitial;

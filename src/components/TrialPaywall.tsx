@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { useLocalizedPrice } from "@/hooks/useLocalizedPrice";
+import { trackEvent } from "@/lib/trackEvent";
 
 interface TrialPaywallProps {
   questionCount: number;
@@ -64,13 +65,19 @@ const TrialPaywall = ({ questionCount, onUpgrade, onFreePlan }: TrialPaywallProp
       </p>
 
       <button
-        onClick={onUpgrade}
+        onClick={() => {
+          trackEvent("upgrade_click", { screen: "trial_paywall", metadata: { question_count: questionCount } });
+          onUpgrade();
+        }}
         className="w-full max-w-xs font-serif tracking-widest text-sm uppercase py-4 bg-gold text-primary-foreground rounded-sm transition-all hover:bg-gold-dark animate-golden-pulse mb-3"
       >
         Continue my practice
       </button>
       <button
-        onClick={handleFree}
+        onClick={() => {
+          trackEvent("downgrade_to_free_click", { screen: "trial_paywall" });
+          handleFree();
+        }}
         disabled={downgrading}
         className="font-body text-xs text-muted-foreground hover:text-foreground transition-colors py-2 disabled:opacity-50"
       >
