@@ -383,9 +383,8 @@ const Index = () => {
 
   const reflectOnThis = useCallback(async () => {
     if (!user) {
-      setAuthModal({
-        open: true,
-        message: "Create a free account to save this reflection — 30 days free, no card needed.",
+      openAuthModal('reflect_save', "Create a free account to save this reflection — 30 days free, no card needed.");
+      return;
       });
       return;
     }
