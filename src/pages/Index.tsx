@@ -441,11 +441,11 @@ const Index = () => {
       return;
     }
     if (newTab === "scripture" && !user) {
-      setAuthModal({ open: true, message: "Create a free account to access the full Scripture companion — 30 days free, no card needed." });
+      openAuthModal('nav_scripture', "Create a free account to access the full Scripture companion — 30 days free, no card needed.");
       return;
     }
     if (newTab === "history" && !user) {
-      setAuthModal({ open: true, message: "Create a free account to view your history — 30 days free, no card needed." });
+      openAuthModal('nav_history', "Create a free account to view your history — 30 days free, no card needed.");
       return;
     }
     if (newTab === "history" && !hasFullAccess) {
