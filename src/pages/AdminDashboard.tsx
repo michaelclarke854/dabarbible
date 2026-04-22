@@ -828,6 +828,279 @@ function PromptsTab() {
   );
 }
 
+// ═══════════════════════════════════════════
+// SECTION 7 — TRIAL UTILIZATION
+// ═══════════════════════════════════════════
+function TrialUtilizationTab() {
+  const [rows, setRows] = useState<any[]>([]);
+  const [funnel, setFunnel] = useState({
+    pricing_view: 0,
+    paywall_view: 0,
+    trial_interstitial_view: 0,
+    upgrade_click: 0,
+    checkout_start: 0,
+  });
+  const [loading, setLoading] = useState(true);
+  const [scope, setScope] = useState<"active" | "all">("active");
+
+  useEffect(() => {
+    (async () => {
+      setLoading(true);
+
+      // Pull trial profiles
+      let q = supabase
+        .from("profiles")
+        .select("user_id, plan, trial_started_at, trial_ends_at, trial_converted, trial_nudge_sent")
+        .not("trial_started_at", "is", null)
+        .order("trial_started_at", { ascending: false })
+        .limit(200);
+      if (scope === "active") q = q.eq("plan", "trial");
+      const { data: profiles } = await q;
+      const trialProfiles = profiles || [];
+      const userIds = trialProfiles.map(p => p.user_id);
+
+      if (userIds.length === 0) {
+        setRows([]);
+        setLoading(false);
+        return;
+      }
+
+      // Aggregate per-user metrics in parallel
+      const [usageRes, sessionsRes, reflectionsRes, versesRes, patternsRes] = await Promise.all([
+        supabase.from("usage_daily").select("user_id, date, question_count").in("user_id", userIds),
+        supabase.from("wisdom_sessions").select("user_id, created_at").in("user_id", userIds),
+        supabase.from("reflection_entries").select("user_id").in("user_id", userIds).is("deleted_at", null),
+        supabase.from("saved_verses").select("user_id").in("user_id", userIds),
+        supabase.from("user_patterns").select("user_id, theme, occurrence").in("user_id", userIds),
+      ]);
+
+      const byUser = (arr: any[] | null, key = "user_id") => {
+        const m: Record<string, any[]> = {};
+        (arr || []).forEach(r => {
+          const k = r[key];
+          if (!k) return;
+          (m[k] ||= []).push(r);
+        });
+        return m;
+      };
+
+      const usageMap = byUser(usageRes.data);
+      const sessionsMap = byUser(sessionsRes.data);
+      const reflectionsMap = byUser(reflectionsRes.data);
+      const versesMap = byUser(versesRes.data);
+      const patternsMap = byUser(patternsRes.data);
+
+      const enriched = trialProfiles.map(p => {
+        const start = p.trial_started_at ? new Date(p.trial_started_at) : null;
+        const end = p.trial_ends_at ? new Date(p.trial_ends_at) : null;
+        const usage = (usageMap[p.user_id] || []).filter(u => {
+          if (!start || !end) return true;
+          const d = new Date(u.date);
+          return d >= start && d <= end;
+        });
+        const sessions = (sessionsMap[p.user_id] || []).filter(s => {
+          if (!start || !end) return true;
+          const d = new Date(s.created_at);
+          return d >= start && d <= end;
+        });
+        const daysActive = new Set(usage.map(u => u.date)).size;
+        const totalQ = usage.reduce((sum, u) => sum + (u.question_count || 0), 0) || sessions.length;
+        const reflections = (reflectionsMap[p.user_id] || []).length;
+        const verses = (versesMap[p.user_id] || []).length;
+        const patterns = (patternsMap[p.user_id] || []).sort((a, b) => b.occurrence - a.occurrence);
+        const topTheme = patterns[0]?.theme || null;
+
+        const now = new Date();
+        const daysLeft = end ? Math.max(0, Math.ceil((end.getTime() - now.getTime()) / 86400000)) : 0;
+        const dayOfTrial = start
+          ? Math.min(30, Math.max(0, Math.floor((now.getTime() - start.getTime()) / 86400000) + 1))
+          : 0;
+
+        return {
+          user_id: p.user_id,
+          plan: p.plan,
+          trial_started_at: p.trial_started_at,
+          trial_ends_at: p.trial_ends_at,
+          trial_converted: p.trial_converted,
+          trial_nudge_sent: p.trial_nudge_sent || {},
+          days_active: daysActive,
+          total_questions: totalQ,
+          reflections,
+          verses,
+          top_theme: topTheme,
+          days_left: daysLeft,
+          day_of_trial: dayOfTrial,
+        };
+      });
+      enriched.sort((a, b) => b.total_questions - a.total_questions);
+      setRows(enriched);
+
+      // Funnel rollup over last 30 days
+      const since = daysAgo(30);
+      const { data: events } = await supabase
+        .from("funnel_events")
+        .select("event_name")
+        .gte("created_at", since)
+        .limit(5000);
+      const counts: Record<string, number> = {
+        pricing_view: 0,
+        paywall_view: 0,
+        trial_interstitial_view: 0,
+        upgrade_click: 0,
+        checkout_start: 0,
+      };
+      (events || []).forEach(e => {
+        if (counts[e.event_name] !== undefined) counts[e.event_name]++;
+      });
+      setFunnel(counts as any);
+
+      setLoading(false);
+    })();
+  }, [scope]);
+
+  const totalTrials = rows.length;
+  const activeTrials = rows.filter(r => r.plan === "trial").length;
+  const convertedTrials = rows.filter(r => r.trial_converted).length;
+  const avgDaysActive = totalTrials > 0
+    ? (rows.reduce((s, r) => s + r.days_active, 0) / totalTrials).toFixed(1)
+    : "0";
+  const avgQuestions = totalTrials > 0
+    ? (rows.reduce((s, r) => s + r.total_questions, 0) / totalTrials).toFixed(1)
+    : "0";
+  const engaged = rows.filter(r => r.days_active >= 3 && r.total_questions >= 5).length;
+
+  const exportCSV = () => {
+    const header = ["user_id", "plan", "day_of_trial", "days_left", "days_active", "total_questions", "reflections", "verses_saved", "top_theme", "converted"];
+    const lines = [header.join(",")];
+    rows.forEach(r => {
+      lines.push([
+        r.user_id, r.plan, r.day_of_trial, r.days_left, r.days_active,
+        r.total_questions, r.reflections, r.verses, JSON.stringify(r.top_theme || ""), r.trial_converted,
+      ].join(","));
+    });
+    const blob = new Blob([lines.join("\n")], { type: "text/csv" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `trial-utilization-${new Date().toISOString().slice(0, 10)}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
+  return (
+    <div className="space-y-6">
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+        <MetricCard label="Active Trials" value={activeTrials} color="amber" />
+        <MetricCard label="Engaged (≥3 days, ≥5 q)" value={engaged} color="green" />
+        <MetricCard label="Avg Days Active" value={avgDaysActive} />
+        <MetricCard label="Avg Questions / Trial" value={avgQuestions} />
+      </div>
+
+      <div>
+        <h3 className="font-serif text-gold text-sm uppercase tracking-widest mb-4">
+          Conversion Funnel — last 30 days
+        </h3>
+        <div className="grid grid-cols-2 lg:grid-cols-5 gap-3">
+          {[
+            { k: "pricing_view", label: "Pricing Views" },
+            { k: "trial_interstitial_view", label: "Day-21 Interstitial" },
+            { k: "paywall_view", label: "Paywall Views" },
+            { k: "upgrade_click", label: "Upgrade Clicks" },
+            { k: "checkout_start", label: "Checkout Starts" },
+          ].map(({ k, label }) => (
+            <div key={k} className="bg-card border border-border rounded-sm p-4">
+              <p className="text-muted-foreground text-xs uppercase tracking-widest font-body">{label}</p>
+              <p className="text-2xl font-serif text-foreground mt-2">
+                {(funnel as any)[k] ?? 0}
+              </p>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      <div className="flex items-center justify-between gap-3">
+        <div className="flex gap-2">
+          <button
+            onClick={() => setScope("active")}
+            className={`text-xs font-serif uppercase tracking-wider px-3 py-2 rounded-sm border transition-colors ${
+              scope === "active" ? "border-gold text-gold bg-gold/5" : "border-border text-muted-foreground hover:text-foreground"
+            }`}
+          >
+            Active trials
+          </button>
+          <button
+            onClick={() => setScope("all")}
+            className={`text-xs font-serif uppercase tracking-wider px-3 py-2 rounded-sm border transition-colors ${
+              scope === "all" ? "border-gold text-gold bg-gold/5" : "border-border text-muted-foreground hover:text-foreground"
+            }`}
+          >
+            All trials
+          </button>
+        </div>
+        <div className="flex items-center gap-3">
+          <span className="text-muted-foreground text-xs">{totalTrials} users · {convertedTrials} converted</span>
+          <button
+            onClick={exportCSV}
+            disabled={rows.length === 0}
+            className="text-xs font-serif uppercase tracking-wider px-3 py-2 rounded-sm border border-border text-muted-foreground hover:text-foreground disabled:opacity-30"
+          >
+            Export CSV
+          </button>
+        </div>
+      </div>
+
+      <div className="overflow-x-auto">
+        <table className="w-full text-sm">
+          <thead>
+            <tr className="border-b border-border text-muted-foreground text-xs uppercase tracking-wider">
+              <th className="text-left py-3 px-2">User</th>
+              <th className="text-left py-3 px-2">Plan</th>
+              <th className="text-left py-3 px-2">Day</th>
+              <th className="text-left py-3 px-2">Left</th>
+              <th className="text-left py-3 px-2">Days Active</th>
+              <th className="text-left py-3 px-2">Questions</th>
+              <th className="text-left py-3 px-2">Reflections</th>
+              <th className="text-left py-3 px-2">Verses</th>
+              <th className="text-left py-3 px-2">Top Theme</th>
+              <th className="text-left py-3 px-2">Nudges</th>
+            </tr>
+          </thead>
+          <tbody>
+            {loading && (
+              <tr><td colSpan={10} className="py-8 text-center text-muted-foreground text-sm italic">Loading…</td></tr>
+            )}
+            {!loading && rows.length === 0 && (
+              <tr><td colSpan={10} className="py-8 text-center text-muted-foreground text-sm italic">No trials found.</td></tr>
+            )}
+            {!loading && rows.map(r => {
+              const nudges = r.trial_nudge_sent || {};
+              const fired = ["day14", "day21", "day28"].filter(k => nudges[k]);
+              return (
+                <tr key={r.user_id} className="border-b border-border/50 hover:bg-secondary/50">
+                  <td className="py-3 px-2 text-foreground font-mono text-xs">{r.user_id.slice(0, 8)}…</td>
+                  <td className="py-3 px-2">
+                    <span className={`text-xs font-serif uppercase ${r.trial_converted ? "text-green-500" : r.plan === "trial" ? "text-amber-400" : "text-muted-foreground"}`}>
+                      {r.trial_converted ? "converted" : r.plan}
+                    </span>
+                  </td>
+                  <td className="py-3 px-2 text-muted-foreground text-xs">{r.day_of_trial}/30</td>
+                  <td className="py-3 px-2 text-muted-foreground text-xs">{r.days_left}d</td>
+                  <td className="py-3 px-2 text-foreground text-xs">{r.days_active}</td>
+                  <td className="py-3 px-2 text-foreground text-xs">{r.total_questions}</td>
+                  <td className="py-3 px-2 text-muted-foreground text-xs">{r.reflections}</td>
+                  <td className="py-3 px-2 text-muted-foreground text-xs">{r.verses}</td>
+                  <td className="py-3 px-2 text-muted-foreground text-xs italic truncate max-w-[140px]">{r.top_theme || "—"}</td>
+                  <td className="py-3 px-2 text-muted-foreground text-xs">{fired.length > 0 ? fired.join(", ") : "—"}</td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
+}
+
 function SettingsTab() {
   const [configs, setConfigs] = useState<{ key: string; value: string }[]>([]);
   const [newKey, setNewKey] = useState("");
@@ -954,6 +1227,7 @@ export default function AdminDashboard() {
     dashboard: <DashboardTab />,
     users: <UsersTab callerRole={role} onEditUser={id => setEditingUserId(id)} />,
     subscriptions: <SubscriptionsTab />,
+    "trial-utilization": <TrialUtilizationTab />,
     monitor: <MonitorTab />,
     flagged: <FlaggedTab />,
     crisis: <CrisisTab />,
