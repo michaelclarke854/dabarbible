@@ -990,6 +990,7 @@ function TrialUtilizationTab() {
 
   return (
     <div className="space-y-6">
+      <TrueEngagementCard />
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         <MetricCard label="Active Trials" value={activeTrials} color="amber" />
         <MetricCard label="Engaged (≥3 days, ≥5 q)" value={engaged} color="green" />
