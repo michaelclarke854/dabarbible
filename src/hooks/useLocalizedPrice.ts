@@ -82,6 +82,28 @@ export const useLocalizedPrice = () => {
   const formatPrice = (plan: string): string =>
     prices?.[plan]?.formatted ?? "—";
 
+  const getPriceEntry = (plan: string): PriceEntry | null =>
+    prices?.[plan] ?? null;
+
+  const ZERO_DECIMAL = new Set([
+    "jpy", "krw", "vnd", "idr", "clp", "gnf", "mga", "pyg", "rwf", "ugx", "xaf", "xof",
+  ]);
+
+  const formatAmount = (amountMinor: number, currencyCode: string): string => {
+    const cur = currencyCode.toLowerCase();
+    const isZero = ZERO_DECIMAL.has(cur);
+    const amount = isZero ? amountMinor : amountMinor / 100;
+    try {
+      return new Intl.NumberFormat(undefined, {
+        style: "currency",
+        currency: cur.toUpperCase(),
+        maximumFractionDigits: isZero ? 0 : 2,
+      }).format(amount);
+    } catch {
+      return `${amount}`;
+    }
+  };
+
   const saveCurrencyPreference = async (newCurrency: string) => {
     localStorage.setItem("dabar_preferred_currency", newCurrency);
     localStorage.removeItem(CACHE_KEY);
@@ -95,5 +117,5 @@ export const useLocalizedPrice = () => {
     await fetchPrices(true);
   };
 
-  return { formatPrice, currency, canOverride, loading, saveCurrencyPreference };
+  return { formatPrice, getPriceEntry, formatAmount, currency, canOverride, loading, saveCurrencyPreference };
 };
