@@ -142,9 +142,12 @@ const PricingPage = () => {
     if (tier.key === "free") return "Free";
     const annual = showAnnual[tier.key];
     if (annual) {
-      // Annual price = monthly price × 12 × 0.7 (~30% off). Show as /year for clarity.
-      const monthly = formatPrice(tier.planKey);
-      return `${monthly}/mo · billed annually`;
+      // Annual price = monthly price × 12 × 0.7 (~30% off).
+      const entry = (formatPrice as any); // keep type-safe access below
+      // Pull raw amount from hook by reformatting via Intl
+      const raw = (window as any).__dabar_prices?.[tier.planKey];
+      // Fallback: compute from formatted monthly if raw unavailable
+      return computeAnnualLabel(tier.planKey);
     }
     return `${formatPrice(tier.planKey)}/mo`;
   };
