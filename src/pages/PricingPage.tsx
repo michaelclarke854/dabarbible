@@ -70,7 +70,7 @@ const formatTrialDate = (iso: string) =>
 
 const PricingPage = () => {
   const navigate = useNavigate();
-  const { formatPrice, currency, canOverride, loading: priceLoading, saveCurrencyPreference } = useLocalizedPrice();
+  const { formatPrice, getPriceEntry, formatAmount, currency, canOverride, loading: priceLoading, saveCurrencyPreference } = useLocalizedPrice();
   const { trial, plan, user } = useAuth();
   const [loadingPlan, setLoadingPlan] = useState<string | null>(null);
   const [showAnnual, setShowAnnual] = useState<Record<string, boolean>>({});
@@ -142,12 +142,11 @@ const PricingPage = () => {
     if (tier.key === "free") return "Free";
     const annual = showAnnual[tier.key];
     if (annual) {
-      // Annual price = monthly price × 12 × 0.7 (~30% off).
-      const entry = (formatPrice as any); // keep type-safe access below
-      // Pull raw amount from hook by reformatting via Intl
-      const raw = (window as any).__dabar_prices?.[tier.planKey];
-      // Fallback: compute from formatted monthly if raw unavailable
-      return computeAnnualLabel(tier.planKey);
+      // Annual = monthly × 12 × 0.7 (~30% off). Show full annual total.
+      const entry = getPriceEntry(tier.planKey);
+      if (!entry) return "—";
+      const annualMinor = Math.round(entry.amount * 12 * 0.7);
+      return `${formatAmount(annualMinor, entry.currency)}/yr`;
     }
     return `${formatPrice(tier.planKey)}/mo`;
   };
