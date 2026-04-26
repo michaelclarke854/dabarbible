@@ -964,7 +964,15 @@ export type Database = {
       }
     }
     Views: {
-      [_ in never]: never
+      admin_true_engagement: {
+        Row: {
+          day: string | null
+          engaged_sessions: number | null
+          engagement_rate_pct: number | null
+          total_anon_sessions: number | null
+        }
+        Relationships: []
+      }
     }
     Functions: {
       calculate_age_group: { Args: { dob: string }; Returns: string }
