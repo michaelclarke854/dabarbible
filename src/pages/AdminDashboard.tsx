@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import UserEditDrawer from "@/components/UserEditDrawer";
+import { useTrueEngagement } from "@/hooks/useTrueEngagement";
 import {
   BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell,
 } from "recharts";
@@ -831,6 +832,86 @@ function PromptsTab() {
 // ═══════════════════════════════════════════
 // SECTION 7 — TRIAL UTILIZATION
 // ═══════════════════════════════════════════
+function TrueEngagementCard() {
+  const { data, loading, error, refresh } = useTrueEngagement();
+
+  const rate = data?.summary.rate_7d ?? 0;
+  const delta = data?.summary.delta_7d ?? null;
+  const total = data?.summary.total_7d ?? 0;
+  const engaged = data?.summary.engaged_7d ?? 0;
+
+  const rateClass =
+    rate >= 30 ? "text-emerald-500"
+    : rate >= 15 ? "text-gold"
+    : "text-red-500";
+
+  const deltaDisplay = delta === null ? "—" : `${delta >= 0 ? "+" : ""}${delta}%`;
+  const deltaClass = delta === null
+    ? "text-muted-foreground"
+    : delta >= 0 ? "text-emerald-500" : "text-red-500";
+
+  return (
+    <div className="bg-card border border-border rounded-sm p-6">
+      <div className="flex items-start justify-between mb-4">
+        <div>
+          <h3 className="font-serif text-gold text-sm uppercase tracking-widest">
+            True Engagement Rate
+          </h3>
+          <p className="text-muted-foreground text-xs mt-1 font-body">
+            Last 7 days · Anonymous sessions only
+          </p>
+        </div>
+        <button
+          onClick={refresh}
+          className="text-xs font-serif uppercase tracking-wider px-3 py-1.5 rounded-sm border border-border text-muted-foreground hover:text-foreground transition-colors"
+        >
+          Refresh
+        </button>
+      </div>
+
+      {loading && (
+        <p className="text-muted-foreground text-sm font-body py-6">Loading…</p>
+      )}
+
+      {!loading && error && (
+        <div className="py-4">
+          <p className="text-red-500 text-sm font-body mb-2">{error}</p>
+          <button
+            onClick={refresh}
+            className="text-xs font-serif uppercase tracking-wider px-3 py-1.5 rounded-sm border border-border text-foreground hover:text-gold transition-colors"
+          >
+            Retry
+          </button>
+        </div>
+      )}
+
+      {!loading && !error && data && (
+        <div className="space-y-4">
+          <div className="flex items-baseline gap-3 flex-wrap">
+            <span className={`text-5xl font-serif ${rateClass}`}>{rate}%</span>
+            <span className={`text-lg font-serif ${deltaClass}`}>{deltaDisplay}</span>
+            <span className="text-muted-foreground text-xs font-body">
+              {delta !== null ? "vs prior 7 days" : "vs prior 7 days (insufficient data)"}
+            </span>
+          </div>
+
+          <p className="text-foreground text-sm font-body">
+            <span className="font-serif text-foreground">{engaged}</span> engaged sessions
+            {" out of "}
+            <span className="font-serif text-foreground">{total}</span> total anonymous sessions
+          </p>
+
+          <p className="text-muted-foreground text-xs font-body leading-relaxed pt-2 border-t border-border">
+            <span className="text-red-500">●</span> &lt;15% — Hook or load speed issue.{"  "}
+            <span className="text-gold">●</span> 15–30% — Normal for intent-driven apps.{"  "}
+            <span className="text-emerald-500">●</span> &gt;30% — Strong intent signal.
+          </p>
+        </div>
+      )}
+    </div>
+  );
+}
+
 function TrialUtilizationTab() {
   const [rows, setRows] = useState<any[]>([]);
   const [funnel, setFunnel] = useState({
@@ -1036,6 +1117,7 @@ function TrialUtilizationTab() {
 
   return (
     <div className="space-y-6">
+      <TrueEngagementCard />
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         <MetricCard label="Active Trials" value={activeTrials} color="amber" />
         <MetricCard label="Engaged (≥3 days, ≥5 q)" value={engaged} color="green" />
