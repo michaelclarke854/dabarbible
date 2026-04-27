@@ -47,6 +47,7 @@ export default function PastorDashboard() {
     genError,
     generateMessage,
     archiveDraft,
+    rotateShareToken,
     range,
     setRange,
     refresh,
@@ -55,6 +56,8 @@ export default function PastorDashboard() {
   const [selectedTheme, setSelectedTheme] = useState<CommunityTheme | null>(null);
   const [showArchived, setShowArchived] = useState(false);
   const [copied, setCopied] = useState(false);
+  const [shareCopied, setShareCopied] = useState(false);
+  const [rotating, setRotating] = useState(false);
 
   if (isHydrating) {
     return (

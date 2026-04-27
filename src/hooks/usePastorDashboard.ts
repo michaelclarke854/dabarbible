@@ -24,6 +24,7 @@ export interface PastorDraft {
   outline: string;
   scripture_refs: string[];
   status: "draft" | "saved" | "archived";
+  share_token: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -107,6 +108,34 @@ export function usePastorDashboard() {
     [loadDrafts]
   );
 
+  const rotateShareToken = useCallback(
+    async (draftId: string): Promise<string | null> => {
+      // Generate a 48-char hex token client-side, then update.
+      // RLS only lets the pastor update their own drafts.
+      const bytes = new Uint8Array(24);
+      crypto.getRandomValues(bytes);
+      const newToken = Array.from(bytes)
+        .map((b) => b.toString(16).padStart(2, "0"))
+        .join("");
+      const { data, error } = await supabase
+        .from("pastor_message_drafts")
+        .update({ share_token: newToken })
+        .eq("id", draftId)
+        .select("share_token")
+        .single();
+      if (error || !data) return null;
+      await loadDrafts();
+      // Also refresh currentDraft if it matches
+      setCurrentDraft((prev) =>
+        prev && prev.id === draftId
+          ? { ...prev, share_token: (data as { share_token: string }).share_token }
+          : prev
+      );
+      return (data as { share_token: string }).share_token;
+    },
+    [loadDrafts]
+  );
+
   useEffect(() => {
     loadThemes(range);
     loadDrafts();
@@ -123,6 +152,7 @@ export function usePastorDashboard() {
     genError,
     generateMessage,
     archiveDraft,
+    rotateShareToken,
     range,
     setRange,
     refresh: () => {

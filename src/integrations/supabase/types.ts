@@ -387,6 +387,7 @@ export type Database = {
           pastor_id: string
           question_count: number
           scripture_refs: string[]
+          share_token: string | null
           status: string
           theme: string
           title: string
@@ -400,6 +401,7 @@ export type Database = {
           pastor_id: string
           question_count?: number
           scripture_refs?: string[]
+          share_token?: string | null
           status?: string
           theme: string
           title: string
@@ -413,6 +415,7 @@ export type Database = {
           pastor_id?: string
           question_count?: number
           scripture_refs?: string[]
+          share_token?: string | null
           status?: string
           theme?: string
           title?: string
@@ -1158,6 +1161,16 @@ export type Database = {
           id: string
           name: string
           type: string
+        }[]
+      }
+      lookup_draft_by_share_token: {
+        Args: { _share_token: string }
+        Returns: {
+          created_at: string
+          outline: string
+          scripture_refs: string[]
+          theme: string
+          title: string
         }[]
       }
       move_to_dlq: {
