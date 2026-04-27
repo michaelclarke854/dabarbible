@@ -30,6 +30,8 @@ interface AuthContextValue {
   preferredBibleVersion: string;
   isAdmin: boolean;
   isBeta: boolean;
+  isPastor: boolean;
+  pastoralCommunityId: string | null;
   hasFullAccess: boolean;
   loading: boolean;
   isHydrating: boolean;
@@ -93,6 +95,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   });
   const [needsAgeGate, setNeedsAgeGate] = useState(false);
   const [pendingCheckin, setPendingCheckin] = useState(false);
+  const [isPastor, setIsPastor] = useState(false);
+  const [pastoralCommunityId, setPastoralCommunityId] = useState<string | null>(null);
 
   const isFetchingRef = useRef(false);
   // Track which user IDs we've already fired signup_completed for (per session)
@@ -104,7 +108,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     try {
       const { data: profile } = await supabase
         .from("profiles")
-        .select("role, plan, is_suspended, age_group, language_preference, preferred_bible_version, trial_started_at, trial_ends_at, trial_converted, trial_nudge_sent, pending_checkin")
+        .select("role, plan, is_suspended, age_group, language_preference, preferred_bible_version, trial_started_at, trial_ends_at, trial_converted, trial_nudge_sent, pending_checkin, is_pastor, pastoral_community_id")
         .eq("user_id", userId)
         .single();
 
@@ -119,6 +123,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setPreferredBibleVersion((profile as any).preferred_bible_version || "KJV");
         setTrial(computeTrialState(profile));
         setPendingCheckin((profile as any).pending_checkin || false);
+        setIsPastor((profile as any).is_pastor || false);
+        setPastoralCommunityId((profile as any).pastoral_community_id || null);
       }
     } catch (error) {
       console.error("fetchProfile error:", error);
@@ -219,6 +225,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           setIsSuspended(false);
           setAgeGroup(null);
           setEmailUnconfirmed(false);
+          setIsPastor(false);
+          setPastoralCommunityId(null);
           setTrial({ isOnTrial: false, trialEndsAt: null, trialStartedAt: null, trialConverted: false, trialNudgeSent: DEFAULT_NUDGE, daysLeft: 0, trialExpired: false });
           setNeedsAgeGate(false);
           setIsHydrating(false);
@@ -260,6 +268,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     preferredBibleVersion,
     isAdmin: role === "super_admin" || role === "admin",
     isBeta: role === "beta",
+    isPastor,
+    pastoralCommunityId,
     hasFullAccess,
     loading,
     isHydrating,
