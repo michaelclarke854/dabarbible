@@ -96,19 +96,20 @@ export function LandingHero({ onAsk }: LandingHeroProps) {
         {...reveal(0.45)}
         className="dabar-glass w-full rounded-sm border border-gold/20 p-6 sm:p-8 text-left mb-10"
       >
-        <p className="font-serif text-[10px] tracking-[0.3em] uppercase text-gold/80 mb-4">
-          Example reflection
-        </p>
+        <div
+          className="mb-4"
+          style={{ height: '1px', width: '28px', background: 'rgba(196,151,58,0.4)' }}
+        />
         <p className="font-['Playfair_Display'] italic text-sm text-muted-foreground mb-5 leading-relaxed">
           "{EXAMPLE.question}"
         </p>
-        <p className="font-serif text-base sm:text-lg leading-relaxed text-foreground mb-4">
+        <p className="font-body normal-case text-base sm:text-lg leading-relaxed text-foreground mb-4">
           {EXAMPLE.mirror}
         </p>
         <p className="scripture-italic text-base sm:text-lg leading-relaxed text-foreground/90 border-l-2 border-gold/60 pl-4 py-1 my-4">
           {EXAMPLE.scripture}
         </p>
-        <p className="font-serif text-base leading-relaxed text-foreground/85">
+        <p className="font-body normal-case text-base leading-relaxed text-foreground/85">
           {EXAMPLE.bridge}
         </p>
       </motion.div>
@@ -116,6 +117,7 @@ export function LandingHero({ onAsk }: LandingHeroProps) {
       {/* CTA */}
       <motion.div {...reveal(0.6)} className="flex flex-col items-center">
         <button
+          type="button"
           onClick={handleCTA}
           className="font-serif tracking-widest text-sm uppercase px-10 py-4 bg-gold text-primary-foreground rounded-sm transition-all duration-300 enabled:animate-golden-pulse enabled:hover:bg-gold-dark"
         >
