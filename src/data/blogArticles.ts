@@ -6,7 +6,7 @@ export interface BlogArticle {
   content: string;
 }
 
-export const blogArticles: BlogArticle[] = [
+const legacyBlogArticles: BlogArticle[] = [
   {
     slug: "what-does-the-bible-say-about-anxiety",
     title: "What Does the Bible Say About Anxiety?",
@@ -925,4 +925,70 @@ We may live in an age of constant change, but some things, like the beauty and p
 
 Do you long for a deeper, more intentional interaction with God’s Word? Dabar offers the King James Version at your fingertips, inviting you to rediscover the profound resonance of these ancient, life-giving truths. Let the enduring power of the KJV inform your journey. *Download Dabar today and begin to engage with scripture in a way that nourishes your soul.*`,
   },
+];
+// ---------------------------------------------------------------------------
+// Markdown loader
+// ---------------------------------------------------------------------------
+// Posts in src/content/blog/*.md are picked up automatically. Each file should
+// include YAML-style frontmatter with `slug`, `title`, `metaDescription`,
+// `keywords`, and an optional `order` (number, lower = earlier).
+//
+// If a markdown file declares the same slug as a legacy entry above, the
+// markdown file wins.
+
+interface MarkdownArticle extends BlogArticle {
+  order: number;
+}
+
+function parseFrontmatter(raw: string): { data: Record<string, string>; body: string } {
+  const match = raw.match(/^---\r?\n([\s\S]*?)\r?\n---\r?\n?([\s\S]*)$/);
+  if (!match) return { data: {}, body: raw };
+  const data: Record<string, string> = {};
+  for (const line of match[1].split(/\r?\n/)) {
+    const m = line.match(/^([A-Za-z0-9_-]+):\s*(.*)$/);
+    if (!m) continue;
+    let value = m[2].trim();
+    if (
+      (value.startsWith('"') && value.endsWith('"')) ||
+      (value.startsWith("'") && value.endsWith("'"))
+    ) {
+      value = value.slice(1, -1);
+    }
+    data[m[1]] = value;
+  }
+  return { data, body: match[2].replace(/^\r?\n+/, "") };
+}
+
+const markdownFiles = import.meta.glob("../content/blog/*.md", {
+  query: "?raw",
+  import: "default",
+  eager: true,
+}) as Record<string, string>;
+
+const markdownArticles: MarkdownArticle[] = Object.entries(markdownFiles)
+  .filter(([path]) => !path.toLowerCase().endsWith("/readme.md"))
+  .map(([path, raw]) => {
+    const { data, body } = parseFrontmatter(raw);
+    const fallbackSlug = path
+      .split("/")
+      .pop()!
+      .replace(/\.md$/i, "");
+    return {
+      slug: data.slug || fallbackSlug,
+      title: data.title || fallbackSlug,
+      metaDescription: data.metaDescription || "",
+      keywords: data.keywords || "",
+      content: body,
+      order: data.order ? Number(data.order) : 100,
+    };
+  });
+
+const mdSlugs = new Set(markdownArticles.map((a) => a.slug));
+
+export const blogArticles: BlogArticle[] = [
+  ...markdownArticles
+    .slice()
+    .sort((a, b) => a.order - b.order || a.title.localeCompare(b.title))
+    .map(({ order: _order, ...rest }) => rest),
+  ...legacyBlogArticles.filter((a) => !mdSlugs.has(a.slug)),
 ];
