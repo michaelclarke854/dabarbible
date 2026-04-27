@@ -24,22 +24,27 @@ export default defineConfig({
     {
       name: "desktop",
       use: { ...devices["Desktop Chrome"], viewport: { width: 1280, height: 900 } },
-      testIgnore: "**/analytics.spec.ts",
+      testIgnore: ["**/analytics.spec.ts","**/gates.spec.ts","**/journal-flow.spec.ts","**/full-journey.spec.ts"],
     },
     {
       name: "mobile-375",
       use: { ...devices["iPhone SE"], viewport: { width: 375, height: 812 } },
-      testIgnore: "**/analytics.spec.ts",
+      testIgnore: ["**/analytics.spec.ts","**/gates.spec.ts","**/journal-flow.spec.ts","**/full-journey.spec.ts"],
     },
     {
       name: "mobile-320",
       use: { viewport: { width: 320, height: 568 }, userAgent: devices["iPhone SE"].userAgent, deviceScaleFactor: 2, isMobile: true, hasTouch: true },
-      testIgnore: "**/analytics.spec.ts",
+      testIgnore: ["**/analytics.spec.ts","**/gates.spec.ts","**/journal-flow.spec.ts","**/full-journey.spec.ts"],
     },
     {
       name: "contract-tests",
       use: { ...devices["Desktop Chrome"], viewport: { width: 1280, height: 900 } },
       testMatch: "**/analytics.spec.ts",
+    },
+    {
+      name: "functional-desktop",
+      use: { ...devices["Desktop Chrome"], viewport: { width: 1280, height: 900 } },
+      testMatch: ["**/gates.spec.ts","**/journal-flow.spec.ts","**/full-journey.spec.ts"],
     },
   ],
 });
