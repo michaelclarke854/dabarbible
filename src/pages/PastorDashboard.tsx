@@ -58,6 +58,7 @@ export default function PastorDashboard() {
   const [copied, setCopied] = useState(false);
   const [shareCopied, setShareCopied] = useState(false);
   const [rotating, setRotating] = useState(false);
+  const [fallbackShareUrl, setFallbackShareUrl] = useState<string | null>(null);
 
   if (isHydrating) {
     return (
@@ -485,15 +486,35 @@ export default function PastorDashboard() {
                           }
                         }
                         const url = `${window.location.origin}/share/draft/${token}`;
-                        await navigator.clipboard.writeText(url);
-                        setShareCopied(true);
-                        setTimeout(() => setShareCopied(false), 2000);
-                        toast.success("Share link copied.");
-                        trackEvent("pastor_share_link_copied", {
-                          screen: "pastor_dashboard",
-                          metadata: { draft_id: currentDraft.id },
-                          userId: user.id,
-                        });
+                        try {
+                          if (!navigator.clipboard?.writeText) {
+                            throw new Error("Clipboard API unavailable");
+                          }
+                          await navigator.clipboard.writeText(url);
+                          setShareCopied(true);
+                          setFallbackShareUrl(null);
+                          setTimeout(() => setShareCopied(false), 2000);
+                          toast.success("Share link copied.");
+                          trackEvent("pastor_share_link_copied", {
+                            screen: "pastor_dashboard",
+                            metadata: { draft_id: currentDraft.id },
+                            userId: user.id,
+                          });
+                        } catch (err) {
+                          setFallbackShareUrl(url);
+                          toast.error(
+                            "Couldn't copy automatically. Select the link below to copy it manually."
+                          );
+                          trackEvent("pastor_share_link_copy_failed", {
+                            screen: "pastor_dashboard",
+                            metadata: {
+                              draft_id: currentDraft.id,
+                              reason:
+                                err instanceof Error ? err.message : "unknown",
+                            },
+                            userId: user.id,
+                          });
+                        }
                       }}
                     >
                       {shareCopied ? "Copied!" : "Copy share link"}
@@ -506,6 +527,7 @@ export default function PastorDashboard() {
                         setRotating(true);
                         const token = await rotateShareToken(currentDraft.id);
                         setRotating(false);
+                        setFallbackShareUrl(null);
                         if (token) {
                           toast.success("Share link rotated. Old link no longer works.");
                           trackEvent("pastor_share_link_rotated", {
@@ -521,6 +543,20 @@ export default function PastorDashboard() {
                       {rotating ? "Rotating..." : "Rotate link"}
                     </Button>
                   </div>
+                  {fallbackShareUrl && (
+                    <div className="space-y-1 pt-2">
+                      <p className="font-body text-xs text-muted-foreground">
+                        Tap and hold (or triple-click) to select, then copy:
+                      </p>
+                      <input
+                        readOnly
+                        value={fallbackShareUrl}
+                        onFocus={(e) => e.currentTarget.select()}
+                        onClick={(e) => e.currentTarget.select()}
+                        className="w-full font-body text-xs bg-muted text-foreground px-2 py-2 rounded-sm border border-border select-all"
+                      />
+                    </div>
+                  )}
                 </div>
               </div>
             )}
