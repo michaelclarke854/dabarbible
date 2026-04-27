@@ -21,7 +21,7 @@ export default defineConfig({
 
   webServer: {
     command: "bun run dev",
-    url: "http://localhost:5173",
+    url: "http://localhost:8080",
     reuseExistingServer: !process.env.CI,
     timeout: 120_000,
     stdout: "ignore",
@@ -29,7 +29,7 @@ export default defineConfig({
   },
 
   use: {
-    baseURL: "http://localhost:5173",
+    baseURL: "http://localhost:8080",
     // Freeze CSS animations at their final state for stable snapshots.
     // JS-driven Framer Motion is handled with explicit waitForTimeout in the spec.
     reducedMotion: "reduce",
