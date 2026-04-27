@@ -41,6 +41,13 @@ const VisualResponseFixture = import.meta.env.DEV
       })),
     )
   : null;
+const VisualJournalFixture = import.meta.env.DEV
+  ? lazy(() =>
+      import("./pages/__visual/VisualFixtures.tsx").then((m) => ({
+        default: m.VisualJournalFixture,
+      })),
+    )
+  : null;
 
 // Dev-only gate fixtures — exercised by tests/visual/gates.spec.ts.
 // Tree-shaken from production builds via `import.meta.env.DEV`.
@@ -108,6 +115,9 @@ const App = () => (
               )}
               {import.meta.env.DEV && VisualResponseFixture && (
                 <Route path="/__visual/response" element={<VisualResponseFixture />} />
+              )}
+              {import.meta.env.DEV && VisualJournalFixture && (
+                <Route path="/__visual/journal" element={<VisualJournalFixture />} />
               )}
               {import.meta.env.DEV && GuestLandingHeroFixture && (
                 <Route path="/__visual/gate/landing" element={<GuestLandingHeroFixture />} />
