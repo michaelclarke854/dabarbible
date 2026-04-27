@@ -22,6 +22,7 @@ const PaymentSuccessPage = lazy(() => import("./pages/PaymentSuccessPage.tsx"));
 const PastorDashboard = lazy(() => import("./pages/PastorDashboard.tsx"));
 const PastorSetup = lazy(() => import("./pages/PastorSetup.tsx"));
 const JoinCommunity = lazy(() => import("./pages/JoinCommunity.tsx"));
+const SharedDraftView = lazy(() => import("./pages/SharedDraftView.tsx"));
 const NotFound = lazy(() => import("./pages/NotFound.tsx"));
 
 const queryClient = new QueryClient();
@@ -54,6 +55,7 @@ const App = () => (
               <Route path="/pastor" element={<PastorDashboard />} />
               <Route path="/pastor/setup" element={<PastorSetup />} />
               <Route path="/join/:inviteCode" element={<JoinCommunity />} />
+              <Route path="/share/draft/:token" element={<SharedDraftView />} />
               {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
               <Route path="*" element={<NotFound />} />
             </Routes>
