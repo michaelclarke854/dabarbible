@@ -252,8 +252,9 @@ const RATE_LIMITS: Record<string, number> = {
 };
 const RATE_WINDOW_MS = 60 * 60 * 1000;
 
+// deno-lint-ignore no-explicit-any
 async function checkRateLimit(
-  supabase: ReturnType<typeof createClient>, userId: string, role: string
+  supabase: any, userId: string, role: string
 ): Promise<{ allowed: boolean; remaining: number }> {
   const limit = RATE_LIMITS[role] || RATE_LIMITS.default;
   const windowStart = new Date(Date.now() - RATE_WINDOW_MS).toISOString();
@@ -276,7 +277,8 @@ async function checkRateLimit(
 
 // ── Admin email alert ──────────────────
 
-async function sendCrisisAdminEmail(supabase: ReturnType<typeof createClient>, keyword: string) {
+// deno-lint-ignore no-explicit-any
+async function sendCrisisAdminEmail(supabase: any, keyword: string) {
   try {
     const { data: config } = await supabase
       .from("app_config").select("value").eq("key", "admin_email").single();
@@ -596,7 +598,8 @@ serve(async (req) => {
 });
 
 async function logSession(
-  supabase: ReturnType<typeof createClient>,
+  // deno-lint-ignore no-explicit-any
+  supabase: any,
   userId: string | null, question: string,
   response: string, scriptures: string[]
 ): Promise<string | null> {
