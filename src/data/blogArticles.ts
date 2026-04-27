@@ -6,7 +6,7 @@ export interface BlogArticle {
   content: string;
 }
 
-export const blogArticles: BlogArticle[] = [
+const legacyBlogArticles: BlogArticle[] = [
   {
     slug: "what-does-the-bible-say-about-anxiety",
     title: "What Does the Bible Say About Anxiety?",
