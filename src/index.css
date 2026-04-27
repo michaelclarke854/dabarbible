@@ -128,3 +128,27 @@
   animation: golden-pulse 2.5s ease-in-out infinite;
   will-change: box-shadow;
 }
+
+/* Tuned hyphenation for prose blocks (e.g., shared draft outline).
+   - hyphens enabled only when needed
+   - require ≥6-letter words and ≥3-letter fragments on each side of the break
+     so we never get cramped breaks like "an-d" or "fa-ith".
+   Falls back gracefully where limits aren't supported. */
+.prose-hyphenate {
+  hyphens: auto;
+  -webkit-hyphens: auto;
+  -ms-hyphens: auto;
+  -webkit-hyphenate-limit-before: 3;
+  -webkit-hyphenate-limit-after: 3;
+  -webkit-hyphenate-limit-chars: 6 3 3;
+  hyphenate-limit-chars: 6 3 3;
+  hyphenate-limit-lines: 2;
+}
+
+/* Larger screens have plenty of room — turn hyphenation off entirely. */
+@media (min-width: 640px) {
+  .prose-hyphenate {
+    hyphens: manual;
+    -webkit-hyphens: manual;
+  }
+}

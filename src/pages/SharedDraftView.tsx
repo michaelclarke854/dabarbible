@@ -115,7 +115,7 @@ export default function SharedDraftView() {
 
         {/* Title */}
         <header className="text-center space-y-3 sm:space-y-4 pb-6 sm:pb-10">
-          <h1 className="font-serif text-[22px] xs:text-2xl sm:text-3xl md:text-4xl text-foreground tracking-wide leading-[1.2] xs:leading-[1.25] sm:leading-snug break-words [overflow-wrap:anywhere] [hyphens:auto] [text-wrap:balance]">
+          <h1 className="font-serif text-[22px] xs:text-2xl sm:text-3xl md:text-4xl text-foreground tracking-wide leading-[1.2] xs:leading-[1.25] sm:leading-snug [overflow-wrap:break-word] [hyphens:none] [text-wrap:balance]">
             {draft.title}
           </h1>
           <p className="font-body text-[11px] sm:text-xs text-muted-foreground tracking-wider">
@@ -200,7 +200,7 @@ export default function SharedDraftView() {
         */}
         <div
           lang="en"
-          className={`font-body text-foreground tracking-[0.012em] xs:tracking-[0.01em] [overflow-wrap:anywhere] [hyphens:auto] [text-wrap:pretty] space-y-4 xs:space-y-5 sm:space-y-6 transition-[font-size,line-height] duration-200 ${bodySizeClass}`}
+          className={`prose-hyphenate font-body text-foreground tracking-[0.012em] xs:tracking-[0.01em] [overflow-wrap:break-word] [text-wrap:pretty] space-y-4 xs:space-y-5 sm:space-y-6 transition-[font-size,line-height] duration-200 ${bodySizeClass}`}
         >
           {draft.outline
             .split(/\n{2,}/)
