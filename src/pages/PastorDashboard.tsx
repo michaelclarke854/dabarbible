@@ -5,6 +5,7 @@ import {
   usePastorDashboard,
   CommunityTheme,
   PastorDraft,
+  TimeRange,
 } from "@/hooks/usePastorDashboard";
 import { trackEvent } from "@/lib/trackEvent";
 import { Button } from "@/components/ui/button";
@@ -46,6 +47,8 @@ export default function PastorDashboard() {
     genError,
     generateMessage,
     archiveDraft,
+    range,
+    setRange,
     refresh,
   } = usePastorDashboard();
 
@@ -314,9 +317,26 @@ export default function PastorDashboard() {
         <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
           {/* Left: Theme cards */}
           <div className="space-y-4">
-            <h2 className="font-serif text-sm text-gold uppercase tracking-widest">
-              Top themes this month
-            </h2>
+            <div className="flex items-center justify-between gap-2 flex-wrap">
+              <h2 className="font-serif text-sm text-gold uppercase tracking-widest">
+                Top themes
+              </h2>
+              <div className="inline-flex rounded-sm border border-border overflow-hidden">
+                {(["week", "month", "year"] as TimeRange[]).map((r) => (
+                  <button
+                    key={r}
+                    onClick={() => setRange(r)}
+                    className={`px-3 py-1 text-xs font-body capitalize transition-colors ${
+                      range === r
+                        ? "bg-gold/10 text-gold"
+                        : "text-muted-foreground hover:text-foreground"
+                    }`}
+                  >
+                    {r === "week" ? "This week" : r === "month" ? "This month" : "This year"}
+                  </button>
+                ))}
+              </div>
+            </div>
             <div className="space-y-2">
               {data.themes.map((theme) => {
                 const isSelected = selectedTheme?.theme === theme.theme;
@@ -325,7 +345,7 @@ export default function PastorDashboard() {
                 );
                 return (
                   <button
-                    key={`${theme.theme}-${theme.month}`}
+                    key={theme.theme}
                     onClick={() => handleSelectTheme(theme)}
                     className={`w-full text-left p-3 rounded-sm border transition-all ${
                       isSelected

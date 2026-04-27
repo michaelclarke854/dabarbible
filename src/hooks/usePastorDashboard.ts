@@ -11,7 +11,6 @@ export interface PastoralCommunity {
 export interface CommunityTheme {
   theme: string;
   question_count: number;
-  month: string;
   last_question_at: string;
 }
 
@@ -33,7 +32,10 @@ interface DashboardData {
   community: PastoralCommunity | null;
   member_count: number;
   themes: CommunityTheme[];
+  range?: TimeRange;
 }
+
+export type TimeRange = "week" | "month" | "year";
 
 export function usePastorDashboard() {
   const [data, setData] = useState<DashboardData | null>(null);
@@ -43,13 +45,14 @@ export function usePastorDashboard() {
   const [generating, setGenerating] = useState(false);
   const [currentDraft, setCurrentDraft] = useState<PastorDraft | null>(null);
   const [genError, setGenError] = useState<string | null>(null);
+  const [range, setRange] = useState<TimeRange>("month");
 
-  const loadThemes = useCallback(async () => {
+  const loadThemes = useCallback(async (r: TimeRange) => {
     setLoading(true);
     setError(null);
     const { data: res, error: err } = await supabase.functions.invoke(
       "pastor-dashboard",
-      { body: { action: "get_themes" } }
+      { body: { action: "get_themes", range: r } }
     );
     if (err || !res) {
       setError("Could not load dashboard data.");
@@ -105,9 +108,9 @@ export function usePastorDashboard() {
   );
 
   useEffect(() => {
-    loadThemes();
+    loadThemes(range);
     loadDrafts();
-  }, [loadThemes, loadDrafts]);
+  }, [loadThemes, loadDrafts, range]);
 
   return {
     data,
@@ -120,8 +123,10 @@ export function usePastorDashboard() {
     genError,
     generateMessage,
     archiveDraft,
+    range,
+    setRange,
     refresh: () => {
-      loadThemes();
+      loadThemes(range);
       loadDrafts();
     },
   };
