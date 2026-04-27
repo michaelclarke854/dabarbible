@@ -25,6 +25,22 @@ const JoinCommunity = lazy(() => import("./pages/JoinCommunity.tsx"));
 const SharedDraftView = lazy(() => import("./pages/SharedDraftView.tsx"));
 const NotFound = lazy(() => import("./pages/NotFound.tsx"));
 
+// Dev-only visual regression fixtures (tree-shaken in production builds).
+const VisualAskFixture = import.meta.env.DEV
+  ? lazy(() =>
+      import("./pages/__visual/VisualFixtures.tsx").then((m) => ({
+        default: m.VisualAskFixture,
+      })),
+    )
+  : null;
+const VisualResponseFixture = import.meta.env.DEV
+  ? lazy(() =>
+      import("./pages/__visual/VisualFixtures.tsx").then((m) => ({
+        default: m.VisualResponseFixture,
+      })),
+    )
+  : null;
+
 const queryClient = new QueryClient();
 
 const PageLoader = () => (
@@ -56,6 +72,12 @@ const App = () => (
               <Route path="/pastor/setup" element={<PastorSetup />} />
               <Route path="/join/:inviteCode" element={<JoinCommunity />} />
               <Route path="/share/draft/:token" element={<SharedDraftView />} />
+              {import.meta.env.DEV && VisualAskFixture && (
+                <Route path="/__visual/ask" element={<VisualAskFixture />} />
+              )}
+              {import.meta.env.DEV && VisualResponseFixture && (
+                <Route path="/__visual/response" element={<VisualResponseFixture />} />
+              )}
               {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
               <Route path="*" element={<NotFound />} />
             </Routes>
