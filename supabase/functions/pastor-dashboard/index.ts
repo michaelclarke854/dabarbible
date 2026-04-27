@@ -87,7 +87,16 @@ serve(async (req) => {
       return json({ community: null, member_count: 0, themes: [] });
     }
 
-    const [communityRes, countRes, themesRes] = await Promise.all([
+    // Time range filter: 'week' | 'month' | 'year' (default: 'month')
+    const range = (body.range as string) ?? "month";
+    const now = new Date();
+    const since = new Date(now);
+    if (range === "week") since.setDate(since.getDate() - 7);
+    else if (range === "year") since.setFullYear(since.getFullYear() - 1);
+    else since.setMonth(since.getMonth() - 1); // month
+    const sinceIso = since.toISOString();
+
+    const [communityRes, countRes, membersRes] = await Promise.all([
       supabase
         .from("pastoral_communities")
         .select("id, name, type, invite_code")
@@ -98,17 +107,63 @@ serve(async (req) => {
         .select("*", { count: "exact", head: true })
         .eq("community_id", profile.pastoral_community_id),
       supabase
-        .from("pastoral_community_themes")
-        .select("theme, question_count, month, last_question_at")
-        .eq("community_id", profile.pastoral_community_id)
-        .order("question_count", { ascending: false })
-        .limit(12),
+        .from("pastoral_community_members")
+        .select("user_id")
+        .eq("community_id", profile.pastoral_community_id),
     ]);
+
+    const memberIds = (membersRes.data ?? []).map((m: { user_id: string }) => m.user_id);
+    let themes: Array<{ theme: string; question_count: number; last_question_at: string }> = [];
+
+    if (memberIds.length > 0) {
+      // Fetch sessions in the time window for these members
+      const { data: sessions } = await supabase
+        .from("wisdom_sessions")
+        .select("id, created_at")
+        .in("user_id", memberIds)
+        .eq("flagged", false)
+        .gte("created_at", sinceIso);
+
+      const sessionRows = (sessions ?? []) as Array<{ id: string; created_at: string }>;
+      if (sessionRows.length > 0) {
+        const sessionIds = sessionRows.map((s) => s.id);
+        const sessionCreatedAt = new Map(sessionRows.map((s) => [s.id, s.created_at]));
+
+        const { data: themeRows } = await supabase
+          .from("session_themes")
+          .select("session_id, theme, confidence")
+          .in("session_id", sessionIds)
+          .gte("confidence", 0.6);
+
+        const counts = new Map<string, { count: number; last: string }>();
+        for (const row of (themeRows ?? []) as Array<{ session_id: string; theme: string }>) {
+          const theme = row.theme || "other";
+          const ts = sessionCreatedAt.get(row.session_id) ?? sinceIso;
+          const existing = counts.get(theme);
+          if (existing) {
+            existing.count += 1;
+            if (ts > existing.last) existing.last = ts;
+          } else {
+            counts.set(theme, { count: 1, last: ts });
+          }
+        }
+
+        themes = Array.from(counts.entries())
+          .map(([theme, { count, last }]) => ({
+            theme,
+            question_count: count,
+            last_question_at: last,
+          }))
+          .sort((a, b) => b.question_count - a.question_count)
+          .slice(0, 12);
+      }
+    }
 
     return json({
       community: communityRes.data ?? null,
       member_count: countRes.count ?? 0,
-      themes: themesRes.data ?? [],
+      themes,
+      range,
     });
   }
 
