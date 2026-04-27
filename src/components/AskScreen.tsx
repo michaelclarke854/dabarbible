@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef, forwardRef } from "react";
+import { Link } from "react-router-dom";
 
 interface AskScreenProps {
   onSeekWisdom: (question: string) => void;
@@ -13,6 +14,19 @@ const SOUL_PROMPTS = [
   "I don't know what I'm supposed to do with my life...",
 ];
 
+const QUESTION_PLACEHOLDERS = [
+  "Why does God allow suffering?",
+  "What does the Bible say about forgiveness?",
+  "How do I pray when I feel nothing?",
+  "What is my purpose according to scripture?",
+  "How do I forgive someone who hurt me?",
+  "Is God angry with me?",
+  "What does the Bible say about grief?",
+  "How do I trust God in uncertainty?",
+  "What does scripture say about anxiety?",
+  "How do I find peace in this season?",
+];
+
 const AskScreen = forwardRef<HTMLDivElement, AskScreenProps>(({ onSeekWisdom, isLoading }, ref) => {
   const [question, setQuestion] = useState("");
   const [promptIndex, setPromptIndex] = useState(() =>
@@ -20,6 +34,11 @@ const AskScreen = forwardRef<HTMLDivElement, AskScreenProps>(({ onSeekWisdom, is
   );
   const [promptVisible, setPromptVisible] = useState(true);
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  const [placeholderIndex, setPlaceholderIndex] = useState(() =>
+    Math.floor(Math.random() * QUESTION_PLACEHOLDERS.length)
+  );
+  const placeholderTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   useEffect(() => {
     intervalRef.current = setInterval(() => {
@@ -33,6 +52,17 @@ const AskScreen = forwardRef<HTMLDivElement, AskScreenProps>(({ onSeekWisdom, is
       if (intervalRef.current) clearInterval(intervalRef.current);
     };
   }, []);
+
+  // Rotate the textarea placeholder every 4s — only when the field is empty.
+  useEffect(() => {
+    if (question) return;
+    placeholderTimerRef.current = setInterval(() => {
+      setPlaceholderIndex((prev) => (prev + 1) % QUESTION_PLACEHOLDERS.length);
+    }, 4000);
+    return () => {
+      if (placeholderTimerRef.current) clearInterval(placeholderTimerRef.current);
+    };
+  }, [question]);
 
   const handleSubmit = () => {
     if (question.trim() && !isLoading) {
@@ -59,9 +89,10 @@ const AskScreen = forwardRef<HTMLDivElement, AskScreenProps>(({ onSeekWisdom, is
 
       <div className="w-full max-w-lg">
         <textarea
+          data-ask-input=""
           value={question}
           onChange={(e) => setQuestion(e.target.value)}
-          placeholder="What are you carrying today?"
+          placeholder={QUESTION_PLACEHOLDERS[placeholderIndex]}
           className="w-full min-h-[160px] bg-input border-none outline-none resize-none text-lg font-body text-foreground placeholder:text-muted-foreground/60 leading-relaxed p-4 focus:ring-0 rounded-sm"
           disabled={isLoading}
           onKeyDown={(e) => {
@@ -72,6 +103,13 @@ const AskScreen = forwardRef<HTMLDivElement, AskScreenProps>(({ onSeekWisdom, is
           }}
         />
         <div className="w-full h-px bg-border mb-4" />
+
+        <p className="text-[10px] font-body text-muted-foreground/70 text-center tracking-wide mb-4 leading-relaxed">
+          AI-assisted reflection grounded in scripture —{" "}
+          <Link to="/doctrine" className="text-gold hover:underline">
+            not pastoral counsel
+          </Link>
+        </p>
 
         {!question && !isLoading && (
           <button

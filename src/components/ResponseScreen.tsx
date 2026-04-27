@@ -1,4 +1,5 @@
 import { useEffect, useState, useMemo } from "react";
+import { motion, useReducedMotion } from "framer-motion";
 import { parseResponse, extractThresholdQuestion, ScriptureCard, type ContentBlock } from "./WisdomResponseBlocks";
 
 const CRISIS_RESOURCE_MARKERS = [
@@ -57,6 +58,7 @@ const ResponseScreen = ({
   const [visibleBlocks, setVisibleBlocks] = useState(0);
   const blocks = useMemo(() => parseResponse(response), [response]);
   const thresholdQuestion = useMemo(() => extractThresholdQuestion(blocks), [blocks]);
+  const shouldReduceMotion = useReducedMotion();
 
   // During streaming, show all blocks immediately; after streaming ends, keep them all visible
   useEffect(() => {
@@ -79,14 +81,21 @@ const ResponseScreen = ({
       <div className="w-8 h-px bg-gold mb-8" />
 
       <div className="space-y-4 mb-8">
-        {blocks.map((block, i) => (
-          <div
-            key={i}
-            className={`transition-all duration-700 ${
-              i < visibleBlocks ? "opacity-100 translate-y-0" : "opacity-0 translate-y-2"
-            }`}
-            style={{ transitionDelay: `${i * 100}ms` }}
-          >
+        {blocks.map((block, i) => {
+          const isVisible = i < visibleBlocks;
+          const motionProps = shouldReduceMotion
+            ? { initial: false, animate: { opacity: 1, y: 0 } }
+            : {
+                initial: { opacity: 0, y: 16 },
+                animate: isVisible ? { opacity: 1, y: 0 } : { opacity: 0, y: 16 },
+                transition: {
+                  duration: 0.5,
+                  delay: i * 0.12,
+                  ease: [0.25, 0.46, 0.45, 0.94] as [number, number, number, number],
+                },
+              };
+          return (
+          <motion.div key={i} {...motionProps}>
             {block.type === "scripture" ? (
               <ScriptureCard
                 block={block}
@@ -96,7 +105,7 @@ const ResponseScreen = ({
                 onDefaultChanged={onProfileVersionChanged}
               />
             ) : isCrisisResourceLine(block.content) ? (
-              <div className="border-l-2 border-amber-500/60 pl-4 py-3 bg-amber-500/5 rounded-sm">
+              <div className="dabar-glass border-l-2 border-amber-500/60 pl-4 py-3 bg-amber-500/5 rounded-sm">
                 <p className="font-serif text-base leading-relaxed text-foreground">
                   {block.content.replace(/^[•·]\s*/, "")}
                 </p>
@@ -106,8 +115,9 @@ const ResponseScreen = ({
                 {block.content}
               </p>
             )}
-          </div>
-        ))}
+          </motion.div>
+          );
+        })}
       </div>
 
       {agentStage && !response && (

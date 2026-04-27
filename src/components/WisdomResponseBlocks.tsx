@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { motion, useReducedMotion } from "framer-motion";
 import ScriptureVersionPills from "./ScriptureVersionPills";
 
 export interface ContentBlock {
@@ -64,15 +65,27 @@ export const ScriptureCard = ({
 }) => {
   const [displayText, setDisplayText] = useState(block.verseText || "");
   const [activeVersion, setActiveVersion] = useState(profileDefault || "KJV");
+  const shouldReduceMotion = useReducedMotion();
+  const motionProps = shouldReduceMotion
+    ? { initial: { opacity: 1 }, animate: { opacity: 1 } }
+    : {
+        initial: { opacity: 0, y: 12 },
+        whileInView: { opacity: 1, y: 0 },
+        viewport: { once: true, margin: "-40px" },
+        transition: { duration: 0.5, ease: "easeOut" as const },
+      };
 
   return (
-    <div className="my-6 pl-4 border-l-4 border-gold bg-scripture-card rounded-sm p-4">
+    <motion.div
+      {...motionProps}
+      className="dabar-glass my-6 pl-4 border-l-4 border-gold bg-scripture-card rounded-sm p-4"
+    >
       <p className="font-serif text-base md:text-lg leading-relaxed text-foreground/90 italic">
         "{displayText}"
       </p>
       <button
         onClick={() => block.reference && onScriptureRef?.(block.reference, activeVersion)}
-        className="text-gold font-serif text-sm tracking-wide mt-2 hover:text-gold-light transition-colors cursor-pointer inline-flex items-center gap-1"
+        className="text-gold scripture-italic text-sm tracking-wide mt-2 hover:text-gold-light transition-colors cursor-pointer inline-flex items-center gap-1"
       >
         — {block.reference} ↗
       </button>
@@ -87,6 +100,6 @@ export const ScriptureCard = ({
         }}
         onDefaultChanged={onDefaultChanged as any}
       />
-    </div>
+    </motion.div>
   );
 };

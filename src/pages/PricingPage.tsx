@@ -204,16 +204,39 @@ const PricingPage = () => {
         </div>
       )}
 
+      {/* Trust bar */}
+      <div className="flex flex-col sm:flex-row items-center justify-center gap-3 sm:gap-6 mb-10 pb-6 border-b border-border/60">
+        {[
+          "30-day free trial — no card required",
+          "Cancel any time from Settings",
+          "Secure payments via Stripe",
+        ].map((item) => (
+          <div key={item} className="flex items-center gap-2">
+            <span className="text-gold text-xs">✦</span>
+            <span className="font-body text-xs text-muted-foreground tracking-wide">
+              {item}
+            </span>
+          </div>
+        ))}
+      </div>
+
       <div className="space-y-6">
         {tiers.map((tier) => {
           const displayPrice = getDisplayPrice(tier);
           return (
             <div
               key={tier.key}
-              className={`p-6 rounded-sm border transition-all ${
-                tier.highlighted ? "border-gold bg-gold/5" : "border-border"
+              className={`relative p-6 rounded-sm border transition-all ${
+                tier.highlighted
+                  ? "border-gold bg-gold/5 border-[1.5px]"
+                  : "border-border"
               }`}
             >
+              {tier.highlighted && (
+                <span className="absolute -top-3 left-1/2 -translate-x-1/2 bg-gold text-primary-foreground font-serif text-[10px] tracking-[0.2em] uppercase px-3 py-1 rounded-sm">
+                  Most popular
+                </span>
+              )}
               <div className="flex items-baseline justify-between mb-2">
                 <h3 className="font-serif text-lg tracking-wide">{tier.name}</h3>
                 <div className="text-right">
@@ -302,6 +325,14 @@ const PricingPage = () => {
       <div className="text-center mt-12 pt-8 border-t border-border">
         <p className="font-body text-xs text-muted-foreground">
           Gift a year of wisdom — <span className="text-muted-foreground/70 italic">coming soon</span>
+        </p>
+        <p className="font-body text-xs text-muted-foreground mt-4">
+          <button
+            onClick={() => navigate("/doctrine")}
+            className="hover:text-gold transition-colors underline-offset-2 hover:underline"
+          >
+            Beliefs &amp; AI Disclosure
+          </button>
         </p>
       </div>
 

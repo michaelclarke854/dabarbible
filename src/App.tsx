@@ -23,6 +23,7 @@ const PastorDashboard = lazy(() => import("./pages/PastorDashboard.tsx"));
 const PastorSetup = lazy(() => import("./pages/PastorSetup.tsx"));
 const JoinCommunity = lazy(() => import("./pages/JoinCommunity.tsx"));
 const SharedDraftView = lazy(() => import("./pages/SharedDraftView.tsx"));
+const DoctrinePage = lazy(() => import("./pages/DoctrinePage.tsx"));
 const NotFound = lazy(() => import("./pages/NotFound.tsx"));
 
 // Dev-only visual regression fixtures (tree-shaken in production builds).
@@ -56,6 +57,7 @@ const App = () => (
       <Sonner />
       <BrowserRouter>
         <AuthProvider>
+          <div className="dabar-grain min-h-screen">
           <Suspense fallback={<PageLoader />}>
             <Routes>
               <Route path="/" element={<Index />} />
@@ -72,6 +74,7 @@ const App = () => (
               <Route path="/pastor/setup" element={<PastorSetup />} />
               <Route path="/join/:inviteCode" element={<JoinCommunity />} />
               <Route path="/share/draft/:token" element={<SharedDraftView />} />
+              <Route path="/doctrine" element={<DoctrinePage />} />
               {import.meta.env.DEV && VisualAskFixture && (
                 <Route path="/__visual/ask" element={<VisualAskFixture />} />
               )}
@@ -82,6 +85,7 @@ const App = () => (
               <Route path="*" element={<NotFound />} />
             </Routes>
           </Suspense>
+          </div>
         </AuthProvider>
       </BrowserRouter>
     </TooltipProvider>
