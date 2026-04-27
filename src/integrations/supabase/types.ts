@@ -526,6 +526,110 @@ export type Database = {
         }
         Relationships: []
       }
+      pastoral_leads: {
+        Row: {
+          church_name: string | null
+          church_size: string | null
+          city: string | null
+          created_at: string
+          denomination: string | null
+          email: string
+          id: string
+          last_contacted_at: string | null
+          linkedin_url: string | null
+          name: string
+          next_contact_at: string | null
+          notes: string | null
+          reply_received: boolean | null
+          source: string | null
+          state: string | null
+          status: string
+          updated_at: string
+          website: string | null
+        }
+        Insert: {
+          church_name?: string | null
+          church_size?: string | null
+          city?: string | null
+          created_at?: string
+          denomination?: string | null
+          email: string
+          id?: string
+          last_contacted_at?: string | null
+          linkedin_url?: string | null
+          name: string
+          next_contact_at?: string | null
+          notes?: string | null
+          reply_received?: boolean | null
+          source?: string | null
+          state?: string | null
+          status?: string
+          updated_at?: string
+          website?: string | null
+        }
+        Update: {
+          church_name?: string | null
+          church_size?: string | null
+          city?: string | null
+          created_at?: string
+          denomination?: string | null
+          email?: string
+          id?: string
+          last_contacted_at?: string | null
+          linkedin_url?: string | null
+          name?: string
+          next_contact_at?: string | null
+          notes?: string | null
+          reply_received?: boolean | null
+          source?: string | null
+          state?: string | null
+          status?: string
+          updated_at?: string
+          website?: string | null
+        }
+        Relationships: []
+      }
+      pastoral_outreach_log: {
+        Row: {
+          clicked: boolean | null
+          email_type: string
+          id: string
+          lead_id: string
+          opened: boolean | null
+          resend_id: string | null
+          sent_at: string
+          subject: string
+        }
+        Insert: {
+          clicked?: boolean | null
+          email_type: string
+          id?: string
+          lead_id: string
+          opened?: boolean | null
+          resend_id?: string | null
+          sent_at?: string
+          subject: string
+        }
+        Update: {
+          clicked?: boolean | null
+          email_type?: string
+          id?: string
+          lead_id?: string
+          opened?: boolean | null
+          resend_id?: string | null
+          sent_at?: string
+          subject?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "pastoral_outreach_log_lead_id_fkey"
+            columns: ["lead_id"]
+            isOneToOne: false
+            referencedRelation: "pastoral_leads"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       processed_webhook_events: {
         Row: {
           event_id: string
