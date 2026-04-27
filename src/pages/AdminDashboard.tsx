@@ -4,19 +4,20 @@ import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import UserEditDrawer from "@/components/UserEditDrawer";
 import { useTrueEngagement } from "@/hooks/useTrueEngagement";
+import PastoralPipelineTab from "@/components/admin/PastoralPipelineTab";
 import {
   BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell,
 } from "recharts";
 import {
   LayoutDashboard, Users, CreditCard, MessageSquare,
   Flag, AlertTriangle, FileText, Settings, LogOut,
-  Activity, Server, ChevronDown, ChevronRight, Cpu, Sparkles,
+  Activity, Server, ChevronDown, ChevronRight, Cpu, Sparkles, Heart,
 } from "lucide-react";
 
 type AdminTab =
   | "agent-health" | "ai-gateway" | "wisdom-health" | "stripe-health"
   | "dashboard" | "users" | "subscriptions" | "trial-utilization" | "monitor"
-  | "flagged" | "crisis" | "prompts" | "settings";
+  | "flagged" | "crisis" | "prompts" | "pastoral" | "settings";
 
 const tabs: { id: AdminTab; label: string; icon: typeof LayoutDashboard }[] = [
   { id: "agent-health", label: "Agent Health", icon: Activity },
@@ -31,6 +32,7 @@ const tabs: { id: AdminTab; label: string; icon: typeof LayoutDashboard }[] = [
   { id: "flagged", label: "Flagged", icon: Flag },
   { id: "crisis", label: "Crisis Log", icon: AlertTriangle },
   { id: "prompts", label: "System Prompt", icon: FileText },
+  { id: "pastoral", label: "Pastoral Pipeline", icon: Heart },
   { id: "settings", label: "Settings", icon: Settings },
 ];
 
@@ -1411,6 +1413,7 @@ export default function AdminDashboard() {
     flagged: <FlaggedTab />,
     crisis: <CrisisTab />,
     prompts: <PromptsTab />,
+    pastoral: <PastoralPipelineTab />,
     settings: <SettingsTab />,
   };
 
