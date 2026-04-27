@@ -1152,6 +1152,14 @@ export type Database = {
         Args: { _community_id: string; _user_id: string }
         Returns: boolean
       }
+      lookup_community_by_invite: {
+        Args: { _invite_code: string }
+        Returns: {
+          id: string
+          name: string
+          type: string
+        }[]
+      }
       move_to_dlq: {
         Args: {
           dlq_name: string
