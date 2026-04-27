@@ -8,6 +8,7 @@ import CrisisCheckinCard from "@/components/CrisisCheckinCard";
 import ResponseScreen from "@/components/ResponseScreen";
 import AuthModal from "@/components/AuthModal";
 import OnboardingScreen from "@/components/OnboardingScreen";
+import { LandingHero } from "@/components/LandingHero";
 import BetaFeedbackButton from "@/components/BetaFeedbackButton";
 import TrialBadge from "@/components/TrialBadge";
 import TrialPaywall from "@/components/TrialPaywall";
@@ -79,6 +80,9 @@ const Index = () => {
   });
   const [scriptureDeepLink, setScriptureDeepLink] = useState<{ book: string; chapter: number; verse: number; version?: string } | null>(null);
   const [currentSessionId, setCurrentSessionId] = useState<string | null>(null);
+  // LandingHero is shown once per first-time guest visit. Dismissed when the
+  // visitor clicks "Ask your first question" or otherwise interacts.
+  const [landingDismissed, setLandingDismissed] = useState(false);
   const abortRef = useRef<AbortController | null>(null);
 
   // Cancel in-flight request on unmount
@@ -625,6 +629,18 @@ const Index = () => {
               <CrisisCheckinCard
                 userId={user.id}
                 onDismiss={() => refreshProfile()}
+              />
+            ) : !user && !landingDismissed && getGuestQuestionsUsed() === 0 ? (
+              <LandingHero
+                onAsk={() => {
+                  setLandingDismissed(true);
+                  // Defer focus until AskScreen is mounted on next paint.
+                  requestAnimationFrame(() => {
+                    document
+                      .querySelector<HTMLTextAreaElement>("[data-ask-input]")
+                      ?.focus();
+                  });
+                }}
               />
             ) : (
               <AskScreen onSeekWisdom={seekWisdom} isLoading={isLoading} />
