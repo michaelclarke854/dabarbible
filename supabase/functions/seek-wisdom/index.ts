@@ -598,7 +598,8 @@ serve(async (req) => {
 });
 
 async function logSession(
-  supabase: ReturnType<typeof createClient>,
+  // deno-lint-ignore no-explicit-any
+  supabase: any,
   userId: string | null, question: string,
   response: string, scriptures: string[]
 ): Promise<string | null> {
