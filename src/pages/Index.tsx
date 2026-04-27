@@ -9,6 +9,7 @@ import ResponseScreen from "@/components/ResponseScreen";
 import AuthModal from "@/components/AuthModal";
 import OnboardingScreen from "@/components/OnboardingScreen";
 import { LandingHero } from "@/components/LandingHero";
+import { AnimatePresence, motion } from "framer-motion";
 import BetaFeedbackButton from "@/components/BetaFeedbackButton";
 import TrialBadge from "@/components/TrialBadge";
 import TrialPaywall from "@/components/TrialPaywall";
@@ -538,38 +539,78 @@ const Index = () => {
     const cutoff = Math.floor(responseLines.length * 0.4);
 
     return (
-      <div className="mt-6">
-        <div className="relative">
-          <div style={{ filter: "blur(4px)", userSelect: "none", pointerEvents: "none" as const }}>
-            {responseLines.slice(cutoff).map((line, i) => (
-              <p key={i} className="font-serif text-base leading-relaxed text-foreground mb-2">{line}</p>
-            ))}
-          </div>
-          <div className="absolute inset-0 flex items-center justify-center">
-            <div className="bg-card border border-gold/20 rounded-sm p-6 text-center max-w-sm shadow-xl">
-              <p className="font-serif text-lg text-foreground mb-2">Unlock your full answer</p>
-              <p className="font-body text-xs text-muted-foreground mb-4">
-                Start your 30-day free trial — unlimited questions, full responses, journal access.
-              </p>
-              <button
-                onClick={() => openAuthModal('soft_gate_cta', "Start your 30-day free trial — unlimited questions, full responses, journal access.")}
-                className="w-full font-serif text-sm tracking-widest uppercase py-3 bg-gold text-primary-foreground rounded-sm hover:bg-gold-dark transition-all mb-2"
-              >
-                Start free trial
-              </button>
-              <p className="text-xs font-body text-muted-foreground">
-                Already have an account?{" "}
-                <button
-                  onClick={() => openAuthModal('soft_gate_signin')}
-                  className="text-gold hover:underline"
+      <AnimatePresence>
+        <motion.div
+          key="soft-gate"
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+          transition={{ duration: 0.4, ease: "easeOut" }}
+          className="mt-6"
+        >
+          <div className="relative">
+            <div className="soft-gate-blur">
+              {responseLines.slice(cutoff).map((line, i) => (
+                <p
+                  key={i}
+                  className="font-serif text-base leading-relaxed text-foreground mb-2"
                 >
-                  Sign in
-                </button>
-              </p>
+                  {line}
+                </p>
+              ))}
             </div>
+            {/* Gradient mask fading the blurred copy into the gate card */}
+            <div
+              aria-hidden="true"
+              className="pointer-events-none absolute inset-x-0 top-0 h-24"
+              style={{
+                background:
+                  "linear-gradient(to bottom, hsl(var(--background)) 0%, hsl(var(--background) / 0) 100%)",
+              }}
+            />
+            <motion.div
+              initial={{ opacity: 0, y: 12 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.5, delay: 0.1, ease: "easeOut" }}
+              className="absolute inset-0 flex items-center justify-center px-4"
+            >
+              <div className="dabar-glass border border-gold/30 rounded-sm p-6 text-center max-w-sm shadow-xl">
+                <p className="font-serif text-lg text-foreground mb-2">
+                  Unlock your full answer
+                </p>
+                <p className="font-body text-xs text-muted-foreground mb-4 leading-relaxed">
+                  Start your 30-day free trial — unlimited questions, full
+                  responses, journal access. No card required.
+                </p>
+                <button
+                  onClick={() => {
+                    trackEvent("soft_gate_signup_clicked", { screen: "response" });
+                    openAuthModal(
+                      "soft_gate_cta",
+                      "Start your 30-day free trial — unlimited questions, full responses, journal access."
+                    );
+                  }}
+                  className="w-full font-serif text-sm tracking-widest uppercase py-3 bg-gold text-primary-foreground rounded-sm hover:bg-gold-dark transition-all mb-3"
+                >
+                  Start free trial
+                </button>
+                <p className="text-xs font-body text-muted-foreground">
+                  Already have an account?{" "}
+                  <button
+                    onClick={() => {
+                      trackEvent("soft_gate_signin_clicked", { screen: "response" });
+                      openAuthModal("soft_gate_signin");
+                    }}
+                    className="text-gold hover:underline"
+                  >
+                    Sign in
+                  </button>
+                </p>
+              </div>
+            </motion.div>
           </div>
-        </div>
-      </div>
+        </motion.div>
+      </AnimatePresence>
     );
   };
 
