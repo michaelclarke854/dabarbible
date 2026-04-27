@@ -1,0 +1,7 @@
+workspace("App.xcworkspace")
+scheme("App")
+configuration("Release")
+export_method("app-store")
+clean(true)
+output_directory("./build")
+output_name("DABAR.ipa")

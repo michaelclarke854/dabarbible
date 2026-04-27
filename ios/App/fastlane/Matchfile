@@ -1,0 +1,8 @@
+git_url("https://github.com/michaelclarke854/dabar-certificates")
+storage_mode("git")
+
+type("appstore")
+
+app_identifier(["com.dabarbible.app"])
+username("michaelclarke854@gmail.com")
+team_id("8QL74KS75Z")
