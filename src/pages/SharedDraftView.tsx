@@ -185,11 +185,11 @@ export default function SharedDraftView() {
 
         {/* Scripture refs as a sacred card */}
         {draft.scripture_refs.length > 0 && (
-          <div className="bg-scripture-card border-l-4 border-gold rounded-sm px-4 sm:px-5 py-3.5 xs:py-3 sm:py-4 mb-7 xs:mb-6 sm:mb-10">
-            <p className="font-serif text-[9px] sm:text-[10px] text-gold uppercase tracking-[0.25em] mb-2 xs:mb-1.5 sm:mb-2">
+          <div className="bg-scripture-card border-l-4 border-gold rounded-sm px-3 xxs:px-3.5 xs:px-4 sm:px-5 py-2.5 xxs:py-3 xs:py-3.5 sm:py-4 mb-6 xxs:mb-7 xs:mb-6 sm:mb-10">
+            <p className="font-serif text-[9px] sm:text-[10px] text-gold uppercase tracking-[0.2em] xxs:tracking-[0.25em] mb-1.5 xxs:mb-2 xs:mb-1.5 sm:mb-2">
               Scripture
             </p>
-            <div className="flex flex-wrap gap-x-3 sm:gap-x-4 gap-y-1.5 xs:gap-y-1 max-w-full">
+            <div className="flex flex-wrap gap-x-2.5 xxs:gap-x-3 sm:gap-x-4 gap-y-2 xxs:gap-y-2 xs:gap-y-1 max-w-full">
               {draft.scripture_refs.map((ref) => (
                 <span
                   key={ref}
