@@ -326,6 +326,14 @@ const PricingPage = () => {
         <p className="font-body text-xs text-muted-foreground">
           Gift a year of wisdom — <span className="text-muted-foreground/70 italic">coming soon</span>
         </p>
+        <p className="font-body text-xs text-muted-foreground mt-4">
+          <button
+            onClick={() => navigate("/doctrine")}
+            className="hover:text-gold transition-colors underline-offset-2 hover:underline"
+          >
+            Beliefs &amp; AI Disclosure
+          </button>
+        </p>
       </div>
 
       {confirmPlan && (
