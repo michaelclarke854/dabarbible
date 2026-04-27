@@ -378,6 +378,115 @@ export type Database = {
         }
         Relationships: []
       }
+      pastor_message_drafts: {
+        Row: {
+          community_id: string
+          created_at: string
+          id: string
+          outline: string
+          pastor_id: string
+          question_count: number
+          scripture_refs: string[]
+          status: string
+          theme: string
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          community_id: string
+          created_at?: string
+          id?: string
+          outline: string
+          pastor_id: string
+          question_count?: number
+          scripture_refs?: string[]
+          status?: string
+          theme: string
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          community_id?: string
+          created_at?: string
+          id?: string
+          outline?: string
+          pastor_id?: string
+          question_count?: number
+          scripture_refs?: string[]
+          status?: string
+          theme?: string
+          title?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "pastor_message_drafts_community_id_fkey"
+            columns: ["community_id"]
+            isOneToOne: false
+            referencedRelation: "pastoral_communities"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      pastoral_communities: {
+        Row: {
+          created_at: string
+          id: string
+          invite_code: string
+          name: string
+          pastor_id: string
+          type: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          invite_code?: string
+          name: string
+          pastor_id: string
+          type?: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          invite_code?: string
+          name?: string
+          pastor_id?: string
+          type?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      pastoral_community_members: {
+        Row: {
+          community_id: string
+          id: string
+          joined_at: string
+          user_id: string
+        }
+        Insert: {
+          community_id: string
+          id?: string
+          joined_at?: string
+          user_id: string
+        }
+        Update: {
+          community_id?: string
+          id?: string
+          joined_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "pastoral_community_members_community_id_fkey"
+            columns: ["community_id"]
+            isOneToOne: false
+            referencedRelation: "pastoral_communities"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       pastoral_inquiries: {
         Row: {
           church_name: string
@@ -441,8 +550,10 @@ export type Database = {
           created_at: string
           grace_period_until: string | null
           id: string
+          is_pastor: boolean
           is_suspended: boolean | null
           language_preference: string
+          pastoral_community_id: string | null
           pending_checkin: boolean
           plan: string
           preferred_bible_version: string
@@ -469,8 +580,10 @@ export type Database = {
           created_at?: string
           grace_period_until?: string | null
           id?: string
+          is_pastor?: boolean
           is_suspended?: boolean | null
           language_preference?: string
+          pastoral_community_id?: string | null
           pending_checkin?: boolean
           plan?: string
           preferred_bible_version?: string
@@ -497,8 +610,10 @@ export type Database = {
           created_at?: string
           grace_period_until?: string | null
           id?: string
+          is_pastor?: boolean
           is_suspended?: boolean | null
           language_preference?: string
+          pastoral_community_id?: string | null
           pending_checkin?: boolean
           plan?: string
           preferred_bible_version?: string
@@ -517,7 +632,15 @@ export type Database = {
           updated_at?: string
           user_id?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "profiles_pastoral_community_id_fkey"
+            columns: ["pastoral_community_id"]
+            isOneToOne: false
+            referencedRelation: "pastoral_communities"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       rate_limits: {
         Row: {
@@ -973,6 +1096,24 @@ export type Database = {
         }
         Relationships: []
       }
+      pastoral_community_themes: {
+        Row: {
+          community_id: string | null
+          last_question_at: string | null
+          month: string | null
+          question_count: number | null
+          theme: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "pastoral_community_members_community_id_fkey"
+            columns: ["community_id"]
+            isOneToOne: false
+            referencedRelation: "pastoral_communities"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Functions: {
       calculate_age_group: { Args: { dob: string }; Returns: string }
@@ -1001,6 +1142,14 @@ export type Database = {
       }
       is_family_owner: {
         Args: { _family_id: string; _user_id: string }
+        Returns: boolean
+      }
+      is_member_of_community: {
+        Args: { _community_id: string; _user_id: string }
+        Returns: boolean
+      }
+      is_pastor_of_community: {
+        Args: { _community_id: string; _user_id: string }
         Returns: boolean
       }
       move_to_dlq: {
