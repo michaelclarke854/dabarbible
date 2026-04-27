@@ -19,6 +19,9 @@ const AdminDashboard = lazy(() => import("./pages/AdminDashboard.tsx"));
 const SuspendedPage = lazy(() => import("./pages/SuspendedPage.tsx"));
 const ResetPasswordPage = lazy(() => import("./pages/ResetPasswordPage.tsx"));
 const PaymentSuccessPage = lazy(() => import("./pages/PaymentSuccessPage.tsx"));
+const PastorDashboard = lazy(() => import("./pages/PastorDashboard.tsx"));
+const PastorSetup = lazy(() => import("./pages/PastorSetup.tsx"));
+const JoinCommunity = lazy(() => import("./pages/JoinCommunity.tsx"));
 const NotFound = lazy(() => import("./pages/NotFound.tsx"));
 
 const queryClient = new QueryClient();
@@ -48,6 +51,9 @@ const App = () => (
               <Route path="/suspended" element={<SuspendedPage />} />
               <Route path="/reset-password" element={<ResetPasswordPage />} />
               <Route path="/payment-success" element={<PaymentSuccessPage />} />
+              <Route path="/pastor" element={<PastorDashboard />} />
+              <Route path="/pastor/setup" element={<PastorSetup />} />
+              <Route path="/join/:inviteCode" element={<JoinCommunity />} />
               {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
               <Route path="*" element={<NotFound />} />
             </Routes>
