@@ -94,12 +94,23 @@ export default function SharedDraftView() {
     );
   }
 
+  // Body type ramp + paragraph gap ramp tuned per size and per breakpoint.
+  // Goal: long passages feel consistently airy from 320px → desktop.
   const bodySizeClass =
     textSize === "sm"
       ? "text-[14px] xs:text-[14px] sm:text-[15px] md:text-base leading-[1.7] xs:leading-[1.7] sm:leading-[1.75] md:leading-[1.8]"
       : textSize === "lg"
         ? "text-[17px] xs:text-[17px] sm:text-[18px] md:text-[19px] leading-[1.8] xs:leading-[1.8] sm:leading-[1.85] md:leading-[1.9]"
         : "text-[15px] xs:text-[15px] sm:text-base md:text-[17px] leading-[1.75] xs:leading-[1.7] sm:leading-[1.8] md:leading-[1.85]";
+
+  // Paragraph gap scales: tighter at xxs, opens at xs/sm/md.
+  // Larger text → larger gaps to keep proportional rhythm.
+  const paragraphGapClass =
+    textSize === "sm"
+      ? "space-y-3 xxs:space-y-3.5 xs:space-y-4 sm:space-y-5 md:space-y-6"
+      : textSize === "lg"
+        ? "space-y-5 xxs:space-y-6 xs:space-y-7 sm:space-y-8 md:space-y-9"
+        : "space-y-4 xxs:space-y-5 xs:space-y-5 sm:space-y-6 md:space-y-7";
 
   return (
     <div className="min-h-screen bg-background px-3 xxs:px-4 xs:px-5 sm:px-6 py-7 xxs:py-8 xs:py-10 sm:py-16 md:py-20 overflow-x-hidden">
@@ -200,7 +211,7 @@ export default function SharedDraftView() {
         */}
         <div
           lang="en"
-          className={`prose-hyphenate font-body text-foreground tracking-[0.012em] xs:tracking-[0.01em] [overflow-wrap:break-word] [text-wrap:pretty] space-y-4 xs:space-y-5 sm:space-y-6 transition-[font-size,line-height] duration-200 ${bodySizeClass}`}
+          className={`prose-hyphenate font-body text-foreground tracking-[0.012em] xs:tracking-[0.01em] [overflow-wrap:break-word] [text-wrap:pretty] transition-[font-size,line-height] duration-200 ${bodySizeClass} ${paragraphGapClass}`}
         >
           {draft.outline
             .split(/\n{2,}/)
