@@ -95,7 +95,7 @@ export default function SharedDraftView() {
 
         {/* Title */}
         <header className="text-center space-y-3 sm:space-y-4 pb-6 sm:pb-10">
-          <h1 className="font-serif text-[22px] xs:text-2xl sm:text-3xl md:text-4xl text-foreground tracking-wide leading-[1.2] xs:leading-[1.25] sm:leading-snug break-words">
+          <h1 className="font-serif text-[22px] xs:text-2xl sm:text-3xl md:text-4xl text-foreground tracking-wide leading-[1.2] xs:leading-[1.25] sm:leading-snug break-words [overflow-wrap:anywhere] [hyphens:auto] [text-wrap:balance]">
             {draft.title}
           </h1>
           <p className="font-body text-[11px] sm:text-xs text-muted-foreground tracking-wider">
@@ -117,7 +117,7 @@ export default function SharedDraftView() {
               {draft.scripture_refs.map((ref) => (
                 <span
                   key={ref}
-                  className="font-serif text-[13px] sm:text-sm text-gold-light tracking-wide"
+                  className="font-serif text-[13px] sm:text-sm text-gold-light tracking-wide [overflow-wrap:anywhere] [hyphens:auto] max-w-full"
                 >
                   {ref}
                 </span>
@@ -133,7 +133,10 @@ export default function SharedDraftView() {
           for maximum comfort on the smallest screens.
           Scales up gracefully through xs → sm → md.
         */}
-        <div className="font-body text-[15px] xs:text-[15px] sm:text-base md:text-[17px] text-foreground whitespace-pre-wrap leading-[1.75] xs:leading-[1.7] sm:leading-[1.8] md:leading-[1.85] tracking-[0.012em] xs:tracking-[0.01em]">
+        <div
+          lang="en"
+          className="font-body text-[15px] xs:text-[15px] sm:text-base md:text-[17px] text-foreground whitespace-pre-wrap leading-[1.75] xs:leading-[1.7] sm:leading-[1.8] md:leading-[1.85] tracking-[0.012em] xs:tracking-[0.01em] [overflow-wrap:anywhere] [hyphens:auto] [text-wrap:pretty]"
+        >
           {draft.outline}
         </div>
 
