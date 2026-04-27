@@ -15,6 +15,19 @@ export default function SharedDraftView() {
   const { token } = useParams<{ token: string }>();
   const [status, setStatus] = useState<"loading" | "found" | "missing">("loading");
   const [draft, setDraft] = useState<SharedDraft | null>(null);
+  const [textSize, setTextSize] = useState<"sm" | "md" | "lg">(() => {
+    if (typeof window === "undefined") return "md";
+    const saved = localStorage.getItem("dabar_share_text_size");
+    return saved === "sm" || saved === "lg" ? saved : "md";
+  });
+
+  useEffect(() => {
+    try {
+      localStorage.setItem("dabar_share_text_size", textSize);
+    } catch {
+      // ignore storage errors
+    }
+  }, [textSize]);
 
   useEffect(() => {
     if (!token) {
@@ -81,6 +94,13 @@ export default function SharedDraftView() {
     );
   }
 
+  const bodySizeClass =
+    textSize === "sm"
+      ? "text-[14px] xs:text-[14px] sm:text-[15px] md:text-base leading-[1.7] xs:leading-[1.7] sm:leading-[1.75] md:leading-[1.8]"
+      : textSize === "lg"
+        ? "text-[17px] xs:text-[17px] sm:text-[18px] md:text-[19px] leading-[1.8] xs:leading-[1.8] sm:leading-[1.85] md:leading-[1.9]"
+        : "text-[15px] xs:text-[15px] sm:text-base md:text-[17px] leading-[1.75] xs:leading-[1.7] sm:leading-[1.8] md:leading-[1.85]";
+
   return (
     <div className="min-h-screen bg-background px-4 xs:px-5 sm:px-6 py-8 xs:py-10 sm:py-16 md:py-20">
       <article className="max-w-2xl mx-auto animate-fade-in-up">
@@ -106,6 +126,51 @@ export default function SharedDraftView() {
             })}
           </p>
         </header>
+
+        {/* Text size control */}
+        <div className="flex items-center justify-center gap-3 mb-6 sm:mb-8">
+          <span className="font-serif text-[9px] sm:text-[10px] text-muted-foreground uppercase tracking-[0.25em]">
+            Text size
+          </span>
+          <div
+            role="group"
+            aria-label="Adjust text size"
+            className="inline-flex items-center rounded-sm border border-border overflow-hidden"
+          >
+            {(
+              [
+                { key: "sm", label: "A", aria: "Small", cls: "text-[11px]" },
+                { key: "md", label: "A", aria: "Medium", cls: "text-[13px]" },
+                { key: "lg", label: "A", aria: "Large", cls: "text-[16px]" },
+              ] as const
+            ).map((opt) => {
+              const active = textSize === opt.key;
+              return (
+                <button
+                  key={opt.key}
+                  type="button"
+                  aria-label={`${opt.aria} text`}
+                  aria-pressed={active}
+                  onClick={() => {
+                    setTextSize(opt.key);
+                    trackEvent("shared_draft_text_size_changed", {
+                      screen: "shared_draft_view",
+                      metadata: { size: opt.key },
+                      userId: null,
+                    });
+                  }}
+                  className={`px-3 py-1 font-serif transition-colors ${opt.cls} ${
+                    active
+                      ? "bg-gold/10 text-gold"
+                      : "text-muted-foreground hover:text-foreground"
+                  }`}
+                >
+                  {opt.label}
+                </button>
+              );
+            })}
+          </div>
+        </div>
 
         {/* Scripture refs as a sacred card */}
         {draft.scripture_refs.length > 0 && (
@@ -135,7 +200,7 @@ export default function SharedDraftView() {
         */}
         <div
           lang="en"
-          className="font-body text-[15px] xs:text-[15px] sm:text-base md:text-[17px] text-foreground leading-[1.75] xs:leading-[1.7] sm:leading-[1.8] md:leading-[1.85] tracking-[0.012em] xs:tracking-[0.01em] [overflow-wrap:anywhere] [hyphens:auto] [text-wrap:pretty] space-y-4 xs:space-y-5 sm:space-y-6"
+          className={`font-body text-foreground tracking-[0.012em] xs:tracking-[0.01em] [overflow-wrap:anywhere] [hyphens:auto] [text-wrap:pretty] space-y-4 xs:space-y-5 sm:space-y-6 transition-[font-size,line-height] duration-200 ${bodySizeClass}`}
         >
           {draft.outline
             .split(/\n{2,}/)
