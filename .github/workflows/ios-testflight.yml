@@ -34,9 +34,6 @@ jobs:
       - name: Install fastlane
         run: gem install fastlane --no-document
 
-      - name: Install CocoaPods
-        run: cd ios/App && pod install
-
       - name: Sync Capacitor
         run: bunx cap sync ios
 

@@ -1,8 +1,7 @@
 default_platform(:ios)
 
-WORKSPACE = "App.xcworkspace"
-PROJECT   = "App.xcodeproj"
-SCHEME    = "App"
+PROJECT = "App.xcodeproj"
+SCHEME  = "App"
 
 platform :ios do
   desc "Fetch App Store signing certs/profiles via match (read-only on CI)"
@@ -20,7 +19,7 @@ platform :ios do
     )
 
     build_app(
-      workspace: WORKSPACE,
+      project: PROJECT,
       scheme: SCHEME,
       configuration: "Release",
       export_method: "app-store",
