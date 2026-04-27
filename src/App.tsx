@@ -56,6 +56,7 @@ const App = () => (
       <Sonner />
       <BrowserRouter>
         <AuthProvider>
+          <div className="dabar-grain min-h-screen">
           <Suspense fallback={<PageLoader />}>
             <Routes>
               <Route path="/" element={<Index />} />
@@ -82,6 +83,7 @@ const App = () => (
               <Route path="*" element={<NotFound />} />
             </Routes>
           </Suspense>
+          </div>
         </AuthProvider>
       </BrowserRouter>
     </TooltipProvider>
