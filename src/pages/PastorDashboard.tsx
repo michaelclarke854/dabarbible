@@ -464,6 +464,64 @@ export default function PastorDashboard() {
                     </Button>
                   )}
                 </div>
+                <div className="pt-3 border-t border-border space-y-2">
+                  <p className="font-serif text-xs text-gold uppercase tracking-widest">
+                    Private share link
+                  </p>
+                  <p className="font-body text-xs text-muted-foreground">
+                    View-only link for your team. Anyone with the link can view; rotate to invalidate.
+                  </p>
+                  <div className="flex gap-2 flex-wrap">
+                    <Button
+                      variant="outline"
+                      className="flex-1"
+                      onClick={async () => {
+                        let token = currentDraft.share_token;
+                        if (!token) {
+                          token = await rotateShareToken(currentDraft.id);
+                          if (!token) {
+                            toast.error("Could not create share link.");
+                            return;
+                          }
+                        }
+                        const url = `${window.location.origin}/share/draft/${token}`;
+                        await navigator.clipboard.writeText(url);
+                        setShareCopied(true);
+                        setTimeout(() => setShareCopied(false), 2000);
+                        toast.success("Share link copied.");
+                        trackEvent("pastor_share_link_copied", {
+                          screen: "pastor_dashboard",
+                          metadata: { draft_id: currentDraft.id },
+                          userId: user.id,
+                        });
+                      }}
+                    >
+                      {shareCopied ? "Copied!" : "Copy share link"}
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      className="flex-1"
+                      disabled={rotating}
+                      onClick={async () => {
+                        setRotating(true);
+                        const token = await rotateShareToken(currentDraft.id);
+                        setRotating(false);
+                        if (token) {
+                          toast.success("Share link rotated. Old link no longer works.");
+                          trackEvent("pastor_share_link_rotated", {
+                            screen: "pastor_dashboard",
+                            metadata: { draft_id: currentDraft.id },
+                            userId: user.id,
+                          });
+                        } else {
+                          toast.error("Could not rotate share link.");
+                        }
+                      }}
+                    >
+                      {rotating ? "Rotating..." : "Rotate link"}
+                    </Button>
+                  </div>
+                </div>
               </div>
             )}
           </div>
