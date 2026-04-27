@@ -655,6 +655,12 @@ export type Database = {
           beta_granted_by: string | null
           beta_notes: string | null
           created_at: string
+          daily_verse_last_sent_on: string | null
+          daily_verse_opt_in: boolean
+          daily_verse_opted_in_at: string | null
+          daily_verse_prompt_seen: boolean
+          daily_verse_send_hour_utc: number
+          daily_verse_unsub_token: string | null
           grace_period_until: string | null
           id: string
           is_pastor: boolean
@@ -675,6 +681,7 @@ export type Database = {
           trial_converted: boolean
           trial_ends_at: string | null
           trial_nudge_sent: Json
+          trial_nudges_sent: Json
           trial_started_at: string | null
           updated_at: string
           user_id: string
@@ -685,6 +692,12 @@ export type Database = {
           beta_granted_by?: string | null
           beta_notes?: string | null
           created_at?: string
+          daily_verse_last_sent_on?: string | null
+          daily_verse_opt_in?: boolean
+          daily_verse_opted_in_at?: string | null
+          daily_verse_prompt_seen?: boolean
+          daily_verse_send_hour_utc?: number
+          daily_verse_unsub_token?: string | null
           grace_period_until?: string | null
           id?: string
           is_pastor?: boolean
@@ -705,6 +718,7 @@ export type Database = {
           trial_converted?: boolean
           trial_ends_at?: string | null
           trial_nudge_sent?: Json
+          trial_nudges_sent?: Json
           trial_started_at?: string | null
           updated_at?: string
           user_id: string
@@ -715,6 +729,12 @@ export type Database = {
           beta_granted_by?: string | null
           beta_notes?: string | null
           created_at?: string
+          daily_verse_last_sent_on?: string | null
+          daily_verse_opt_in?: boolean
+          daily_verse_opted_in_at?: string | null
+          daily_verse_prompt_seen?: boolean
+          daily_verse_send_hour_utc?: number
+          daily_verse_unsub_token?: string | null
           grace_period_until?: string | null
           id?: string
           is_pastor?: boolean
@@ -735,6 +755,7 @@ export type Database = {
           trial_converted?: boolean
           trial_ends_at?: string | null
           trial_nudge_sent?: Json
+          trial_nudges_sent?: Json
           trial_started_at?: string | null
           updated_at?: string
           user_id?: string
@@ -1275,6 +1296,12 @@ export type Database = {
           scripture_refs: string[]
           theme: string
           title: string
+        }[]
+      }
+      lookup_user_by_verse_unsub_token: {
+        Args: { _token: string }
+        Returns: {
+          user_id: string
         }[]
       }
       move_to_dlq: {
