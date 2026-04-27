@@ -18,6 +18,7 @@ import TrialInterstitial from "@/components/TrialInterstitial";
 import AppLoadingSkeleton from "@/components/AppLoadingSkeleton";
 import EmailConfirmationPending from "@/components/EmailConfirmationPending";
 import AgeGateScreen from "@/components/AgeGateScreen";
+import DailyVerseOptIn from "@/components/DailyVerseOptIn";
 import { parseScriptureRef } from "@/data/kjvBooks";
 import { useAuth } from "@/contexts/AuthContext";
 import { trackEvent } from "@/lib/trackEvent";
@@ -871,6 +872,7 @@ const Index = () => {
         message={authModal.message}
       />
 
+      {user && <DailyVerseOptIn userId={user.id} />}
 
       {showPrivacySettings && user && (
         <Suspense fallback={null}>

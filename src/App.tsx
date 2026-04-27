@@ -25,6 +25,7 @@ const JoinCommunity = lazy(() => import("./pages/JoinCommunity.tsx"));
 const SharedDraftView = lazy(() => import("./pages/SharedDraftView.tsx"));
 const DoctrinePage = lazy(() => import("./pages/DoctrinePage.tsx"));
 const UnsubscribePage = lazy(() => import("./pages/UnsubscribePage.tsx"));
+const UnsubscribeVersePage = lazy(() => import("./pages/UnsubscribeVersePage.tsx"));
 const NotFound = lazy(() => import("./pages/NotFound.tsx"));
 
 // Dev-only visual regression fixtures (tree-shaken in production builds).
@@ -112,6 +113,7 @@ const App = () => (
               <Route path="/share/draft/:token" element={<SharedDraftView />} />
               <Route path="/doctrine" element={<DoctrinePage />} />
               <Route path="/unsubscribe" element={<UnsubscribePage />} />
+              <Route path="/unsubscribe-verse" element={<UnsubscribeVersePage />} />
               {import.meta.env.DEV && VisualAskFixture && (
                 <Route path="/__visual/ask" element={<VisualAskFixture />} />
               )}
