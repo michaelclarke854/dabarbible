@@ -52,7 +52,7 @@ const PageSpinner = () => (
 const Index = () => {
   const navigate = useNavigate();
   const {
-    user, role, plan, isSuspended, ageGroup, hasFullAccess, isBeta, isAdmin,
+    user, role, plan, isSuspended, ageGroup, hasFullAccess, isBeta, isAdmin, isPastor,
     languagePreference, setLanguagePreference, preferredBibleVersion, setPreferredBibleVersion,
     refreshProfile, loading: authLoading, isHydrating, emailUnconfirmed, userEmail, trial,
     needsAgeGate, pendingCheckin,
@@ -819,6 +819,14 @@ const Index = () => {
               className="text-[10px] font-body tracking-wider uppercase text-gold hover:text-gold-light transition-colors"
             >
               Admin
+            </button>
+          )}
+          {isPastor && (
+            <button
+              onClick={() => navigate("/pastor")}
+              className="text-[10px] font-body tracking-wider uppercase text-gold hover:text-gold-light transition-colors"
+            >
+              Pastor
             </button>
           )}
           {user && (
