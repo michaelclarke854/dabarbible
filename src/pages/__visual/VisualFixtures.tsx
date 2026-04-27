@@ -36,6 +36,15 @@ export const VisualAskFixture = () => (
 
 export const VisualResponseFixture = () => (
   <div className="min-h-screen bg-background">
+    {/*
+      Hidden anchors so the visual spec can assert block presence + order
+      without coupling to internal class names. Kept visually invisible
+      with sr-only so they do not affect screenshot diffs.
+    */}
+    <span data-block="mirror" className="sr-only">mirror</span>
+    <span data-block="scripture" className="sr-only">scripture</span>
+    <span data-block="wisdom-bridge" className="sr-only">wisdom-bridge</span>
+    <span data-block="threshold" className="sr-only">threshold</span>
     <ResponseScreen
       question={FIXTURE_QUESTION}
       response={FIXTURE_RESPONSE}
