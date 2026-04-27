@@ -5,6 +5,9 @@
  */
 import AskScreen from "@/components/AskScreen";
 import ResponseScreen from "@/components/ResponseScreen";
+import JournalScreen from "@/components/JournalScreen";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { useMemo } from "react";
 
 const FIXTURE_QUESTION =
   "I keep failing at the same thing and I do not know how to keep going.";
@@ -59,3 +62,62 @@ export const VisualResponseFixture = () => (
     />
   </div>
 );
+
+/**
+ * Deterministic Journal fixture — seeds React Query cache with three
+ * "saved" wisdom_sessions so the E2E spec can exercise the search flow
+ * end-to-end without hitting Supabase. The empty `search` key matches the
+ * initial JournalScreen query.
+ */
+const FIXTURE_JOURNAL_ENTRIES = [
+  {
+    id: "fixture-entry-forgiveness",
+    question: "How do I forgive someone who keeps hurting me?",
+    response:
+      "Forgiveness is not forgetting. It is releasing the right to retaliate.\n\nWhat boundary is love asking you to draw?",
+    scripture_refs: ["Matthew 18:21-22"],
+    created_at: "2026-04-20T10:00:00.000Z",
+    saved_to_journal: true,
+  },
+  {
+    id: "fixture-entry-anxiety",
+    question: "I cannot sleep because of my anxiety about work.",
+    response:
+      "The mind racing at midnight is the soul refusing to be still.\n\nWhat are you afraid will happen if you stop?",
+    scripture_refs: ["Philippians 4:6-7"],
+    created_at: "2026-04-19T22:30:00.000Z",
+    saved_to_journal: true,
+  },
+  {
+    id: "fixture-entry-purpose",
+    question: "What is my purpose in this season?",
+    response:
+      "Purpose is rarely announced. It is uncovered in the small obediences.\n\nWhere is faithfulness asking something quiet of you?",
+    scripture_refs: ["Jeremiah 29:11"],
+    created_at: "2026-04-18T08:15:00.000Z",
+    saved_to_journal: true,
+  },
+];
+
+export const VisualJournalFixture = () => {
+  const client = useMemo(() => {
+    const qc = new QueryClient({
+      defaultOptions: { queries: { retry: false, staleTime: Infinity } },
+    });
+    qc.setQueryData(["journal", ""], FIXTURE_JOURNAL_ENTRIES);
+    return qc;
+  }, []);
+
+  return (
+    <QueryClientProvider client={client}>
+      <div className="min-h-screen bg-background" data-fixture="journal">
+        {/* sr-only anchors let the spec assert seeded entries without
+            coupling to the visual layout. */}
+        <span data-journal-entry="forgiveness" className="sr-only">forgiveness</span>
+        <span data-journal-entry="anxiety" className="sr-only">anxiety</span>
+        <span data-journal-entry="purpose" className="sr-only">purpose</span>
+        <JournalScreen />
+      </div>
+    </QueryClientProvider>
+  );
+};
