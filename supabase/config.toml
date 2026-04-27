@@ -23,3 +23,7 @@ project_id = "crkkimoblnrxpszehmkg"
     verify_jwt = false
   [functions.pastoral-outreach]
     verify_jwt = false
+  [functions.trial-nudges]
+    verify_jwt = false
+  [functions.daily-verse]
+    verify_jwt = false
