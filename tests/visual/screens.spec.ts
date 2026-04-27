@@ -1,6 +1,7 @@
 import { test, expect } from "@playwright/test";
 import fs from "node:fs";
 import path from "node:path";
+import { fileURLToPath } from "node:url";
 import { PNG } from "pngjs";
 import pixelmatch from "pixelmatch";
 
@@ -9,6 +10,7 @@ import pixelmatch from "pixelmatch";
  * Baselines live in tests/visual/baselines/. Diffs land in tests/visual/diffs/.
  * Tolerance: ~1% mismatched pixels (layout-focused, not pixel-strict).
  */
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const BASELINE_DIR = path.join(__dirname, "baselines");
 const DIFF_DIR = path.join(__dirname, "diffs");
 const UPDATE = process.env.UPDATE_SNAPSHOTS === "1";
