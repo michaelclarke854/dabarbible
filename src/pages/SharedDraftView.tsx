@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { useParams, Link } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
+import { trackEvent } from "@/lib/trackEvent";
 
 interface SharedDraft {
   title: string;
@@ -29,9 +30,22 @@ export default function SharedDraftView() {
       const row = Array.isArray(data) ? data[0] : null;
       if (error || !row) {
         setStatus("missing");
+        trackEvent("shared_draft_link_invalid", {
+          screen: "shared_draft_view",
+          metadata: { token_prefix: token.slice(0, 6) },
+          userId: null,
+        });
       } else {
         setDraft(row as SharedDraft);
         setStatus("found");
+        trackEvent("shared_draft_link_opened", {
+          screen: "shared_draft_view",
+          metadata: {
+            token_prefix: token.slice(0, 6),
+            theme: (row as SharedDraft).theme,
+          },
+          userId: null,
+        });
       }
     })();
     return () => {
