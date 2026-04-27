@@ -9,6 +9,7 @@ import {
 import { trackEvent } from "@/lib/trackEvent";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
+import jsPDF from "jspdf";
 
 const THEME_LABELS: Record<string, string> = {
   forgiveness: "Forgiveness",
@@ -115,6 +116,104 @@ export default function PastorDashboard() {
       userId: user.id,
     });
     toast.success("Outline copied to clipboard.");
+  };
+
+  const handleDownloadPDF = () => {
+    if (!currentDraft) return;
+    const doc = new jsPDF({ unit: "pt", format: "letter" });
+    const pageWidth = doc.internal.pageSize.getWidth();
+    const pageHeight = doc.internal.pageSize.getHeight();
+    const margin = 56;
+    const maxWidth = pageWidth - margin * 2;
+    let y = margin;
+
+    const ensureSpace = (needed: number) => {
+      if (y + needed > pageHeight - margin) {
+        doc.addPage();
+        y = margin;
+      }
+    };
+
+    // Title
+    doc.setFont("times", "bold");
+    doc.setFontSize(20);
+    const titleLines = doc.splitTextToSize(currentDraft.title, maxWidth);
+    titleLines.forEach((line: string) => {
+      ensureSpace(26);
+      doc.text(line, margin, y);
+      y += 26;
+    });
+    y += 6;
+
+    // Meta
+    doc.setFont("helvetica", "italic");
+    doc.setFontSize(10);
+    doc.setTextColor(110);
+    const meta = `${THEME_LABELS[currentDraft.theme] ?? currentDraft.theme} · ${currentDraft.question_count} question${currentDraft.question_count !== 1 ? "s" : ""} · ${new Date(currentDraft.created_at).toLocaleDateString()}`;
+    ensureSpace(16);
+    doc.text(meta, margin, y);
+    y += 18;
+
+    // Scripture refs
+    if (currentDraft.scripture_refs.length > 0) {
+      doc.setFont("helvetica", "normal");
+      doc.setFontSize(10);
+      doc.setTextColor(160, 120, 50);
+      const refs = currentDraft.scripture_refs.join("  ·  ");
+      const refLines = doc.splitTextToSize(refs, maxWidth);
+      refLines.forEach((line: string) => {
+        ensureSpace(14);
+        doc.text(line, margin, y);
+        y += 14;
+      });
+      y += 8;
+    }
+
+    // Divider
+    ensureSpace(12);
+    doc.setDrawColor(200);
+    doc.line(margin, y, pageWidth - margin, y);
+    y += 16;
+
+    // Outline body
+    doc.setFont("times", "normal");
+    doc.setFontSize(12);
+    doc.setTextColor(20);
+    const bodyLines = doc.splitTextToSize(currentDraft.outline, maxWidth);
+    bodyLines.forEach((line: string) => {
+      ensureSpace(16);
+      doc.text(line, margin, y);
+      y += 16;
+    });
+
+    // Footer on every page
+    const pageCount = doc.getNumberOfPages();
+    for (let i = 1; i <= pageCount; i++) {
+      doc.setPage(i);
+      doc.setFont("helvetica", "normal");
+      doc.setFontSize(8);
+      doc.setTextColor(150);
+      doc.text(
+        `DABAR · Pastor outline · Page ${i} of ${pageCount}`,
+        pageWidth / 2,
+        pageHeight - 24,
+        { align: "center" }
+      );
+    }
+
+    const safeTitle = currentDraft.title
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, "-")
+      .replace(/^-+|-+$/g, "")
+      .slice(0, 60) || "sermon-outline";
+    doc.save(`${safeTitle}.pdf`);
+
+    trackEvent("pastor_message_pdf_downloaded", {
+      screen: "pastor_dashboard",
+      metadata: { draft_id: currentDraft.id },
+      userId: user.id,
+    });
+    toast.success("PDF downloaded.");
   };
 
   const inviteLink = data?.community
@@ -328,6 +427,9 @@ export default function PastorDashboard() {
                 <div className="flex gap-2">
                   <Button onClick={handleCopy} variant="outline" className="flex-1">
                     {copied ? "Copied!" : "Copy outline"}
+                  </Button>
+                  <Button onClick={handleDownloadPDF} variant="outline" className="flex-1">
+                    Download PDF
                   </Button>
                   {selectedTheme && (
                     <Button
