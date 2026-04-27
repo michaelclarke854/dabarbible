@@ -166,6 +166,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           setEmailUnconfirmed(false);
           setNeedsAgeGate(false);
           fetchProfile(u.id).then(() => {
+            // If user signed in/up via an invite link, complete the join flow.
+            const pendingInvite = typeof window !== 'undefined'
+              ? localStorage.getItem('dabar_pending_invite')
+              : null;
+            if (pendingInvite && !window.location.pathname.startsWith('/join/')) {
+              window.location.href = `/join/${pendingInvite}`;
+              return;
+            }
             // Fire signup_completed once per new account.
             // Heuristic: user.created_at within 5 minutes of now → first session.
             if (!signupTrackedRef.current.has(u.id)) {
