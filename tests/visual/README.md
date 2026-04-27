@@ -43,3 +43,34 @@ bunx playwright install --with-deps chromium
 
 Lovable's nix-based exec sandbox doesn't ship those libs by default, so
 initial baselines should be captured locally or in CI, then committed.
+
+## CI workflow
+
+`.github/workflows/visual-regression.yml` runs the suite on every push and
+PR to `main`. Two modes:
+
+- **Default (push / PR):** runs `bun run test:visual` against the committed
+  baselines in `tests/visual/baselines/`. Failures upload a Playwright
+  report as a build artifact (`playwright-report`).
+- **`workflow_dispatch` with `update_baselines=true`:** runs
+  `bun run test:visual:update` and uploads the regenerated PNGs as a
+  `visual-baselines` artifact for download + commit.
+
+The same workflow runs the security regression suite
+(`bun run test:security`) in a parallel job — both must be green before
+shipping.
+
+### First-time baseline capture
+
+The Lovable exec sandbox lacks the system libraries Chromium needs, so
+baselines cannot be generated there. To seed `tests/visual/baselines/`:
+
+1. Trigger the workflow manually:
+   `gh workflow run visual-regression.yml -f update_baselines=true`
+2. Download the `visual-baselines` artifact from the run.
+3. Unzip into `tests/visual/baselines/` and commit the PNGs.
+4. Subsequent pushes will diff against those baselines automatically.
+
+Alternatively, run `bun run test:visual:update` on a local Linux machine
+with `libglib-2.0`, `libnss3`, `libgbm` installed, then commit the
+resulting `tests/visual/baselines/*.png` files.
