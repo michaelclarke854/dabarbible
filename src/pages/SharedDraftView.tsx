@@ -127,7 +127,13 @@ export default function SharedDraftView() {
         )}
 
         {/* Outline body */}
-        <div className="font-body text-[14px] xs:text-[15px] sm:text-base md:text-[17px] text-foreground whitespace-pre-wrap leading-[1.65] xs:leading-[1.7] sm:leading-[1.8] md:leading-[1.85] tracking-[0.01em]">
+        {/*
+          Mobile-first reading scale.
+          Base (<375px, incl. 320px): 15px / 1.75 line-height with airy letter-spacing
+          for maximum comfort on the smallest screens.
+          Scales up gracefully through xs → sm → md.
+        */}
+        <div className="font-body text-[15px] xs:text-[15px] sm:text-base md:text-[17px] text-foreground whitespace-pre-wrap leading-[1.75] xs:leading-[1.7] sm:leading-[1.8] md:leading-[1.85] tracking-[0.012em] xs:tracking-[0.01em]">
           {draft.outline}
         </div>
 
