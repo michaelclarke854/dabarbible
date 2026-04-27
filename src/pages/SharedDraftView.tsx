@@ -109,11 +109,11 @@ export default function SharedDraftView() {
 
         {/* Scripture refs as a sacred card */}
         {draft.scripture_refs.length > 0 && (
-          <div className="bg-scripture-card border-l-4 border-gold rounded-sm px-4 sm:px-5 py-3 sm:py-4 mb-6 sm:mb-10">
-            <p className="font-serif text-[9px] sm:text-[10px] text-gold uppercase tracking-[0.25em] mb-1.5 sm:mb-2">
+          <div className="bg-scripture-card border-l-4 border-gold rounded-sm px-4 sm:px-5 py-3.5 xs:py-3 sm:py-4 mb-7 xs:mb-6 sm:mb-10">
+            <p className="font-serif text-[9px] sm:text-[10px] text-gold uppercase tracking-[0.25em] mb-2 xs:mb-1.5 sm:mb-2">
               Scripture
             </p>
-            <div className="flex flex-wrap gap-x-3 sm:gap-x-4 gap-y-1">
+            <div className="flex flex-wrap gap-x-3 sm:gap-x-4 gap-y-1.5 xs:gap-y-1">
               {draft.scripture_refs.map((ref) => (
                 <span
                   key={ref}
@@ -135,13 +135,19 @@ export default function SharedDraftView() {
         */}
         <div
           lang="en"
-          className="font-body text-[15px] xs:text-[15px] sm:text-base md:text-[17px] text-foreground whitespace-pre-wrap leading-[1.75] xs:leading-[1.7] sm:leading-[1.8] md:leading-[1.85] tracking-[0.012em] xs:tracking-[0.01em] [overflow-wrap:anywhere] [hyphens:auto] [text-wrap:pretty]"
+          className="font-body text-[15px] xs:text-[15px] sm:text-base md:text-[17px] text-foreground leading-[1.75] xs:leading-[1.7] sm:leading-[1.8] md:leading-[1.85] tracking-[0.012em] xs:tracking-[0.01em] [overflow-wrap:anywhere] [hyphens:auto] [text-wrap:pretty] space-y-4 xs:space-y-5 sm:space-y-6"
         >
-          {draft.outline}
+          {draft.outline
+            .split(/\n{2,}/)
+            .map((para, i) => (
+              <p key={i} className="whitespace-pre-wrap">
+                {para.trim()}
+              </p>
+            ))}
         </div>
 
         {/* Footer */}
-        <footer className="pt-12 mt-16 border-t border-border/60 text-center space-y-3">
+        <footer className="pt-8 xs:pt-10 sm:pt-12 mt-10 xs:mt-12 sm:mt-16 border-t border-border/60 text-center space-y-3">
           <span className="inline-block w-1.5 h-1.5 rounded-full bg-gold animate-candle-glow" />
           <Link
             to="/"
