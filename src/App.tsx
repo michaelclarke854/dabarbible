@@ -24,6 +24,7 @@ const PastorSetup = lazy(() => import("./pages/PastorSetup.tsx"));
 const JoinCommunity = lazy(() => import("./pages/JoinCommunity.tsx"));
 const SharedDraftView = lazy(() => import("./pages/SharedDraftView.tsx"));
 const DoctrinePage = lazy(() => import("./pages/DoctrinePage.tsx"));
+const UnsubscribePage = lazy(() => import("./pages/UnsubscribePage.tsx"));
 const NotFound = lazy(() => import("./pages/NotFound.tsx"));
 
 // Dev-only visual regression fixtures (tree-shaken in production builds).
@@ -110,6 +111,7 @@ const App = () => (
               <Route path="/join/:inviteCode" element={<JoinCommunity />} />
               <Route path="/share/draft/:token" element={<SharedDraftView />} />
               <Route path="/doctrine" element={<DoctrinePage />} />
+              <Route path="/unsubscribe" element={<UnsubscribePage />} />
               {import.meta.env.DEV && VisualAskFixture && (
                 <Route path="/__visual/ask" element={<VisualAskFixture />} />
               )}
