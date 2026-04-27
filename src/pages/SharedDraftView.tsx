@@ -76,8 +76,8 @@ export default function SharedDraftView() {
 
   if (status === "missing" || !draft) {
     return (
-      <div className="min-h-screen bg-background px-6 py-12 flex flex-col items-center justify-center gap-4 text-center">
-        <h1 className="font-serif text-xl text-destructive tracking-wide">
+      <div className="min-h-screen bg-background px-4 xs:px-6 py-12 flex flex-col items-center justify-center gap-4 text-center">
+        <h1 className="font-serif text-lg xs:text-xl text-destructive tracking-wide leading-snug [text-wrap:balance]">
           This share link is no longer valid
         </h1>
         <p className="font-body text-sm text-muted-foreground max-w-md">
@@ -102,15 +102,15 @@ export default function SharedDraftView() {
         : "text-[15px] xs:text-[15px] sm:text-base md:text-[17px] leading-[1.75] xs:leading-[1.7] sm:leading-[1.8] md:leading-[1.85]";
 
   return (
-    <div className="min-h-screen bg-background px-4 xs:px-5 sm:px-6 py-8 xs:py-10 sm:py-16 md:py-20">
+    <div className="min-h-screen bg-background px-3 xxs:px-4 xs:px-5 sm:px-6 py-7 xxs:py-8 xs:py-10 sm:py-16 md:py-20 overflow-x-hidden">
       <article className="max-w-2xl mx-auto animate-fade-in-up">
         {/* Eyebrow */}
-        <div className="flex items-center justify-center gap-2 sm:gap-3 mb-6 sm:mb-10">
-          <span className="h-px w-6 sm:w-8 bg-gold/40" />
-          <p className="font-serif text-[9px] sm:text-[10px] text-gold uppercase tracking-[0.25em] sm:tracking-[0.3em]">
+        <div className="flex items-center justify-center gap-2 sm:gap-3 mb-5 xs:mb-6 sm:mb-10">
+          <span className="h-px w-5 xs:w-6 sm:w-8 bg-gold/40 shrink-0" />
+          <p className="font-serif text-[9px] sm:text-[10px] text-gold uppercase tracking-[0.2em] xs:tracking-[0.25em] sm:tracking-[0.3em] whitespace-nowrap">
             Shared Outline
           </p>
-          <span className="h-px w-6 sm:w-8 bg-gold/40" />
+          <span className="h-px w-5 xs:w-6 sm:w-8 bg-gold/40 shrink-0" />
         </div>
 
         {/* Title */}
@@ -128,8 +128,8 @@ export default function SharedDraftView() {
         </header>
 
         {/* Text size control */}
-        <div className="flex items-center justify-center gap-3 mb-6 sm:mb-8">
-          <span className="font-serif text-[9px] sm:text-[10px] text-muted-foreground uppercase tracking-[0.25em]">
+        <div className="flex flex-wrap items-center justify-center gap-x-3 gap-y-2 mb-6 sm:mb-8">
+          <span className="font-serif text-[9px] sm:text-[10px] text-muted-foreground uppercase tracking-[0.2em] xs:tracking-[0.25em]">
             Text size
           </span>
           <div
@@ -159,7 +159,7 @@ export default function SharedDraftView() {
                       userId: null,
                     });
                   }}
-                  className={`px-3 py-1 font-serif transition-colors ${opt.cls} ${
+                  className={`px-2.5 xs:px-3 py-1 font-serif leading-none transition-colors ${opt.cls} ${
                     active
                       ? "bg-gold/10 text-gold"
                       : "text-muted-foreground hover:text-foreground"
