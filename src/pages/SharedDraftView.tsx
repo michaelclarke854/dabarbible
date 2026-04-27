@@ -82,16 +82,23 @@ export default function SharedDraftView() {
   }
 
   return (
-    <div className="min-h-screen bg-background px-6 py-12">
-      <article className="max-w-2xl mx-auto space-y-6">
-        <header className="space-y-3 pb-4 border-b border-border">
-          <p className="font-body text-xs text-gold uppercase tracking-widest">
-            Shared message outline
+    <div className="min-h-screen bg-background px-6 py-16 md:py-20">
+      <article className="max-w-2xl mx-auto animate-fade-in-up">
+        {/* Eyebrow */}
+        <div className="flex items-center justify-center gap-3 mb-10">
+          <span className="h-px w-8 bg-gold/40" />
+          <p className="font-serif text-[10px] text-gold uppercase tracking-[0.3em]">
+            Shared Outline
           </p>
-          <h1 className="font-serif text-3xl text-foreground tracking-wide leading-snug">
+          <span className="h-px w-8 bg-gold/40" />
+        </div>
+
+        {/* Title */}
+        <header className="text-center space-y-4 pb-10">
+          <h1 className="font-serif text-3xl md:text-4xl text-foreground tracking-wide leading-snug">
             {draft.title}
           </h1>
-          <p className="font-body text-xs text-muted-foreground">
+          <p className="font-body text-xs text-muted-foreground tracking-wider">
             {new Date(draft.created_at).toLocaleDateString(undefined, {
               year: "numeric",
               month: "long",
@@ -100,29 +107,38 @@ export default function SharedDraftView() {
           </p>
         </header>
 
+        {/* Scripture refs as a sacred card */}
         {draft.scripture_refs.length > 0 && (
-          <div className="flex flex-wrap gap-2">
-            {draft.scripture_refs.map((ref) => (
-              <span
-                key={ref}
-                className="text-xs font-body px-2 py-1 bg-gold/10 text-gold rounded-sm"
-              >
-                {ref}
-              </span>
-            ))}
+          <div className="bg-scripture-card border-l-4 border-gold rounded-sm px-5 py-4 mb-10">
+            <p className="font-serif text-[10px] text-gold uppercase tracking-[0.25em] mb-2">
+              Scripture
+            </p>
+            <div className="flex flex-wrap gap-x-4 gap-y-1">
+              {draft.scripture_refs.map((ref) => (
+                <span
+                  key={ref}
+                  className="font-serif text-sm text-gold-light tracking-wide"
+                >
+                  {ref}
+                </span>
+              ))}
+            </div>
           </div>
         )}
 
-        <pre className="font-body text-base text-foreground whitespace-pre-wrap leading-relaxed">
+        {/* Outline body */}
+        <div className="font-body text-base md:text-[17px] text-foreground whitespace-pre-wrap leading-[1.85]">
           {draft.outline}
-        </pre>
+        </div>
 
-        <footer className="pt-8 mt-8 border-t border-border text-center">
+        {/* Footer */}
+        <footer className="pt-12 mt-16 border-t border-border/60 text-center space-y-3">
+          <span className="inline-block w-1.5 h-1.5 rounded-full bg-gold animate-candle-glow" />
           <Link
             to="/"
-            className="text-xs font-body text-muted-foreground hover:text-foreground"
+            className="block font-serif text-[10px] text-muted-foreground uppercase tracking-[0.3em] hover:text-gold transition-colors"
           >
-            Shared via DABAR · dabarbible.com
+            Shared via DABAR
           </Link>
         </footer>
       </article>
