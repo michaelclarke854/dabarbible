@@ -82,23 +82,23 @@ export default function SharedDraftView() {
   }
 
   return (
-    <div className="min-h-screen bg-background px-6 py-16 md:py-20">
+    <div className="min-h-screen bg-background px-5 sm:px-6 py-10 sm:py-16 md:py-20">
       <article className="max-w-2xl mx-auto animate-fade-in-up">
         {/* Eyebrow */}
-        <div className="flex items-center justify-center gap-3 mb-10">
-          <span className="h-px w-8 bg-gold/40" />
-          <p className="font-serif text-[10px] text-gold uppercase tracking-[0.3em]">
+        <div className="flex items-center justify-center gap-2 sm:gap-3 mb-6 sm:mb-10">
+          <span className="h-px w-6 sm:w-8 bg-gold/40" />
+          <p className="font-serif text-[9px] sm:text-[10px] text-gold uppercase tracking-[0.25em] sm:tracking-[0.3em]">
             Shared Outline
           </p>
-          <span className="h-px w-8 bg-gold/40" />
+          <span className="h-px w-6 sm:w-8 bg-gold/40" />
         </div>
 
         {/* Title */}
-        <header className="text-center space-y-4 pb-10">
-          <h1 className="font-serif text-3xl md:text-4xl text-foreground tracking-wide leading-snug">
+        <header className="text-center space-y-3 sm:space-y-4 pb-6 sm:pb-10">
+          <h1 className="font-serif text-2xl sm:text-3xl md:text-4xl text-foreground tracking-wide leading-[1.25] sm:leading-snug">
             {draft.title}
           </h1>
-          <p className="font-body text-xs text-muted-foreground tracking-wider">
+          <p className="font-body text-[11px] sm:text-xs text-muted-foreground tracking-wider">
             {new Date(draft.created_at).toLocaleDateString(undefined, {
               year: "numeric",
               month: "long",
@@ -109,15 +109,15 @@ export default function SharedDraftView() {
 
         {/* Scripture refs as a sacred card */}
         {draft.scripture_refs.length > 0 && (
-          <div className="bg-scripture-card border-l-4 border-gold rounded-sm px-5 py-4 mb-10">
-            <p className="font-serif text-[10px] text-gold uppercase tracking-[0.25em] mb-2">
+          <div className="bg-scripture-card border-l-4 border-gold rounded-sm px-4 sm:px-5 py-3 sm:py-4 mb-6 sm:mb-10">
+            <p className="font-serif text-[9px] sm:text-[10px] text-gold uppercase tracking-[0.25em] mb-1.5 sm:mb-2">
               Scripture
             </p>
-            <div className="flex flex-wrap gap-x-4 gap-y-1">
+            <div className="flex flex-wrap gap-x-3 sm:gap-x-4 gap-y-1">
               {draft.scripture_refs.map((ref) => (
                 <span
                   key={ref}
-                  className="font-serif text-sm text-gold-light tracking-wide"
+                  className="font-serif text-[13px] sm:text-sm text-gold-light tracking-wide"
                 >
                   {ref}
                 </span>
@@ -127,7 +127,7 @@ export default function SharedDraftView() {
         )}
 
         {/* Outline body */}
-        <div className="font-body text-base md:text-[17px] text-foreground whitespace-pre-wrap leading-[1.85]">
+        <div className="font-body text-[15px] sm:text-base md:text-[17px] text-foreground whitespace-pre-wrap leading-[1.7] sm:leading-[1.8] md:leading-[1.85]">
           {draft.outline}
         </div>
 
