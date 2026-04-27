@@ -42,6 +42,34 @@ const VisualResponseFixture = import.meta.env.DEV
     )
   : null;
 
+// Dev-only gate fixtures — exercised by tests/visual/gates.spec.ts.
+// Tree-shaken from production builds via `import.meta.env.DEV`.
+const gateFixture = (name:
+  | "GuestSoftGateFixture"
+  | "GuestBlurGateFixture"
+  | "TrialExpiredPaywallFixture"
+  | "FreeUserLockedNavFixture"
+  | "SubscribedUserUnlockedNavFixture"
+  | "GuestLandingHeroFixture"
+  | "GuestAskOpenFixture") =>
+  import.meta.env.DEV
+    ? lazy(() =>
+        import("./pages/__visual/GateFixtures.tsx").then((m) => ({
+          default: m[name],
+        })),
+      )
+    : null;
+
+const GuestSoftGateFixture = gateFixture("GuestSoftGateFixture");
+const GuestBlurGateFixture = gateFixture("GuestBlurGateFixture");
+const TrialExpiredPaywallFixture = gateFixture("TrialExpiredPaywallFixture");
+const FreeUserLockedNavFixture = gateFixture("FreeUserLockedNavFixture");
+const SubscribedUserUnlockedNavFixture = gateFixture(
+  "SubscribedUserUnlockedNavFixture",
+);
+const GuestLandingHeroFixture = gateFixture("GuestLandingHeroFixture");
+const GuestAskOpenFixture = gateFixture("GuestAskOpenFixture");
+
 const queryClient = new QueryClient();
 
 const PageLoader = () => (
@@ -80,6 +108,27 @@ const App = () => (
               )}
               {import.meta.env.DEV && VisualResponseFixture && (
                 <Route path="/__visual/response" element={<VisualResponseFixture />} />
+              )}
+              {import.meta.env.DEV && GuestLandingHeroFixture && (
+                <Route path="/__visual/gate/landing" element={<GuestLandingHeroFixture />} />
+              )}
+              {import.meta.env.DEV && GuestAskOpenFixture && (
+                <Route path="/__visual/gate/ask-open" element={<GuestAskOpenFixture />} />
+              )}
+              {import.meta.env.DEV && GuestSoftGateFixture && (
+                <Route path="/__visual/gate/soft" element={<GuestSoftGateFixture />} />
+              )}
+              {import.meta.env.DEV && GuestBlurGateFixture && (
+                <Route path="/__visual/gate/blur" element={<GuestBlurGateFixture />} />
+              )}
+              {import.meta.env.DEV && TrialExpiredPaywallFixture && (
+                <Route path="/__visual/gate/trial-expired" element={<TrialExpiredPaywallFixture />} />
+              )}
+              {import.meta.env.DEV && FreeUserLockedNavFixture && (
+                <Route path="/__visual/gate/free-locked" element={<FreeUserLockedNavFixture />} />
+              )}
+              {import.meta.env.DEV && SubscribedUserUnlockedNavFixture && (
+                <Route path="/__visual/gate/subscribed" element={<SubscribedUserUnlockedNavFixture />} />
               )}
               {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
               <Route path="*" element={<NotFound />} />
