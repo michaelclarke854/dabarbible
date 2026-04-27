@@ -178,11 +178,11 @@ export default function SharedDraftView() {
             <p className="font-serif text-[9px] sm:text-[10px] text-gold uppercase tracking-[0.25em] mb-2 xs:mb-1.5 sm:mb-2">
               Scripture
             </p>
-            <div className="flex flex-wrap gap-x-3 sm:gap-x-4 gap-y-1.5 xs:gap-y-1">
+            <div className="flex flex-wrap gap-x-3 sm:gap-x-4 gap-y-1.5 xs:gap-y-1 max-w-full">
               {draft.scripture_refs.map((ref) => (
                 <span
                   key={ref}
-                  className="font-serif text-[13px] sm:text-sm text-gold-light tracking-wide [overflow-wrap:anywhere] [hyphens:auto] max-w-full"
+                  className="font-serif text-[13px] sm:text-sm text-gold-light tracking-wide max-w-full min-w-0 [overflow-wrap:break-word] [word-break:normal] [hyphens:none]"
                 >
                   {ref}
                 </span>
