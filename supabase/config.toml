@@ -21,3 +21,5 @@ project_id = "crkkimoblnrxpszehmkg"
     verify_jwt = false
   [functions.update-user-role]
     verify_jwt = false
+  [functions.pastoral-outreach]
+    verify_jwt = false
