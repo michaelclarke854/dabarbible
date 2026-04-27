@@ -95,7 +95,7 @@ export default function SharedDraftView() {
 
         {/* Title */}
         <header className="text-center space-y-3 sm:space-y-4 pb-6 sm:pb-10">
-          <h1 className="font-serif text-[22px] xs:text-2xl sm:text-3xl md:text-4xl text-foreground tracking-wide leading-[1.2] xs:leading-[1.25] sm:leading-snug break-words">
+          <h1 className="font-serif text-[22px] xs:text-2xl sm:text-3xl md:text-4xl text-foreground tracking-wide leading-[1.2] xs:leading-[1.25] sm:leading-snug break-words [overflow-wrap:anywhere] [hyphens:auto] [text-wrap:balance]">
             {draft.title}
           </h1>
           <p className="font-body text-[11px] sm:text-xs text-muted-foreground tracking-wider">
