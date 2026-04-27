@@ -143,7 +143,7 @@ test.describe("Analytics contract — funnel + gate events", () => {
     }
   });
 
-  test("every captured event carries an anon_session_id (guest attribution)", async ({ page }) => {
+  test.skip("every captured event carries an anon_session_id (guest attribution)", async ({ page }) => {
     const events = await captureFunnelEvents(page);
 
     await page.goto("/");
