@@ -82,7 +82,7 @@ export default function SharedDraftView() {
   }
 
   return (
-    <div className="min-h-screen bg-background px-5 sm:px-6 py-10 sm:py-16 md:py-20">
+    <div className="min-h-screen bg-background px-4 xs:px-5 sm:px-6 py-8 xs:py-10 sm:py-16 md:py-20">
       <article className="max-w-2xl mx-auto animate-fade-in-up">
         {/* Eyebrow */}
         <div className="flex items-center justify-center gap-2 sm:gap-3 mb-6 sm:mb-10">
@@ -95,7 +95,7 @@ export default function SharedDraftView() {
 
         {/* Title */}
         <header className="text-center space-y-3 sm:space-y-4 pb-6 sm:pb-10">
-          <h1 className="font-serif text-2xl sm:text-3xl md:text-4xl text-foreground tracking-wide leading-[1.25] sm:leading-snug">
+          <h1 className="font-serif text-[22px] xs:text-2xl sm:text-3xl md:text-4xl text-foreground tracking-wide leading-[1.2] xs:leading-[1.25] sm:leading-snug break-words">
             {draft.title}
           </h1>
           <p className="font-body text-[11px] sm:text-xs text-muted-foreground tracking-wider">
@@ -127,7 +127,7 @@ export default function SharedDraftView() {
         )}
 
         {/* Outline body */}
-        <div className="font-body text-[15px] sm:text-base md:text-[17px] text-foreground whitespace-pre-wrap leading-[1.7] sm:leading-[1.8] md:leading-[1.85]">
+        <div className="font-body text-[14px] xs:text-[15px] sm:text-base md:text-[17px] text-foreground whitespace-pre-wrap leading-[1.65] xs:leading-[1.7] sm:leading-[1.8] md:leading-[1.85] tracking-[0.01em]">
           {draft.outline}
         </div>
 

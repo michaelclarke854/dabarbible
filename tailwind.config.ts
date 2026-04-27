@@ -13,6 +13,9 @@ export default {
       },
     },
     extend: {
+      screens: {
+        xs: "375px",
+      },
       fontFamily: {
         serif: ["Cinzel", "serif"],
         body: ["Lato", "sans-serif"],
