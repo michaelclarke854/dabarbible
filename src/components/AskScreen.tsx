@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef, forwardRef } from "react";
+import { Link } from "react-router-dom";
 
 interface AskScreenProps {
   onSeekWisdom: (question: string) => void;
@@ -102,6 +103,13 @@ const AskScreen = forwardRef<HTMLDivElement, AskScreenProps>(({ onSeekWisdom, is
           }}
         />
         <div className="w-full h-px bg-border mb-4" />
+
+        <p className="text-[10px] font-body text-muted-foreground/70 text-center tracking-wide mb-4 leading-relaxed">
+          AI-assisted reflection grounded in scripture —{" "}
+          <Link to="/doctrine" className="text-gold hover:underline">
+            not pastoral counsel
+          </Link>
+        </p>
 
         {!question && !isLoading && (
           <button
