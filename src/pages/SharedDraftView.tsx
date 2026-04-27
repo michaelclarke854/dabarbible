@@ -214,10 +214,13 @@ export default function SharedDraftView() {
           className={`prose-hyphenate font-body text-foreground tracking-[0.012em] xs:tracking-[0.01em] [overflow-wrap:break-word] [text-wrap:pretty] transition-[font-size,line-height] duration-200 ${bodySizeClass} ${paragraphGapClass}`}
         >
           {draft.outline
+            .replace(/\r\n/g, "\n")
             .split(/\n{2,}/)
+            .map((para) => para.replace(/^\n+|\n+$/g, ""))
+            .filter((para) => para.length > 0)
             .map((para, i) => (
               <p key={i} className="whitespace-pre-wrap">
-                {para.trim()}
+                {para}
               </p>
             ))}
         </div>
