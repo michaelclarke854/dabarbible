@@ -35,7 +35,7 @@ jobs:
         run: gem install fastlane --no-document
 
       - name: Sync Capacitor
-        run: bunx cap sync ios
+        run: bunx @capacitor/cli sync ios
 
       - name: Build & upload to TestFlight
         env:
