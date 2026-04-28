@@ -261,6 +261,45 @@ export type Database = {
         }
         Relationships: []
       }
+      email_templates: {
+        Row: {
+          body: string
+          created_at: string
+          denomination: string
+          id: string
+          is_active: boolean
+          step: number
+          subject: string
+          template_key: string
+          updated_at: string
+          version: number
+        }
+        Insert: {
+          body: string
+          created_at?: string
+          denomination?: string
+          id?: string
+          is_active?: boolean
+          step: number
+          subject: string
+          template_key: string
+          updated_at?: string
+          version?: number
+        }
+        Update: {
+          body?: string
+          created_at?: string
+          denomination?: string
+          id?: string
+          is_active?: boolean
+          step?: number
+          subject?: string
+          template_key?: string
+          updated_at?: string
+          version?: number
+        }
+        Relationships: []
+      }
       email_unsubscribe_tokens: {
         Row: {
           created_at: string
