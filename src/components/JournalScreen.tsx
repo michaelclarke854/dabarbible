@@ -6,6 +6,7 @@ import { toast } from "sonner";
 import ReflectionsSection from "./ReflectionsSection";
 import UndoToast from "./UndoToast";
 import { MoreVertical } from "lucide-react";
+import { highlightMatch } from "@/utils/highlightMatch";
 
 interface WisdomEntry {
   id: string;
@@ -160,9 +161,15 @@ const JournalScreen = ({
             type="text"
             value={searchInput}
             onChange={(e) => setSearchInput(e.target.value)}
-            placeholder="Search saved wisdom…"
+            placeholder="Search saved wisdom by topic, word, or phrase…"
             className="w-full bg-transparent border-b border-border pb-2 mb-8 text-sm font-body text-foreground placeholder:text-muted-foreground/50 outline-none focus:border-gold transition-colors"
           />
+
+          {search && !isLoading && !error && (
+            <p className="font-body text-xs text-muted-foreground/70 -mt-6 mb-6">
+              {entries.length} match{entries.length === 1 ? "" : "es"} for "{search}"
+            </p>
+          )}
 
           {isLoading ? (
             <div className="flex justify-center py-20">
@@ -200,7 +207,7 @@ const JournalScreen = ({
                         {formatTimestamp(entry.created_at)}
                       </time>
                       <p className="font-body italic text-foreground/70 mt-3 mb-3 text-sm leading-relaxed">
-                        "{entry.question}"
+                        "{highlightMatch(entry.question, search)}"
                       </p>
                     </div>
                     {/* Three-dot menu */}
@@ -235,7 +242,7 @@ const JournalScreen = ({
                     }`}
                     onClick={() => setExpandedId(expandedId === entry.id ? null : entry.id)}
                   >
-                    {entry.response}
+                    {highlightMatch(entry.response, search)}
                   </div>
                   {expandedId !== entry.id && (
                     <p className="text-xs font-body text-gold mt-2">Tap to read full response</p>
