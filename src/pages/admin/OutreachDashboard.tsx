@@ -687,7 +687,24 @@ function TemplateCard({
   const wordCount = body.trim() ? body.trim().split(/\s+/).length : 0;
   const overWord = wordCount > 150;
 
+  const subjectAnalysis = analyzeMergeFields(subject);
+  const bodyAnalysis = analyzeMergeFields(body);
+  const unknownFields = Array.from(
+    new Set([...subjectAnalysis.unknown, ...bodyAnalysis.unknown]),
+  );
+  const allUsed = new Set([...subjectAnalysis.used, ...bodyAnalysis.used]);
+  const hasNameField = NAME_FIELDS.some((f) => allUsed.has(f));
+  const hasUnknown = unknownFields.length > 0;
+
   const save = async () => {
+    if (hasUnknown) {
+      toast.error(
+        `Unknown merge field${unknownFields.length > 1 ? "s" : ""}: ${unknownFields
+          .map((f) => `{{${f}}}`)
+          .join(", ")}`,
+      );
+      return;
+    }
     setSaving(true);
     const { data, error } = await supabase
       .from("email_templates")
