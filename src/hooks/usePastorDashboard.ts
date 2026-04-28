@@ -29,6 +29,53 @@ export interface PastorDraft {
   updated_at: string;
 }
 
+export interface CongregationPulse {
+  id: string;
+  week_start: string;
+  struggling: number;
+  searching: number;
+  grateful: number;
+  top_categories: Array<{ category: string; count: number }> | null;
+  ai_draft: string | null;
+  ai_verses: string[] | null;
+  ai_word_count: number | null;
+  had_activity: boolean;
+  broadcast_sent: boolean;
+  broadcast_sent_at: string | null;
+  created_at: string;
+}
+
+export interface ThresholdAlert {
+  id: string;
+  alert_type: "persistent_struggling" | "crisis_escalation";
+  signal_count: number;
+  status: "pending" | "revealed" | "contacted" | "dismissed";
+  created_at: string;
+  revealed_at: string | null;
+  contacted_at: string | null;
+  member_id?: string;
+}
+
+export interface CheckinRequest {
+  id: string;
+  member_id: string;
+  mood_signal: "struggling" | "searching" | "grateful";
+  trigger_type: "post_reflection" | "manual";
+  status: "pending" | "acknowledged" | "resolved";
+  requested_at: string;
+  resolved_at: string | null;
+}
+
+export interface Announcement {
+  id: string;
+  message_body: string;
+  scripture_refs: string[];
+  recipient_count: number;
+  delivered_count: number;
+  sent_at: string;
+  pulse_id: string | null;
+}
+
 interface DashboardData {
   community: PastoralCommunity | null;
   member_count: number;
@@ -47,6 +94,14 @@ export function usePastorDashboard() {
   const [currentDraft, setCurrentDraft] = useState<PastorDraft | null>(null);
   const [genError, setGenError] = useState<string | null>(null);
   const [range, setRange] = useState<TimeRange>("month");
+
+  const [pulse, setPulse] = useState<CongregationPulse | null>(null);
+  const [pulseLoading, setPulseLoading] = useState(false);
+  const [pulseRegenerating, setPulseRegenerating] = useState(false);
+  const [alerts, setAlerts] = useState<ThresholdAlert[]>([]);
+  const [checkins, setCheckins] = useState<CheckinRequest[]>([]);
+  const [announcements, setAnnouncements] = useState<Announcement[]>([]);
+  const [sendingAnnouncement, setSendingAnnouncement] = useState(false);
 
   const loadThemes = useCallback(async (r: TimeRange) => {
     setLoading(true);
@@ -71,6 +126,99 @@ export function usePastorDashboard() {
       .limit(20);
     setDrafts((rows as PastorDraft[]) ?? []);
   }, []);
+
+  const loadPulse = useCallback(async () => {
+    setPulseLoading(true);
+    const { data: res } = await supabase.functions.invoke("pastor-dashboard", {
+      body: { action: "get_pulse" },
+    });
+    setPulse((res?.pulse as CongregationPulse | null) ?? null);
+    setPulseLoading(false);
+  }, []);
+
+  const regeneratePulse = useCallback(async (): Promise<boolean> => {
+    setPulseRegenerating(true);
+    const { data: res, error: err } = await supabase.functions.invoke(
+      "pastor-dashboard",
+      { body: { action: "regenerate_pulse" } }
+    );
+    setPulseRegenerating(false);
+    if (err || !res?.success) return false;
+    await loadPulse();
+    return true;
+  }, [loadPulse]);
+
+  const loadAlerts = useCallback(async (status: "pending" | "revealed" | "contacted" | "dismissed" = "pending") => {
+    const { data: res } = await supabase.functions.invoke("pastor-dashboard", {
+      body: { action: "list_alerts", status },
+    });
+    setAlerts((res?.alerts as ThresholdAlert[]) ?? []);
+  }, []);
+
+  const revealAlert = useCallback(async (alertId: string) => {
+    const { data: res } = await supabase.functions.invoke("pastor-dashboard", {
+      body: { action: "reveal_alert", alert_id: alertId },
+    });
+    await loadAlerts("pending");
+    return (res?.alert as ThresholdAlert | undefined) ?? null;
+  }, [loadAlerts]);
+
+  const dismissAlert = useCallback(async (alertId: string) => {
+    await supabase.functions.invoke("pastor-dashboard", {
+      body: { action: "dismiss_alert", alert_id: alertId },
+    });
+    await loadAlerts("pending");
+  }, [loadAlerts]);
+
+  const markAlertContacted = useCallback(async (alertId: string) => {
+    await supabase.functions.invoke("pastor-dashboard", {
+      body: { action: "mark_alert_contacted", alert_id: alertId },
+    });
+    await loadAlerts("pending");
+  }, [loadAlerts]);
+
+  const loadCheckins = useCallback(async (status: "pending" | "acknowledged" | "resolved" = "pending") => {
+    const { data: res } = await supabase.functions.invoke("pastor-dashboard", {
+      body: { action: "list_checkins", status },
+    });
+    setCheckins((res?.checkins as CheckinRequest[]) ?? []);
+  }, []);
+
+  const acknowledgeCheckin = useCallback(
+    async (checkinId: string, status: "acknowledged" | "resolved" = "acknowledged") => {
+      await supabase.functions.invoke("pastor-dashboard", {
+        body: { action: "acknowledge_checkin", checkin_id: checkinId, status },
+      });
+      await loadCheckins("pending");
+    },
+    [loadCheckins]
+  );
+
+  const loadAnnouncements = useCallback(async () => {
+    const { data: res } = await supabase.functions.invoke("pastor-dashboard", {
+      body: { action: "list_announcements", limit: 20 },
+    });
+    setAnnouncements((res?.announcements as Announcement[]) ?? []);
+  }, []);
+
+  const sendAnnouncement = useCallback(
+    async (params: { messageBody: string; scriptureRefs?: string[]; pulseId?: string | null }): Promise<boolean> => {
+      setSendingAnnouncement(true);
+      const { data: res, error: err } = await supabase.functions.invoke("pastor-dashboard", {
+        body: {
+          action: "send_announcement",
+          message_body: params.messageBody,
+          scripture_refs: params.scriptureRefs ?? [],
+          pulse_id: params.pulseId ?? null,
+        },
+      });
+      setSendingAnnouncement(false);
+      if (err || !res?.announcement) return false;
+      await Promise.all([loadAnnouncements(), loadPulse()]);
+      return true;
+    },
+    [loadAnnouncements, loadPulse]
+  );
 
   const generateMessage = useCallback(
     async (theme: string, questionCount: number) => {
@@ -141,6 +289,14 @@ export function usePastorDashboard() {
     loadDrafts();
   }, [loadThemes, loadDrafts, range]);
 
+  // Load pulse, alerts, checkins, announcements once on mount
+  useEffect(() => {
+    loadPulse();
+    loadAlerts("pending");
+    loadCheckins("pending");
+    loadAnnouncements();
+  }, [loadPulse, loadAlerts, loadCheckins, loadAnnouncements]);
+
   return {
     data,
     drafts,
@@ -155,9 +311,31 @@ export function usePastorDashboard() {
     rotateShareToken,
     range,
     setRange,
+    // Pulse + portal additions
+    pulse,
+    pulseLoading,
+    pulseRegenerating,
+    regeneratePulse,
+    refreshPulse: loadPulse,
+    alerts,
+    refreshAlerts: loadAlerts,
+    revealAlert,
+    dismissAlert,
+    markAlertContacted,
+    checkins,
+    refreshCheckins: loadCheckins,
+    acknowledgeCheckin,
+    announcements,
+    refreshAnnouncements: loadAnnouncements,
+    sendAnnouncement,
+    sendingAnnouncement,
     refresh: () => {
       loadThemes(range);
       loadDrafts();
+      loadPulse();
+      loadAlerts("pending");
+      loadCheckins("pending");
+      loadAnnouncements();
     },
   };
 }
