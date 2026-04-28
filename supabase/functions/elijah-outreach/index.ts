@@ -111,7 +111,7 @@ serve(async (req) => {
         continue;
       }
 
-      const email = await generateEmail(lead, step, lovableKey, anthropicKey);
+      const email = await generateEmail(lead, step, supabase, lovableKey, anthropicKey);
       if (!email) {
         failed++;
         continue;
