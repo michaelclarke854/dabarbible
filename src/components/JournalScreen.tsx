@@ -80,9 +80,9 @@ const JournalScreen = ({
   const unsaveEntry = useCallback(async (entryId: string) => {
     setMenuOpenId(null);
     // Snapshot for rollback
-    const previous = queryClient.getQueryData<WisdomEntry[]>(["journal", search]);
+    const previous = queryClient.getQueryData<WisdomEntry[]>(["journal"]);
     // Optimistic removal
-    queryClient.setQueryData(["journal", search], (old: WisdomEntry[] | undefined) =>
+    queryClient.setQueryData(["journal"], (old: WisdomEntry[] | undefined) =>
       (old || []).filter((e) => e.id !== entryId)
     );
     const { error } = await supabase
@@ -91,12 +91,12 @@ const JournalScreen = ({
       .eq("id", entryId);
     if (error) {
       // Rollback
-      if (previous) queryClient.setQueryData(["journal", search], previous);
+      if (previous) queryClient.setQueryData(["journal"], previous);
       toast.error("Couldn't remove from journal. Try again.");
       return;
     }
     setUnsaveToast({ id: entryId });
-  }, [queryClient, search]);
+  }, [queryClient]);
 
   const undoUnsave = useCallback(async (entryId: string) => {
     const { error } = await supabase
