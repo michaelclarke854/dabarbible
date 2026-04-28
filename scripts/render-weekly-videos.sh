@@ -1,56 +1,51 @@
 #!/bin/bash
-# DABAR — Weekly Remotion video render & upload script
-# Renders 3 compositions, uploads to Supabase Storage, registers via edge function.
-# Run weekly via launchd (com.dabar.render-videos.plist).
+set -euo pipefail
 
-set -u
-set -o pipefail
+# DABAR weekly video render
+# - Picks verse from a 20-entry rotation by ISO week number
+# - Renders 3 Remotion compositions
+# - Uploads to Supabase Storage bucket dabar-videos
+# - Calls register-videos edge function (graceful fallback if not yet deployed)
 
-# --- Paths ---
-PROJECT_ROOT="$HOME/dabarbible"
-REMOTION_DIR="$PROJECT_ROOT/remotion"
-ENV_FILE="$PROJECT_ROOT/.env.local"
+REPO_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
+REMOTION_DIR="$REPO_ROOT/remotion"
 OUT_DIR="$REMOTION_DIR/out"
-LOG_PREFIX="[$(date -u +%Y-%m-%dT%H:%M:%SZ)]"
 
-log() { echo "$LOG_PREFIX $*"; }
-warn() { echo "$LOG_PREFIX WARNING: $*" >&2; }
-fail() { echo "$LOG_PREFIX ERROR: $*" >&2; exit 1; }
+SUPABASE_URL="https://crkkimoblnrxpszehmkg.supabase.co"
+BUCKET="dabar-videos"
 
-# --- Load VIDEO_UPLOAD_SECRET ---
-if [ ! -f "$ENV_FILE" ]; then
-  fail "$ENV_FILE not found"
+log() { printf '[%s] %s\n' "$(date +%H:%M:%S)" "$*"; }
+
+# --- Load env --------------------------------------------------------------
+ENV_FILE=""
+if [ -f "$REPO_ROOT/.env.local" ]; then
+  ENV_FILE="$REPO_ROOT/.env.local"
+elif [ -f "$REPO_ROOT/.env" ]; then
+  ENV_FILE="$REPO_ROOT/.env"
 fi
-# shellcheck disable=SC1090
+
+if [ -z "$ENV_FILE" ]; then
+  echo "ERROR: no .env or .env.local found in $REPO_ROOT" >&2
+  exit 1
+fi
+
 set -a
+# shellcheck disable=SC1090
 source "$ENV_FILE"
 set +a
 
-if [ -z "${VIDEO_UPLOAD_SECRET:-}" ]; then
-  fail "VIDEO_UPLOAD_SECRET missing from $ENV_FILE"
+if [ -z "${SUPABASE_SERVICE_ROLE_KEY:-}" ]; then
+  echo "ERROR: SUPABASE_SERVICE_ROLE_KEY not set in $ENV_FILE" >&2
+  exit 1
 fi
 
-SUPABASE_URL="https://crkkimoblnrxpszehmkg.supabase.co"
-UPLOAD_FN_URL="$SUPABASE_URL/functions/v1/upload-video"
-
-# --- Date math ---
-# ISO week number (1-53) and Monday of current week (YYYY-MM-DD).
-# macOS BSD `date` supports -v for date arithmetic.
-WEEK_NUMBER=$(date -u +%V)
-DOW=$(date -u +%u)         # 1 (Mon) .. 7 (Sun)
-OFFSET=$((DOW - 1))
-WEEK_START=$(date -u -v-"${OFFSET}"d +%Y-%m-%d)
-
-log "Week #$WEEK_NUMBER — week_start=$WEEK_START"
-
-# --- Verse rotation (20 entries) ---
+# --- Verse rotation --------------------------------------------------------
 REFS=(
   "Psalm 46:1" "1 Peter 5:7" "Matthew 11:28" "Psalm 34:18" "Jeremiah 29:11"
   "Romans 8:28" "Isaiah 40:31" "Psalm 23:1" "Micah 6:8" "Colossians 3:13"
   "Proverbs 3:5" "Romans 3:23-24" "Lamentations 3:22-23" "John 10:10" "Philippians 4:7"
   "Psalm 139:14" "Hebrews 11:1" "James 1:5" "Ephesians 2:8-9" "John 15:13"
 )
-
 TEXTS=(
   "God is our refuge and strength, an ever-present help in trouble."
   "Cast all your anxiety on him because he cares for you."
@@ -74,71 +69,103 @@ TEXTS=(
   "Greater love has no one than this: to lay down one's life for one's friends."
 )
 
-IDX=$(( (10#$WEEK_NUMBER - 1) % 20 ))
-VERSE_REF="${REFS[$IDX]}"
-VERSE_TEXT="${TEXTS[$IDX]}"
-log "Verse: $VERSE_REF — $VERSE_TEXT"
+# --- Pick this week's verse ------------------------------------------------
+WEEK_RAW=$(date +%V)
+WEEK_NUM=$((10#$WEEK_RAW))
+INDEX=$(( (WEEK_NUM - 1) % 20 ))
+VERSE_REF="${REFS[$INDEX]}"
+VERSE_TEXT="${TEXTS[$INDEX]}"
 
-# --- JSON helper (escape strings for embedding) ---
+# Monday of the current ISO week (macOS BSD date)
+DOW=$(date +%u)               # 1=Mon ... 7=Sun
+OFFSET=$((DOW - 1))
+WEEK_START=$(date -v-"${OFFSET}"d +%Y-%m-%d)
+
+log "ISO week $WEEK_NUM → index $INDEX"
+log "Verse: $VERSE_REF"
+log "Week start: $WEEK_START"
+
+# --- JSON encode helper (handles quotes/backslashes/unicode) ---------------
 json_escape() {
-  python3 -c 'import json,sys; print(json.dumps(sys.stdin.read().rstrip("\n")))'
+  python3 -c 'import json,sys; print(json.dumps(sys.argv[1]))' "$1"
 }
-VERSE_REF_JSON=$(printf '%s' "$VERSE_REF" | json_escape)
-VERSE_TEXT_JSON=$(printf '%s' "$VERSE_TEXT" | json_escape)
-WEEK_START_JSON="\"$WEEK_START\""
 
-SOCIAL_PROPS="{\"verseRef\":$VERSE_REF_JSON,\"verseText\":$VERSE_TEXT_JSON,\"weekStart\":$WEEK_START_JSON}"
-WHATSAPP_PROPS="$SOCIAL_PROPS"
+VR_JSON=$(json_escape "$VERSE_REF")
+VT_JSON=$(json_escape "$VERSE_TEXT")
 
-# --- Render ---
+PROPS_SOCIAL="{\"verseRef\":${VR_JSON},\"verseText\":${VT_JSON},\"reflectionPrompt\":\"What are you carrying into this week?\",\"theme\":\"weekly\"}"
+PROPS_WHATSAPP="{\"verseRef\":${VR_JSON},\"verseText\":${VT_JSON},\"theme\":\"weekly\"}"
+
+# --- Render ----------------------------------------------------------------
 mkdir -p "$OUT_DIR"
-cd "$REMOTION_DIR" || fail "cannot cd to $REMOTION_DIR"
+cd "$REMOTION_DIR"
 
-log "Rendering SocialAcquisition (1080x1920 / 30s)..."
-npx remotion render SocialAcquisition out/social.mp4 \
-  --props="$SOCIAL_PROPS" --codec=h264 --jpeg-quality=80 --concurrency=2 \
-  || fail "SocialAcquisition render failed"
+log "Rendering SocialAcquisition..."
+npx remotion render SocialAcquisition "$OUT_DIR/social.mp4" --props="$PROPS_SOCIAL"
 
-log "Rendering WhatsAppCard (1080x1080 / 15s)..."
-npx remotion render WhatsAppCard out/whatsapp.mp4 \
-  --props="$WHATSAPP_PROPS" --codec=h264 --jpeg-quality=80 --concurrency=2 \
-  || fail "WhatsAppCard render failed"
+log "Rendering WhatsAppCard..."
+npx remotion render WhatsAppCard "$OUT_DIR/whatsapp.mp4" --props="$PROPS_WHATSAPP"
 
-log "Rendering PastoralTrust (1280x720 / 90s)..."
-npx remotion render PastoralTrust out/pastoral.mp4 \
-  --codec=h264 --jpeg-quality=80 --concurrency=2 \
-  || fail "PastoralTrust render failed"
+log "Rendering PastoralTrust..."
+npx remotion render PastoralTrust "$OUT_DIR/pastoral.mp4"
 
-# --- Upload helper (sends MP4 bytes to upload-video edge function) ---
-# Args: <local_file> <video_type> <verse_ref> <verse_text>
-# verse_ref/verse_text may be empty for pastoral_trust.
-upload_video() {
-  local local_file="$1"
-  local video_type="$2"
-  local v_ref="$3"
-  local v_text="$4"
-  log "Uploading $local_file as $video_type..."
-  local http_code
-  http_code=$(curl -sS -o /tmp/dabar-upload.log -w "%{http_code}" \
-    -X POST "$UPLOAD_FN_URL" \
-    -H "Authorization: Bearer $VIDEO_UPLOAD_SECRET" \
+# --- Upload to Supabase Storage --------------------------------------------
+upload() {
+  local local_path="$1" remote_name="$2"
+  local remote_path="$WEEK_START/$remote_name"
+  log "Uploading $remote_name → $BUCKET/$remote_path"
+  curl -fsS -X POST \
+    -H "Authorization: Bearer $SUPABASE_SERVICE_ROLE_KEY" \
     -H "Content-Type: video/mp4" \
-    -H "x-video-type: $video_type" \
-    -H "x-week-start: $WEEK_START" \
-    -H "x-verse-ref: $v_ref" \
-    -H "x-verse-text: $v_text" \
-    --data-binary "@$local_file")
-  if [ "$http_code" -lt 200 ] || [ "$http_code" -ge 300 ]; then
-    cat /tmp/dabar-upload.log >&2 || true
-    fail "upload-video failed ($http_code) for $video_type"
-  fi
-  cat /tmp/dabar-upload.log >&2 || true
-  echo >&2
+    -H "x-upsert: true" \
+    --data-binary "@$local_path" \
+    "$SUPABASE_URL/storage/v1/object/$BUCKET/$remote_path" >/dev/null
+  log "  ok"
 }
 
-upload_video "$OUT_DIR/social.mp4"   "social"         "$VERSE_REF" "$VERSE_TEXT"
-upload_video "$OUT_DIR/whatsapp.mp4" "whatsapp_card"  "$VERSE_REF" "$VERSE_TEXT"
-upload_video "$OUT_DIR/pastoral.mp4" "pastoral_trust" ""           ""
+upload "$OUT_DIR/social.mp4"   "social.mp4"
+upload "$OUT_DIR/whatsapp.mp4" "whatsapp.mp4"
+upload "$OUT_DIR/pastoral.mp4" "pastoral.mp4"
 
-log "DONE."
-exit 0
+PUBLIC_BASE="$SUPABASE_URL/storage/v1/object/public/$BUCKET/$WEEK_START"
+SOCIAL_URL="$PUBLIC_BASE/social.mp4"
+WHATSAPP_URL="$PUBLIC_BASE/whatsapp.mp4"
+PASTORAL_URL="$PUBLIC_BASE/pastoral.mp4"
+
+# --- Register (graceful fallback) ------------------------------------------
+WS_JSON=$(json_escape "$WEEK_START")
+SU_JSON=$(json_escape "$SOCIAL_URL")
+WU_JSON=$(json_escape "$WHATSAPP_URL")
+PU_JSON=$(json_escape "$PASTORAL_URL")
+
+PAYLOAD="{\"week_start\":${WS_JSON},\"verse_ref\":${VR_JSON},\"verse_text\":${VT_JSON},\"social_url\":${SU_JSON},\"whatsapp_url\":${WU_JSON},\"pastoral_url\":${PU_JSON}}"
+
+RESPONSE_FILE="$(mktemp)"
+trap 'rm -f "$RESPONSE_FILE"' EXIT
+
+log "Calling register-videos..."
+HTTP_CODE=$(curl -s -o "$RESPONSE_FILE" -w "%{http_code}" -X POST \
+  -H "Authorization: Bearer $SUPABASE_SERVICE_ROLE_KEY" \
+  -H "Content-Type: application/json" \
+  -d "$PAYLOAD" \
+  "$SUPABASE_URL/functions/v1/register-videos" || echo "000")
+
+case "$HTTP_CODE" in
+  200|201|204)
+    log "register-videos: OK ($HTTP_CODE)"
+    ;;
+  404)
+    log "WARNING: register-videos not deployed yet (404). Storage uploads completed; skipping registration."
+    ;;
+  *)
+    log "WARNING: register-videos returned $HTTP_CODE. Storage uploads completed; skipping registration."
+    log "Response body:"
+    cat "$RESPONSE_FILE" || true
+    echo
+    ;;
+esac
+
+log "Done."
+log "  Social:    $SOCIAL_URL"
+log "  WhatsApp:  $WHATSAPP_URL"
+log "  Pastoral:  $PASTORAL_URL"

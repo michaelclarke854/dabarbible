@@ -8,8 +8,11 @@
     <key>ProgramArguments</key>
     <array>
         <string>/bin/bash</string>
-        <string>/Users/USERNAME/dabarbible/scripts/render-weekly-videos.sh</string>
+        <string>/Users/michaelclarke/dabarbible/scripts/render-weekly-videos.sh</string>
     </array>
+
+    <key>WorkingDirectory</key>
+    <string>/Users/michaelclarke/dabarbible</string>
 
     <key>StartCalendarInterval</key>
     <dict>
@@ -21,19 +24,19 @@
         <integer>0</integer>
     </dict>
 
-    <key>RunAtLoad</key>
-    <false/>
-
     <key>StandardOutPath</key>
-    <string>/Users/USERNAME/Library/Logs/dabar-render.log</string>
+    <string>/Users/michaelclarke/dabarbible/scripts/render-videos.log</string>
 
     <key>StandardErrorPath</key>
-    <string>/Users/USERNAME/Library/Logs/dabar-render-error.log</string>
+    <string>/Users/michaelclarke/dabarbible/scripts/render-videos.err.log</string>
 
     <key>EnvironmentVariables</key>
     <dict>
         <key>PATH</key>
-        <string>/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin</string>
+        <string>/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin</string>
     </dict>
+
+    <key>RunAtLoad</key>
+    <false/>
 </dict>
 </plist>

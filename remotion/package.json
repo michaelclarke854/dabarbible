@@ -1,0 +1,23 @@
+{
+  "name": "dabar-remotion",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "studio": "npx remotion studio",
+    "render:social": "npx remotion render SocialAcquisition out/social.mp4",
+    "render:whatsapp": "npx remotion render WhatsAppCard out/whatsapp.mp4",
+    "render:pastoral": "npx remotion render PastoralTrust out/pastoral.mp4"
+  },
+  "dependencies": {
+    "remotion": "^4.0.0",
+    "@remotion/player": "^4.0.0",
+    "@remotion/google-fonts": "^4.0.0",
+    "react": "^18.0.0",
+    "react-dom": "^18.0.0"
+  },
+  "devDependencies": {
+    "@types/react": "^18.0.0",
+    "@types/react-dom": "^18.0.0",
+    "typescript": "^5.0.0"
+  }
+}
