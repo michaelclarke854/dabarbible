@@ -35,7 +35,7 @@ export type AIRequest = {
 
 export type AIResult = {
   /** Which provider actually produced the response. */
-  provider: "claude" | "lovable" | "lovable-tools";
+  provider: "claude" | "lovable";
   /** OpenAI-shaped response body. */
   body: any;
 };
@@ -47,51 +47,69 @@ function shouldFallback(status: number): boolean {
 }
 
 /**
- * Safety wrapper: tool-calling requests must stay on the Lovable AI path.
- *
- * Why: Claude's /v1/messages tool schema (input_schema, tool_use blocks) is
- * incompatible with the OpenAI-style {type:"function",function:{...}} shape
- * we accept here. Forwarding tools to Anthropic would 400 or — worse —
- * silently drop the tool and return free-text the caller cannot parse.
- * Whenever the caller passes `tools` or `toolChoice`, we skip Claude entirely
- * and go straight to the Lovable AI Gateway (which already speaks the
- * OpenAI tool-calling schema natively).
+ * Transient errors worth retrying on the SAME provider before falling back:
+ * - 429 (rate limited — often clears in <1s)
+ * - 5xx (server hiccup)
+ * Auth (401/403) and credit (402) won't recover from a retry, so we skip
+ * those and fall straight through to the next provider.
  */
-function isToolCall(req: AIRequest): boolean {
-  return Boolean((req.tools && req.tools.length > 0) || req.toolChoice);
+function isTransient(status: number): boolean {
+  return status === 429 || status >= 500;
 }
 
-/** Direct Lovable AI Gateway call (used by the tool-call safety path and the normal fallback). */
-async function callLovable(req: AIRequest, maxTokens: number): Promise<AIResult | null> {
-  const lovableKey = Deno.env.get("LOVABLE_API_KEY");
-  if (!lovableKey) {
-    console.error("Lovable AI unavailable: LOVABLE_API_KEY missing");
-    return null;
+/** Backoff delays in ms between Claude attempts. Total worst-case wait ~700ms. */
+const RETRY_BACKOFF_MS = [200, 500];
+
+/** Honor `Retry-After` (seconds or HTTP-date) but cap to avoid user-perceptible latency. */
+function retryAfterMs(headerValue: string | null, fallbackMs: number): number {
+  if (!headerValue) return fallbackMs;
+  const asInt = Number(headerValue);
+  if (Number.isFinite(asInt)) return Math.min(asInt * 1000, 1500);
+  const asDate = Date.parse(headerValue);
+  if (Number.isFinite(asDate)) {
+    return Math.min(Math.max(asDate - Date.now(), 0), 1500);
   }
+  return fallbackMs;
+}
 
-  const body: Record<string, unknown> = {
-    model: req.fallbackModel,
-    messages: req.messages,
-    max_tokens: maxTokens,
-  };
-  if (req.tools) body.tools = req.tools;
-  if (req.toolChoice) body.tool_choice = req.toolChoice;
+const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
-  const resp = await fetch(LOVABLE_URL, {
+/**
+ * Call Anthropic with short exponential backoff on transient failures.
+ * Returns the final Response (success or terminal failure) or `null` on a
+ * persistent network error after all retries.
+ */
+async function fetchClaudeWithRetry(body: unknown, headers: HeadersInit): Promise<Response | null> {
+  const init: RequestInit = {
     method: "POST",
-    headers: {
-      Authorization: `Bearer ${lovableKey}`,
-      "Content-Type": "application/json",
-    },
+    headers,
     body: JSON.stringify(body),
-  });
+  };
 
-  if (!resp.ok) {
-    console.error("Lovable AI error:", resp.status, await resp.text());
-    return null;
+  for (let attempt = 0; attempt <= RETRY_BACKOFF_MS.length; attempt++) {
+    try {
+      const resp = await fetch(ANTHROPIC_URL, init);
+      if (resp.ok || !isTransient(resp.status)) return resp;
+
+      // Transient: maybe retry.
+      if (attempt === RETRY_BACKOFF_MS.length) return resp; // out of retries
+      const wait = retryAfterMs(resp.headers.get("retry-after"), RETRY_BACKOFF_MS[attempt]);
+      // Drain the body so the connection can be reused.
+      try { await resp.body?.cancel(); } catch { /* ignore */ }
+      console.warn(`Claude ${resp.status} — retrying in ${wait}ms (attempt ${attempt + 1})`);
+      await sleep(wait);
+    } catch (e) {
+      // Network error
+      if (attempt === RETRY_BACKOFF_MS.length) {
+        console.warn("Claude network error after retries:", e);
+        return null;
+      }
+      const wait = RETRY_BACKOFF_MS[attempt];
+      console.warn(`Claude network error — retrying in ${wait}ms (attempt ${attempt + 1}):`, e);
+      await sleep(wait);
+    }
   }
-  const json = await resp.json();
-  return { provider: isToolCall(req) ? "lovable-tools" : "lovable", body: json };
+  return null;
 }
 
 /** Split an OpenAI-style messages array into Anthropic's system + messages shape. */
@@ -128,52 +146,68 @@ function anthropicToOpenAI(json: any) {
  */
 export async function chatWithFallback(req: AIRequest): Promise<AIResult | null> {
   const anthropicKey = Deno.env.get("ANTHROPIC_API_KEY");
+  const lovableKey = Deno.env.get("LOVABLE_API_KEY");
   const claudeModel = req.claudeModel ?? DEFAULT_CLAUDE_MODEL;
   const maxTokens = req.maxTokens ?? 1024;
 
-  // Safety: tool-calling requests bypass Claude (schema mismatch).
-  if (isToolCall(req)) {
-    return callLovable(req, maxTokens);
-  }
-
   // ── Try Claude first ──────────────────────────────────────────────────
   if (anthropicKey) {
-    try {
-      const { system, messages } = splitForAnthropic(req.messages);
-      const resp = await fetch(ANTHROPIC_URL, {
-        method: "POST",
-        headers: {
-          "x-api-key": anthropicKey,
-          "anthropic-version": ANTHROPIC_VERSION,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          model: claudeModel,
-          max_tokens: maxTokens,
-          system,
-          messages,
-        }),
-      });
+    const { system, messages } = splitForAnthropic(req.messages);
+    const resp = await fetchClaudeWithRetry(
+      { model: claudeModel, max_tokens: maxTokens, system, messages },
+      {
+        "x-api-key": anthropicKey,
+        "anthropic-version": ANTHROPIC_VERSION,
+        "Content-Type": "application/json",
+      },
+    );
 
-      if (resp.ok) {
-        const json = await resp.json();
-        return { provider: "claude", body: anthropicToOpenAI(json) };
-      }
-
-      if (!shouldFallback(resp.status)) {
-        // Non-recoverable (e.g. 400 bad request) — surface as a failure so
-        // we don't silently hide a real bug behind the fallback.
-        console.error("Claude error (no fallback):", resp.status, await resp.text());
-        return null;
-      }
-      console.warn(`Claude ${resp.status} — falling back to Lovable AI`);
-    } catch (e) {
-      console.warn("Claude network error — falling back to Lovable AI:", e);
+    if (resp?.ok) {
+      const json = await resp.json();
+      return { provider: "claude", body: anthropicToOpenAI(json) };
     }
+    if (resp && !shouldFallback(resp.status)) {
+      // Non-recoverable (e.g. 400 bad request) — surface as a failure so
+      // we don't silently hide a real bug behind the fallback.
+      console.error("Claude error (no fallback):", resp.status, await resp.text());
+      return null;
+    }
+    console.warn(
+      resp
+        ? `Claude ${resp.status} after retries — falling back to Lovable AI`
+        : "Claude network failure after retries — falling back to Lovable AI",
+    );
   }
 
   // ── Fallback: Lovable AI Gateway ──────────────────────────────────────
-  return callLovable(req, maxTokens);
+  if (!lovableKey) {
+    console.error("Lovable fallback unavailable: LOVABLE_API_KEY missing");
+    return null;
+  }
+
+  const body: Record<string, unknown> = {
+    model: req.fallbackModel,
+    messages: req.messages,
+    max_tokens: maxTokens,
+  };
+  if (req.tools) body.tools = req.tools;
+  if (req.toolChoice) body.tool_choice = req.toolChoice;
+
+  const resp = await fetch(LOVABLE_URL, {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${lovableKey}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(body),
+  });
+
+  if (!resp.ok) {
+    console.error("Lovable AI error:", resp.status, await resp.text());
+    return null;
+  }
+  const json = await resp.json();
+  return { provider: "lovable", body: json };
 }
 
 /**
@@ -188,7 +222,7 @@ export async function chatWithFallback(req: AIRequest): Promise<AIResult | null>
  * response in that case.
  */
 export async function streamChatWithFallback(req: AIRequest): Promise<{
-  provider: "claude" | "lovable" | "lovable-tools";
+  provider: "claude" | "lovable";
   stream: ReadableStream<Uint8Array>;
 } | { provider: "error"; status: number }> {
   const anthropicKey = Deno.env.get("ANTHROPIC_API_KEY");
@@ -196,42 +230,30 @@ export async function streamChatWithFallback(req: AIRequest): Promise<{
   const claudeModel = req.claudeModel ?? DEFAULT_CLAUDE_MODEL;
   const maxTokens = req.maxTokens ?? 1024;
 
-  // Safety: tool-calling streams skip Claude entirely (schema mismatch
-  // between OpenAI-style tools and Anthropic's tool_use blocks).
-  const toolCall = isToolCall(req);
+  // ── Try Claude streaming ──────────────────────────────────────────────
+  if (anthropicKey) {
+    const { system, messages } = splitForAnthropic(req.messages);
+    const resp = await fetchClaudeWithRetry(
+      { model: claudeModel, max_tokens: maxTokens, stream: true, system, messages },
+      {
+        "x-api-key": anthropicKey,
+        "anthropic-version": ANTHROPIC_VERSION,
+        "Content-Type": "application/json",
+      },
+    );
 
-  // ── Try Claude streaming (only for plain message generation) ──────────
-  if (!toolCall && anthropicKey) {
-    try {
-      const { system, messages } = splitForAnthropic(req.messages);
-      const resp = await fetch(ANTHROPIC_URL, {
-        method: "POST",
-        headers: {
-          "x-api-key": anthropicKey,
-          "anthropic-version": ANTHROPIC_VERSION,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          model: claudeModel,
-          max_tokens: maxTokens,
-          stream: true,
-          system,
-          messages,
-        }),
-      });
-
-      if (resp.ok && resp.body) {
-        return { provider: "claude", stream: claudeSSEToOpenAISSE(resp.body) };
-      }
-
-      if (!shouldFallback(resp.status)) {
-        console.error("Claude stream error (no fallback):", resp.status);
-        return { provider: "error", status: resp.status };
-      }
-      console.warn(`Claude stream ${resp.status} — falling back to Lovable AI`);
-    } catch (e) {
-      console.warn("Claude stream network error — falling back:", e);
+    if (resp?.ok && resp.body) {
+      return { provider: "claude", stream: claudeSSEToOpenAISSE(resp.body) };
     }
+    if (resp && !shouldFallback(resp.status)) {
+      console.error("Claude stream error (no fallback):", resp.status);
+      return { provider: "error", status: resp.status };
+    }
+    console.warn(
+      resp
+        ? `Claude stream ${resp.status} after retries — falling back to Lovable AI`
+        : "Claude stream network failure after retries — falling back to Lovable AI",
+    );
   }
 
   // ── Fallback: Lovable AI Gateway streaming ────────────────────────────
@@ -250,15 +272,13 @@ export async function streamChatWithFallback(req: AIRequest): Promise<{
       max_tokens: maxTokens,
       stream: true,
       messages: req.messages,
-      ...(req.tools ? { tools: req.tools } : {}),
-      ...(req.toolChoice ? { tool_choice: req.toolChoice } : {}),
     }),
   });
 
   if (!resp.ok || !resp.body) {
     return { provider: "error", status: resp.status || 500 };
   }
-  return { provider: toolCall ? "lovable-tools" : "lovable", stream: resp.body };
+  return { provider: "lovable", stream: resp.body };
 }
 
 /**
