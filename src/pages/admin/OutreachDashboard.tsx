@@ -83,6 +83,20 @@ const STEP_LABELS: Record<number, string> = {
   3: "Step 3 — Final touch",
 };
 
+const ALLOWED_MERGE_FIELDS = ["pastor_name", "first_name", "church_name", "denomination"] as const;
+const NAME_FIELDS = ["pastor_name", "first_name"] as const;
+
+/** Returns { unknown: string[]; used: string[] } for all {{...}} tokens in text. */
+function analyzeMergeFields(text: string): { unknown: string[]; used: string[] } {
+  const matches = text.match(/\{\{\s*([a-zA-Z0-9_]+)\s*\}\}/g) ?? [];
+  const tokens = matches.map((m) => m.replace(/[{}\s]/g, ""));
+  const used = Array.from(new Set(tokens));
+  const unknown = used.filter(
+    (t) => !ALLOWED_MERGE_FIELDS.includes(t as (typeof ALLOWED_MERGE_FIELDS)[number]),
+  );
+  return { unknown, used };
+}
+
 const EMAIL_STATUS_BADGE: Record<string, string> = {
   pending: "bg-muted text-muted-foreground",
   sent: "bg-blue-500/15 text-blue-300 border-blue-500/30",
