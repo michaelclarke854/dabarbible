@@ -232,11 +232,23 @@ export async function streamChatWithFallback(req: AIRequest): Promise<{
 
 /**
  * Convert Anthropic's SSE event stream into an OpenAI-style SSE stream.
- * Anthropic emits events like `event: content_block_delta` with
- * `data: {"type":"content_block_delta","delta":{"type":"text_delta","text":"..."}}`.
- * We only forward text deltas, re-shaped as
- * `data: {"choices":[{"delta":{"content":"..."}}]}` so consumers parsing
- * the OpenAI format (seek-wisdom's reader) work unchanged.
+ *
+ * Follows the SSE spec (https://html.spec.whatwg.org/multipage/server-sent-events.html):
+ *   - Events are separated by a blank line (\n\n, \r\n\r\n, or \r\r).
+ *   - A field line is `name: value` (the single space after the colon is optional).
+ *   - Multiple `data:` lines in one event are joined with `\n` to form the payload.
+ *   - Lines starting with `:` are comments / keep-alives and must be ignored.
+ *   - Lines without a colon are field names with empty value.
+ *
+ * Anthropic emits events like:
+ *   event: content_block_delta
+ *   data: {"type":"content_block_delta","index":0,
+ *   data: "delta":{"type":"text_delta","text":"hello"}}
+ *
+ * We forward only `text_delta` chunks, reshaped as
+ * `data: {"choices":[{"delta":{"content":"..."}}]}\n\n` so any OpenAI-style
+ * SSE consumer (seek-wisdom's reader) works unchanged. `[DONE]` is emitted
+ * exactly once on `message_stop` or stream end — never both.
  */
 function claudeSSEToOpenAISSE(input: ReadableStream<Uint8Array>): ReadableStream<Uint8Array> {
   const decoder = new TextDecoder();
@@ -246,44 +258,114 @@ function claudeSSEToOpenAISSE(input: ReadableStream<Uint8Array>): ReadableStream
     async start(controller) {
       const reader = input.getReader();
       let buffer = "";
+      let doneSent = false;
+
+      const sendDone = () => {
+        if (doneSent) return;
+        doneSent = true;
+        controller.enqueue(encoder.encode("data: [DONE]\n\n"));
+      };
+
+      const emitText = (text: string) => {
+        if (!text) return;
+        const out = `data: ${JSON.stringify({
+          choices: [{ delta: { content: text } }],
+        })}\n\n`;
+        controller.enqueue(encoder.encode(out));
+      };
+
+      // Process one complete SSE event block (text between blank lines).
+      // Concatenates consecutive `data:` field lines per the SSE spec.
+      const processEvent = (block: string) => {
+        if (!block) return;
+        const dataLines: string[] = [];
+        for (const rawLine of block.split("\n")) {
+          const line = rawLine.replace(/\r$/, "");
+          if (!line || line.startsWith(":")) continue; // blank or comment
+          const colon = line.indexOf(":");
+          const field = colon === -1 ? line : line.slice(0, colon);
+          if (field !== "data") continue;
+          // Per spec: strip a single leading space from the value.
+          let value = colon === -1 ? "" : line.slice(colon + 1);
+          if (value.startsWith(" ")) value = value.slice(1);
+          dataLines.push(value);
+        }
+        if (dataLines.length === 0) return;
+        const payload = dataLines.join("\n");
+
+        let evt: any;
+        try {
+          evt = JSON.parse(payload);
+        } catch {
+          return; // skip malformed
+        }
+
+        if (
+          evt?.type === "content_block_delta" &&
+          evt?.delta?.type === "text_delta" &&
+          typeof evt.delta.text === "string"
+        ) {
+          emitText(evt.delta.text);
+        } else if (evt?.type === "message_stop") {
+          sendDone();
+        } else if (evt?.type === "error") {
+          console.error("Claude stream error event:", evt?.error);
+        }
+      };
+
       try {
         while (true) {
           const { done, value } = await reader.read();
           if (done) break;
           buffer += decoder.decode(value, { stream: true });
 
-          let nl: number;
-          while ((nl = buffer.indexOf("\n")) !== -1) {
-            const line = buffer.slice(0, nl).replace(/\r$/, "");
-            buffer = buffer.slice(nl + 1);
-            if (!line.startsWith("data: ")) continue;
-            const payload = line.slice(6).trim();
-            if (!payload) continue;
-            try {
-              const evt = JSON.parse(payload);
-              if (
-                evt?.type === "content_block_delta" &&
-                evt?.delta?.type === "text_delta" &&
-                typeof evt.delta.text === "string"
-              ) {
-                const out = `data: ${JSON.stringify({
-                  choices: [{ delta: { content: evt.delta.text } }],
-                })}\n\n`;
-                controller.enqueue(encoder.encode(out));
-              } else if (evt?.type === "message_stop") {
-                controller.enqueue(encoder.encode("data: [DONE]\n\n"));
-              }
-            } catch {
-              /* skip malformed event */
-            }
+          // Split on any SSE event boundary: \n\n, \r\n\r\n, or \r\r.
+          // Keep the trailing partial block in the buffer.
+          let boundary = findEventBoundary(buffer);
+          while (boundary !== -1) {
+            const block = buffer.slice(0, boundary.start);
+            buffer = buffer.slice(boundary.end);
+            processEvent(block);
+            boundary = findEventBoundary(buffer);
           }
         }
-        controller.enqueue(encoder.encode("data: [DONE]\n\n"));
+
+        // Flush any final block that arrived without a trailing blank line.
+        const tail = buffer.replace(/\r/g, "").trim();
+        if (tail) processEvent(tail);
+
+        sendDone();
       } catch (e) {
         console.error("Claude SSE relay error:", e);
+        sendDone();
       } finally {
         controller.close();
       }
     },
   });
+}
+
+/**
+ * Locate the next SSE event boundary in `buf`. Returns the index range to
+ * slice off (`start` = end of event content, `end` = start of next event)
+ * or -1 when no complete boundary is present yet.
+ */
+function findEventBoundary(
+  buf: string,
+): -1 | { start: number; end: number } {
+  // Order matters: check the longest sequence first.
+  const candidates: Array<{ sep: string }> = [
+    { sep: "\r\n\r\n" },
+    { sep: "\n\n" },
+    { sep: "\r\r" },
+  ];
+  let best: { start: number; end: number } | null = null;
+  for (const { sep } of candidates) {
+    const i = buf.indexOf(sep);
+    if (i === -1) continue;
+    if (!best || i < best.start) {
+      best = { start: i, end: i + sep.length };
+    }
+  }
+  return best ?? -1;
 }
