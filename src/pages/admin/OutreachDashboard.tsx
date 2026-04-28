@@ -36,6 +36,46 @@ type Application = {
   created_at: string;
 };
 
+type EmailLogRow = {
+  id: string;
+  lead_id: string;
+  sequence_step: number;
+  subject: string;
+  status: string;
+  sent_at: string | null;
+  delivered_at: string | null;
+  opened_at: string | null;
+  clicked_at: string | null;
+  resend_id: string | null;
+  body_preview: string | null;
+};
+
+type ReplyLogRow = {
+  id: string;
+  lead_id: string | null;
+  from_email: string;
+  from_name: string | null;
+  subject: string | null;
+  intent: string | null;
+  processed: boolean | null;
+  agent_response_sent: boolean | null;
+  received_at: string | null;
+  body_preview: string | null;
+};
+
+const EMAIL_STATUS_BADGE: Record<string, string> = {
+  pending: "bg-muted text-muted-foreground",
+  sent: "bg-blue-500/15 text-blue-300 border-blue-500/30",
+  delivered: "bg-blue-500/15 text-blue-300 border-blue-500/30",
+  opened: "bg-green-500/15 text-green-300 border-green-500/30",
+  clicked: "bg-green-500/20 text-green-200 border-green-500/40",
+  bounced: "bg-red-500/15 text-red-300 border-red-500/30",
+  failed: "bg-red-500/15 text-red-300 border-red-500/30",
+};
+
+const fmtTs = (s: string | null) =>
+  s ? new Date(s).toLocaleString(undefined, { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" }) : "—";
+
 const STATUSES = [
   "all", "pending", "sent", "delivered", "replied",
   "trial_started", "converted", "opted_out", "bounced",
@@ -83,6 +123,10 @@ export default function OutreachDashboard() {
 
   // Apps
   const [apps, setApps] = useState<Application[]>([]);
+
+  // Debug logs
+  const [emailLogs, setEmailLogs] = useState<EmailLogRow[]>([]);
+  const [replyLogs, setReplyLogs] = useState<ReplyLogRow[]>([]);
 
   // Config
   const [paused, setPaused] = useState(false);
@@ -152,6 +196,22 @@ export default function OutreachDashboard() {
       .order("created_at", { ascending: false })
       .limit(50);
     setApps((appsRes.data as Application[]) ?? []);
+
+    // Debug logs (most recent 50 of each)
+    const [emailLogRes, replyLogRes] = await Promise.all([
+      supabase
+        .from("outreach_email_log")
+        .select("id, lead_id, sequence_step, subject, status, sent_at, delivered_at, opened_at, clicked_at, resend_id, body_preview")
+        .order("sent_at", { ascending: false, nullsFirst: false })
+        .limit(50),
+      supabase
+        .from("outreach_reply_log")
+        .select("id, lead_id, from_email, from_name, subject, intent, processed, agent_response_sent, received_at, body_preview")
+        .order("received_at", { ascending: false, nullsFirst: false })
+        .limit(50),
+    ]);
+    setEmailLogs((emailLogRes.data as EmailLogRow[]) ?? []);
+    setReplyLogs((replyLogRes.data as ReplyLogRow[]) ?? []);
 
     setLoadingLeads(false);
   }, [page, statusFilter, countryFilter]);
@@ -408,6 +468,97 @@ export default function OutreachDashboard() {
               Next
             </Button>
           </div>
+        </div>
+      </section>
+
+      {/* Debug: Email send log */}
+      <section className="space-y-3">
+        <div className="flex items-center justify-between">
+          <h2 className="font-serif text-foreground">Email send log</h2>
+          <p className="text-xs text-muted-foreground">Latest 50 sends</p>
+        </div>
+        <div className="bg-card border border-border rounded-sm overflow-x-auto">
+          <table className="w-full text-sm">
+            <thead className="text-muted-foreground text-xs uppercase tracking-wider font-body">
+              <tr className="border-b border-border">
+                <th className="text-left p-3">Sent</th>
+                <th className="text-left p-3">Step</th>
+                <th className="text-left p-3">Subject</th>
+                <th className="text-left p-3">Status</th>
+                <th className="text-left p-3">Delivered</th>
+                <th className="text-left p-3">Opened</th>
+                <th className="text-left p-3">Clicked</th>
+                <th className="text-left p-3">Lead</th>
+              </tr>
+            </thead>
+            <tbody>
+              {emailLogs.length === 0 && (
+                <tr><td colSpan={8} className="p-6 text-center text-muted-foreground">No emails sent yet</td></tr>
+              )}
+              {emailLogs.map((e) => (
+                <tr key={e.id} className="border-b border-border/40 last:border-0">
+                  <td className="p-3 text-muted-foreground text-xs whitespace-nowrap">{fmtTs(e.sent_at)}</td>
+                  <td className="p-3 text-foreground/80">{e.sequence_step}</td>
+                  <td className="p-3 text-foreground max-w-[280px] truncate" title={e.subject}>{e.subject}</td>
+                  <td className="p-3">
+                    <span className={`inline-block px-2 py-0.5 rounded-sm text-xs border ${EMAIL_STATUS_BADGE[e.status] ?? "bg-muted text-muted-foreground"}`}>
+                      {e.status}
+                    </span>
+                  </td>
+                  <td className="p-3 text-muted-foreground text-xs whitespace-nowrap">{fmtTs(e.delivered_at)}</td>
+                  <td className="p-3 text-muted-foreground text-xs whitespace-nowrap">{fmtTs(e.opened_at)}</td>
+                  <td className="p-3 text-muted-foreground text-xs whitespace-nowrap">{fmtTs(e.clicked_at)}</td>
+                  <td className="p-3 text-muted-foreground text-xs font-mono">{e.lead_id.slice(0, 8)}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      {/* Debug: Reply log */}
+      <section className="space-y-3">
+        <div className="flex items-center justify-between">
+          <h2 className="font-serif text-foreground">Reply log</h2>
+          <p className="text-xs text-muted-foreground">Latest 50 inbound replies</p>
+        </div>
+        <div className="bg-card border border-border rounded-sm overflow-x-auto">
+          <table className="w-full text-sm">
+            <thead className="text-muted-foreground text-xs uppercase tracking-wider font-body">
+              <tr className="border-b border-border">
+                <th className="text-left p-3">Received</th>
+                <th className="text-left p-3">From</th>
+                <th className="text-left p-3">Subject</th>
+                <th className="text-left p-3">Intent</th>
+                <th className="text-left p-3">Processed</th>
+                <th className="text-left p-3">Replied</th>
+                <th className="text-left p-3">Lead</th>
+              </tr>
+            </thead>
+            <tbody>
+              {replyLogs.length === 0 && (
+                <tr><td colSpan={7} className="p-6 text-center text-muted-foreground">No replies yet</td></tr>
+              )}
+              {replyLogs.map((r) => (
+                <tr key={r.id} className="border-b border-border/40 last:border-0">
+                  <td className="p-3 text-muted-foreground text-xs whitespace-nowrap">{fmtTs(r.received_at)}</td>
+                  <td className="p-3 text-foreground/80 text-xs">
+                    {r.from_name ? <span className="block text-foreground">{r.from_name}</span> : null}
+                    {r.from_email}
+                  </td>
+                  <td className="p-3 text-foreground max-w-[260px] truncate" title={r.subject ?? ""}>{r.subject ?? "—"}</td>
+                  <td className="p-3">
+                    <span className="inline-block px-2 py-0.5 rounded-sm text-xs border bg-muted text-muted-foreground">
+                      {r.intent ?? "—"}
+                    </span>
+                  </td>
+                  <td className="p-3 text-xs">{r.processed ? "✓" : "—"}</td>
+                  <td className="p-3 text-xs">{r.agent_response_sent ? "✓" : "—"}</td>
+                  <td className="p-3 text-muted-foreground text-xs font-mono">{r.lead_id ? r.lead_id.slice(0, 8) : "—"}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
         </div>
       </section>
     </main>
