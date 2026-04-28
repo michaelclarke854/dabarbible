@@ -24,20 +24,20 @@ serve(async (req) => {
 
   const supabaseUrl = Deno.env.get('SUPABASE_URL');
   const serviceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
-  const cronSecret = Deno.env.get('CRON_SECRET');
+  const uploadSecret = Deno.env.get('VIDEO_UPLOAD_SECRET');
 
-  if (!supabaseUrl || !serviceRoleKey || !cronSecret) {
-    console.error('FATAL: Missing SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, or CRON_SECRET');
+  if (!supabaseUrl || !serviceRoleKey || !uploadSecret) {
+    console.error('FATAL: Missing SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, or VIDEO_UPLOAD_SECRET');
     return new Response(
       JSON.stringify({ error: 'Server misconfigured' }),
       { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
     );
   }
 
-  // Auth: caller must present CRON_SECRET as bearer token (render script on Mac).
+  // Auth: caller must present VIDEO_UPLOAD_SECRET as bearer token (render script on Mac).
   const authHeader = req.headers.get('Authorization') ?? '';
   const presented = authHeader.replace(/^Bearer\s+/i, '').trim();
-  if (!presented || presented !== cronSecret) {
+  if (!presented || presented !== uploadSecret) {
     console.warn('[register-videos] Unauthorized — bad or missing bearer token');
     return new Response(
       JSON.stringify({ error: 'Unauthorized' }),
