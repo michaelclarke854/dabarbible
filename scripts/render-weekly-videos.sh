@@ -17,7 +17,7 @@ log() { echo "$LOG_PREFIX $*"; }
 warn() { echo "$LOG_PREFIX WARNING: $*" >&2; }
 fail() { echo "$LOG_PREFIX ERROR: $*" >&2; exit 1; }
 
-# --- Load CRON_SECRET ---
+# --- Load VIDEO_UPLOAD_SECRET ---
 if [ ! -f "$ENV_FILE" ]; then
   fail "$ENV_FILE not found"
 fi
@@ -26,8 +26,8 @@ set -a
 source "$ENV_FILE"
 set +a
 
-if [ -z "${CRON_SECRET:-}" ]; then
-  fail "CRON_SECRET missing from $ENV_FILE"
+if [ -z "${VIDEO_UPLOAD_SECRET:-}" ]; then
+  fail "VIDEO_UPLOAD_SECRET missing from $ENV_FILE"
 fi
 
 SUPABASE_URL="https://crkkimoblnrxpszehmkg.supabase.co"
@@ -121,7 +121,7 @@ upload_video() {
   local http_code
   http_code=$(curl -sS -o /tmp/dabar-upload.log -w "%{http_code}" \
     -X POST "$UPLOAD_FN_URL" \
-    -H "Authorization: Bearer $CRON_SECRET" \
+    -H "Authorization: Bearer $VIDEO_UPLOAD_SECRET" \
     -H "Content-Type: video/mp4" \
     -H "x-video-type: $video_type" \
     -H "x-week-start: $WEEK_START" \
