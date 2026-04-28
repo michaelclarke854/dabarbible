@@ -111,7 +111,7 @@ serve(async (req) => {
         continue;
       }
 
-      const email = await generateEmail(lead, step, lovableKey, anthropicKey);
+      const email = await generateEmail(lead, step, supabase, lovableKey, anthropicKey);
       if (!email) {
         failed++;
         continue;
@@ -204,7 +204,57 @@ const STEP_CONTEXT: Record<number, string> = {
   3: "Final touch — close the loop graciously. Goal: low-pressure last invitation.",
 };
 
+function applyMergeFields(
+  text: string,
+  lead: Record<string, any>,
+  firstName: string,
+): string {
+  return text
+    .replace(/\{\{pastor_name\}\}/g, lead.pastor_name ?? "Pastor")
+    .replace(/\{\{first_name\}\}/g, firstName)
+    .replace(/\{\{church_name\}\}/g, lead.church_name ?? "your church")
+    .replace(/\{\{denomination\}\}/g, lead.denomination ?? "");
+}
+
 async function generateEmail(
+  lead: Record<string, any>,
+  step: number,
+  supabase: ReturnType<typeof createClient>,
+  lovableKey: string | undefined,
+  anthropicKey: string | undefined,
+): Promise<{ subject: string; body: string } | null> {
+  const denomination = ((lead.denomination as string) ?? "default").toLowerCase();
+
+  // Try denomination-specific template first; fall back to default for this step.
+  // Sort by denomination ASC so non-default sorts before "default" only when matched explicitly.
+  // Safer: query both candidates and pick the non-default if present.
+  const { data: templates } = await supabase
+    .from("email_templates")
+    .select("subject, body, denomination")
+    .eq("step", step)
+    .eq("is_active", true)
+    .in("denomination", [denomination, "default"]);
+
+  const template =
+    templates?.find((t: any) => t.denomination === denomination) ??
+    templates?.find((t: any) => t.denomination === "default");
+
+  if (template) {
+    const firstName =
+      (lead.pastor_name as string)?.split(" ")[0] ?? lead.pastor_name ?? "Pastor";
+    return {
+      subject: applyMergeFields(template.subject, lead, firstName),
+      body: applyMergeFields(template.body, lead, firstName),
+    };
+  }
+
+  console.warn(
+    `No template found for step ${step} denomination ${denomination} — falling back to AI`,
+  );
+  return await generateEmailViaAI(lead, step, lovableKey, anthropicKey);
+}
+
+async function generateEmailViaAI(
   lead: Record<string, any>,
   step: number,
   lovableKey: string | undefined,

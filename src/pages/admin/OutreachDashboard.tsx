@@ -9,6 +9,7 @@ import {
 } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
 import { toast } from "sonner";
 
 type Lead = {
@@ -61,6 +62,25 @@ type ReplyLogRow = {
   agent_response_sent: boolean | null;
   received_at: string | null;
   body_preview: string | null;
+};
+
+interface EmailTemplate {
+  id: string;
+  template_key: string;
+  step: number;
+  denomination: string;
+  subject: string;
+  body: string;
+  is_active: boolean;
+  version: number;
+  updated_at: string;
+}
+
+const STEP_LABELS: Record<number, string> = {
+  0: "Transactional — pastoral access approval",
+  1: "Step 1 — First contact",
+  2: "Step 2 — Follow-up",
+  3: "Step 3 — Final touch",
 };
 
 const EMAIL_STATUS_BADGE: Record<string, string> = {
@@ -127,6 +147,9 @@ export default function OutreachDashboard() {
   // Debug logs
   const [emailLogs, setEmailLogs] = useState<EmailLogRow[]>([]);
   const [replyLogs, setReplyLogs] = useState<ReplyLogRow[]>([]);
+
+  // Templates
+  const [templates, setTemplates] = useState<EmailTemplate[]>([]);
 
   // Config
   const [paused, setPaused] = useState(false);
@@ -213,6 +236,14 @@ export default function OutreachDashboard() {
     setEmailLogs((emailLogRes.data as EmailLogRow[]) ?? []);
     setReplyLogs((replyLogRes.data as ReplyLogRow[]) ?? []);
 
+    const templatesRes = await supabase
+      .from("email_templates")
+      .select("*")
+      .eq("is_active", true)
+      .order("step", { ascending: true })
+      .order("denomination", { ascending: true });
+    setTemplates((templatesRes.data as EmailTemplate[]) ?? []);
+
     setLoadingLeads(false);
   }, [page, statusFilter, countryFilter]);
 
@@ -273,6 +304,32 @@ export default function OutreachDashboard() {
       toast.error(error.message);
       return;
     }
+
+    if (status === "approved") {
+      const app = apps.find((a) => a.id === id);
+      if (app) {
+        const { error: emailError } = await supabase.functions.invoke(
+          "send-pastoral-approval",
+          {
+            body: {
+              pastor_name: app.pastor_name,
+              email: app.email,
+              church_name: app.church_name,
+            },
+          },
+        );
+        if (emailError) {
+          toast.warning(
+            "Application approved but approval email failed to send. Check logs.",
+          );
+        } else {
+          toast.success("Application approved and welcome email sent.");
+        }
+        refresh();
+        return;
+      }
+    }
+
     toast.success(status === "approved" ? "Application approved" : "Application rejected");
     refresh();
   };
@@ -561,6 +618,144 @@ export default function OutreachDashboard() {
           </table>
         </div>
       </section>
+
+      {/* Email templates editor */}
+      <section className="space-y-4">
+        <div>
+          <h2 className="font-serif text-foreground text-xl">Email templates</h2>
+          <p className="text-xs text-muted-foreground font-body mt-1">
+            ELIJAH uses these templates first. AI generation is the fallback when no template matches.
+          </p>
+        </div>
+        {[1, 2, 3, 0].map((stepNum) => {
+          const stepTemplates = templates
+            .filter((t) => t.step === stepNum)
+            .sort((a, b) => {
+              if (a.denomination === "default") return -1;
+              if (b.denomination === "default") return 1;
+              return a.denomination.localeCompare(b.denomination);
+            });
+          if (stepTemplates.length === 0) return null;
+          return (
+            <div key={stepNum} className="space-y-3">
+              <h3 className="font-serif text-foreground text-base border-b border-border pb-2">
+                {STEP_LABELS[stepNum] ?? `Step ${stepNum}`}
+              </h3>
+              {stepTemplates.map((t) => (
+                <TemplateCard key={t.id} template={t} onSaved={refresh} />
+              ))}
+            </div>
+          );
+        })}
+      </section>
     </main>
+  );
+}
+
+function TemplateCard({
+  template,
+  onSaved,
+}: {
+  template: EmailTemplate;
+  onSaved: () => void;
+}) {
+  const [subject, setSubject] = useState(template.subject);
+  const [body, setBody] = useState(template.body);
+  const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    setSubject(template.subject);
+    setBody(template.body);
+  }, [template.id, template.subject, template.body, template.version]);
+
+  const dirty = subject !== template.subject || body !== template.body;
+  const charCount = body.length;
+  const wordCount = body.trim() ? body.trim().split(/\s+/).length : 0;
+  const overWord = wordCount > 150;
+
+  const save = async () => {
+    setSaving(true);
+    const { data, error } = await supabase
+      .from("email_templates")
+      .update({ subject, body })
+      .eq("id", template.id)
+      .select("version")
+      .single();
+    setSaving(false);
+    if (error) {
+      toast.error(`Save failed: ${error.message}`);
+      return;
+    }
+    toast.success(`Template saved (v${data?.version ?? template.version + 1})`);
+    onSaved();
+  };
+
+  const reset = () => {
+    setSubject(template.subject);
+    setBody(template.body);
+  };
+
+  const isDefault = template.denomination === "default";
+
+  return (
+    <div className="bg-card border border-border rounded-sm p-4 space-y-3">
+      <div className="flex flex-wrap items-center gap-2 justify-between">
+        <div className="flex items-center gap-2 flex-wrap">
+          <span className="text-xs px-2 py-0.5 rounded-sm border border-border bg-muted text-muted-foreground uppercase tracking-wider">
+            Step {template.step}
+          </span>
+          <span className="text-xs px-2 py-0.5 rounded-sm border border-border bg-muted text-muted-foreground">
+            {isDefault ? "All denominations (default)" : template.denomination}
+          </span>
+          <span className="text-xs text-muted-foreground font-mono">{template.template_key}</span>
+        </div>
+        <span className="text-xs text-muted-foreground">v{template.version}</span>
+      </div>
+
+      <div className="space-y-2">
+        <Label className="text-xs uppercase tracking-wider text-muted-foreground font-body">
+          Subject
+        </Label>
+        <Input value={subject} onChange={(e) => setSubject(e.target.value)} />
+      </div>
+
+      <div className="space-y-2">
+        <Label className="text-xs uppercase tracking-wider text-muted-foreground font-body">
+          Body
+        </Label>
+        <Textarea
+          value={body}
+          onChange={(e) => setBody(e.target.value)}
+          className="font-mono text-sm min-h-[280px]"
+          rows={12}
+        />
+        <div className="flex flex-wrap items-center justify-between gap-2 text-xs">
+          <span className="text-muted-foreground">
+            Available merge fields:{" "}
+            <code className="bg-muted px-1 py-0.5 rounded-sm">{"{{pastor_name}}"}</code>{" "}
+            <code className="bg-muted px-1 py-0.5 rounded-sm">{"{{first_name}}"}</code>{" "}
+            <code className="bg-muted px-1 py-0.5 rounded-sm">{"{{church_name}}"}</code>
+          </span>
+          <span className={overWord ? "text-amber-400" : "text-muted-foreground"}>
+            {charCount} characters · ~{wordCount} words
+          </span>
+        </div>
+      </div>
+
+      <div className="flex items-center justify-end gap-3">
+        {dirty && (
+          <button
+            type="button"
+            className="text-xs text-muted-foreground underline hover:text-foreground"
+            onClick={reset}
+          >
+            Reset to saved
+          </button>
+        )}
+        <Button size="sm" onClick={save} disabled={!dirty || saving}>
+          {saving ? "Saving…" : "Save template"}
+        </Button>
+      </div>
+    </div>
   );
 }
