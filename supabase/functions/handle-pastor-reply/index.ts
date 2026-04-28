@@ -1,5 +1,6 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.103.0";
+import { verifySvixSignature } from "../_shared/verify-svix.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -21,9 +22,24 @@ serve(async (req) => {
 
   const supabase = createClient(supabaseUrl, serviceRoleKey);
 
+  // Read raw body once — required for signature verification AND parsing
+  const rawBody = await req.text();
+
+  // Verify Svix signature (Resend inbound). Fails closed if secret missing.
+  const verification = await verifySvixSignature(req, rawBody);
+  if (!verification.ok) {
+    console.warn(
+      `[handle-pastor-reply] Rejected: ${verification.reason}`,
+    );
+    return new Response(verification.reason, {
+      status: verification.status,
+      headers: corsHeaders,
+    });
+  }
+
   let payload: Record<string, any>;
   try {
-    payload = await req.json();
+    payload = JSON.parse(rawBody);
   } catch {
     return new Response("Invalid payload", { status: 400, headers: corsHeaders });
   }
