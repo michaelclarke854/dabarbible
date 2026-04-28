@@ -163,7 +163,7 @@ export default function OutreachDashboard() {
   const togglePause = async (next: boolean) => {
     const { error } = await supabase
       .from("outreach_config")
-      .update({ value: next as unknown as object })
+      .update({ value: next })
       .eq("key", "sending_paused");
     if (error) {
       toast.error("Failed to update pause state");
@@ -203,7 +203,7 @@ export default function OutreachDashboard() {
   };
 
   const updateAppStatus = async (id: string, status: "approved" | "rejected") => {
-    const patch: Record<string, string> = { status };
+    const patch: { status: "approved" | "rejected"; approved_at?: string } = { status };
     if (status === "approved") patch.approved_at = new Date().toISOString();
     const { error } = await supabase
       .from("pastoral_access_applications")
