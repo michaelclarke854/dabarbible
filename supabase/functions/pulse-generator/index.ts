@@ -1,5 +1,6 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { chatWithFallback } from "../_shared/ai-with-fallback.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -204,24 +205,19 @@ Write a single short pastoral message (150-220 words) the pastor can share with 
       let wordCount = 0;
 
       try {
-        const aiResp = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
-          method: "POST",
-          headers: {
-            Authorization: `Bearer ${lovableKey}`,
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            model: "google/gemini-2.5-pro",
-            messages: [
-              { role: "system", content: systemPrompt },
-              { role: "user", content: userPrompt },
-            ],
-          }),
+        // Claude first, Lovable AI (gemini-2.5-pro) as fallback.
+        const aiResult = await chatWithFallback({
+          messages: [
+            { role: "system", content: systemPrompt },
+            { role: "user", content: userPrompt },
+          ],
+          fallbackModel: "google/gemini-2.5-pro",
+          maxTokens: 800,
         });
 
-        if (aiResp.ok) {
-          const aiJson = await aiResp.json();
-          aiDraft = aiJson.choices?.[0]?.message?.content ?? "";
+        if (aiResult) {
+          console.log(`Pulse provider for ${communityId}: ${aiResult.provider}`);
+          aiDraft = aiResult.body.choices?.[0]?.message?.content ?? "";
           aiVerses = [
             ...aiDraft.matchAll(/\b([1-3]?\s?[A-Z][a-z]+)\s+(\d+):(\d+(?:[-–]\d+)?)\b/g),
           ]
@@ -230,7 +226,7 @@ Write a single short pastoral message (150-220 words) the pastor can share with 
             .slice(0, 8);
           wordCount = aiDraft.split(/\s+/).filter(Boolean).length;
         } else {
-          console.warn(`AI gateway ${aiResp.status} for community ${communityId}`);
+          console.warn(`AI unavailable (Claude + Lovable both failed) for community ${communityId}`);
         }
       } catch (e) {
         console.error("AI draft error:", e);

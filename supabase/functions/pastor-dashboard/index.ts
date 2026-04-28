@@ -1,5 +1,6 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { chatWithFallback } from "../_shared/ai-with-fallback.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -233,30 +234,19 @@ Create a pastoral message outline with:
 
 Return the outline as clean text the pastor can copy and adapt directly.`;
 
-    const aiResponse = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${lovableKey}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        model: "google/gemini-2.5-flash",
-        messages: [
-          { role: "system", content: systemPrompt },
-          { role: "user", content: userPrompt },
-        ],
-      }),
+    // Claude first, Lovable AI as fallback when Anthropic is out of credits / rate limited.
+    const aiResult = await chatWithFallback({
+      messages: [
+        { role: "system", content: systemPrompt },
+        { role: "user", content: userPrompt },
+      ],
+      fallbackModel: "google/gemini-2.5-flash",
+      maxTokens: 1500,
     });
 
-    if (aiResponse.status === 429) return json({ error: "Rate limited" }, 429);
-    if (aiResponse.status === 402) return json({ error: "Payment required" }, 402);
-    if (!aiResponse.ok) {
-      console.error("AI gateway error:", aiResponse.status);
-      return json({ error: "AI service unavailable" }, 503);
-    }
-
-    const aiJson = await aiResponse.json();
-    const outline: string = aiJson.choices?.[0]?.message?.content ?? "";
+    if (!aiResult) return json({ error: "AI service unavailable" }, 503);
+    console.log(`Pastor draft provider: ${aiResult.provider}`);
+    const outline: string = aiResult.body.choices?.[0]?.message?.content ?? "";
 
     if (!outline) return json({ error: "Empty response from AI" }, 500);
 
