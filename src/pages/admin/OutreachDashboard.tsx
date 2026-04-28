@@ -1,0 +1,415 @@
+import { useEffect, useState, useCallback } from "react";
+import { useNavigate } from "react-router-dom";
+import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/contexts/AuthContext";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import {
+  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
+} from "@/components/ui/select";
+import { Switch } from "@/components/ui/switch";
+import { Label } from "@/components/ui/label";
+import { toast } from "sonner";
+
+type Lead = {
+  id: string;
+  pastor_name: string;
+  church_name: string;
+  email: string;
+  denomination: string | null;
+  country_code: string;
+  status: string;
+  suppressed: boolean | null;
+  last_contacted_at: string | null;
+  initial_sent_at: string | null;
+};
+
+type Application = {
+  id: string;
+  pastor_name: string;
+  church_name: string;
+  email: string;
+  denomination: string | null;
+  church_size: string | null;
+  country: string | null;
+  status: string;
+  created_at: string;
+};
+
+const STATUSES = [
+  "all", "pending", "sent", "delivered", "replied",
+  "trial_started", "converted", "opted_out", "bounced",
+];
+
+const STATUS_BADGE: Record<string, string> = {
+  pending: "bg-muted text-muted-foreground",
+  sent: "bg-blue-500/15 text-blue-300 border-blue-500/30",
+  delivered: "bg-blue-500/15 text-blue-300 border-blue-500/30",
+  replied: "bg-green-500/15 text-green-300 border-green-500/30",
+  trial_started: "bg-green-500/15 text-green-300 border-green-500/30",
+  converted: "bg-green-500/20 text-green-200 border-green-500/40",
+  opted_out: "bg-red-500/15 text-red-300 border-red-500/30",
+  bounced: "bg-red-500/15 text-red-300 border-red-500/30",
+};
+
+const PAGE_SIZE = 20;
+
+export default function OutreachDashboard() {
+  const { user, role, loading: authLoading } = useAuth();
+  const navigate = useNavigate();
+
+  useEffect(() => {
+    if (authLoading) return;
+    if (!user || (role !== "admin" && role !== "super_admin")) {
+      navigate("/");
+    }
+  }, [user, role, authLoading, navigate]);
+
+  // Metrics
+  const [metrics, setMetrics] = useState({
+    totalLeads: 0,
+    sentThisWeek: 0,
+    replies: 0,
+    pendingApps: 0,
+  });
+
+  // Leads
+  const [leads, setLeads] = useState<Lead[]>([]);
+  const [page, setPage] = useState(0);
+  const [totalLeads, setTotalLeads] = useState(0);
+  const [statusFilter, setStatusFilter] = useState("all");
+  const [countryFilter, setCountryFilter] = useState("");
+  const [loadingLeads, setLoadingLeads] = useState(false);
+
+  // Apps
+  const [apps, setApps] = useState<Application[]>([]);
+
+  // Config
+  const [paused, setPaused] = useState(false);
+  const [dailyLimit, setDailyLimit] = useState(50);
+  const [todayCount, setTodayCount] = useState(0);
+
+  // Add lead form
+  const [adding, setAdding] = useState(false);
+  const [addForm, setAddForm] = useState({
+    pastor_name: "", church_name: "", email: "",
+    denomination: "", country_code: "US", church_size: "",
+  });
+  const [submittingAdd, setSubmittingAdd] = useState(false);
+
+  const refresh = useCallback(async () => {
+    setLoadingLeads(true);
+    const weekAgo = new Date(Date.now() - 7 * 86400_000).toISOString();
+    const todayStart = new Date();
+    todayStart.setUTCHours(0, 0, 0, 0);
+
+    const [
+      totalRes, sentWeekRes, repliesRes, pendingAppsRes,
+      todayRes, configRes, limitRes,
+    ] = await Promise.all([
+      supabase.from("pastor_leads").select("*", { count: "exact", head: true }),
+      supabase.from("outreach_email_log").select("*", { count: "exact", head: true })
+        .gte("sent_at", weekAgo),
+      supabase.from("outreach_reply_log").select("*", { count: "exact", head: true }),
+      supabase.from("pastoral_access_applications").select("*", { count: "exact", head: true })
+        .eq("status", "pending"),
+      supabase.from("outreach_email_log").select("*", { count: "exact", head: true })
+        .gte("sent_at", todayStart.toISOString()),
+      supabase.from("outreach_config").select("value").eq("key", "sending_paused").maybeSingle(),
+      supabase.from("outreach_config").select("value").eq("key", "daily_send_limit").maybeSingle(),
+    ]);
+
+    setMetrics({
+      totalLeads: totalRes.count ?? 0,
+      sentThisWeek: sentWeekRes.count ?? 0,
+      replies: repliesRes.count ?? 0,
+      pendingApps: pendingAppsRes.count ?? 0,
+    });
+    setTodayCount(todayRes.count ?? 0);
+    const pv = configRes.data?.value;
+    setPaused(pv === true || pv === "true");
+    setDailyLimit(Number(limitRes.data?.value ?? 50));
+
+    // Leads (filtered + paged)
+    let q = supabase
+      .from("pastor_leads")
+      .select("*", { count: "exact" })
+      .order("created_at", { ascending: false })
+      .range(page * PAGE_SIZE, page * PAGE_SIZE + PAGE_SIZE - 1);
+
+    if (statusFilter !== "all") q = q.eq("status", statusFilter);
+    if (countryFilter.trim()) q = q.ilike("country_code", `%${countryFilter.trim()}%`);
+
+    const leadsRes = await q;
+    setLeads((leadsRes.data as Lead[]) ?? []);
+    setTotalLeads(leadsRes.count ?? 0);
+
+    // Pending apps
+    const appsRes = await supabase
+      .from("pastoral_access_applications")
+      .select("*")
+      .eq("status", "pending")
+      .order("created_at", { ascending: false })
+      .limit(50);
+    setApps((appsRes.data as Application[]) ?? []);
+
+    setLoadingLeads(false);
+  }, [page, statusFilter, countryFilter]);
+
+  useEffect(() => {
+    if (user && (role === "admin" || role === "super_admin")) refresh();
+  }, [user, role, refresh]);
+
+  const togglePause = async (next: boolean) => {
+    const { error } = await supabase
+      .from("outreach_config")
+      .update({ value: next })
+      .eq("key", "sending_paused");
+    if (error) {
+      toast.error("Failed to update pause state");
+      return;
+    }
+    setPaused(next);
+    toast.success(next ? "Sending paused" : "Sending resumed");
+  };
+
+  const addLead = async () => {
+    if (!addForm.pastor_name.trim() || !addForm.church_name.trim() || !addForm.email.trim()) {
+      toast.error("Name, church, and email required");
+      return;
+    }
+    setSubmittingAdd(true);
+    const { error } = await supabase.from("pastor_leads").insert({
+      pastor_name: addForm.pastor_name.trim(),
+      church_name: addForm.church_name.trim(),
+      email: addForm.email.trim().toLowerCase(),
+      denomination: addForm.denomination || null,
+      country_code: addForm.country_code.trim().toUpperCase() || "US",
+      church_size: addForm.church_size || null,
+      source: "manual",
+    });
+    setSubmittingAdd(false);
+    if (error) {
+      toast.error(error.message);
+      return;
+    }
+    toast.success("Lead added");
+    setAddForm({
+      pastor_name: "", church_name: "", email: "",
+      denomination: "", country_code: "US", church_size: "",
+    });
+    setAdding(false);
+    refresh();
+  };
+
+  const updateAppStatus = async (id: string, status: "approved" | "rejected") => {
+    const patch: { status: "approved" | "rejected"; approved_at?: string } = { status };
+    if (status === "approved") patch.approved_at = new Date().toISOString();
+    const { error } = await supabase
+      .from("pastoral_access_applications")
+      .update(patch)
+      .eq("id", id);
+    if (error) {
+      toast.error(error.message);
+      return;
+    }
+    toast.success(status === "approved" ? "Application approved" : "Application rejected");
+    refresh();
+  };
+
+  const triggerNow = async () => {
+    const { data, error } = await supabase.functions.invoke("elijah-outreach", { body: {} });
+    if (error) {
+      toast.error(error.message);
+      return;
+    }
+    toast.success(`Run complete: ${JSON.stringify(data)}`);
+    refresh();
+  };
+
+  const totalPages = Math.max(1, Math.ceil(totalLeads / PAGE_SIZE));
+
+  if (authLoading || !user) return null;
+
+  return (
+    <main className="min-h-screen px-6 py-10 max-w-7xl mx-auto space-y-8">
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="font-serif-display text-3xl text-foreground">ELIJAH Outreach</h1>
+          <p className="text-sm text-muted-foreground font-body mt-1">
+            Autonomous pastoral outreach pipeline
+          </p>
+        </div>
+        <div className="flex gap-2">
+          <Button variant="outline" onClick={refresh}>Refresh</Button>
+          <Button onClick={triggerNow}>Run now</Button>
+        </div>
+      </div>
+
+      {/* Metrics */}
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+        {[
+          { label: "Total leads", value: metrics.totalLeads },
+          { label: "Sent this week", value: metrics.sentThisWeek },
+          { label: "Replies received", value: metrics.replies },
+          { label: "Pending applications", value: metrics.pendingApps },
+        ].map((s) => (
+          <div key={s.label} className="bg-card border border-border rounded-sm p-4">
+            <p className="text-muted-foreground text-xs uppercase tracking-widest font-body">
+              {s.label}
+            </p>
+            <p className="text-2xl font-serif text-foreground mt-2">{s.value}</p>
+          </div>
+        ))}
+      </div>
+
+      {/* Circuit breaker */}
+      <div className="bg-card border border-border rounded-sm p-5 space-y-3">
+        <h2 className="font-serif text-foreground">Sending controls</h2>
+        <div className="flex items-center justify-between">
+          <div>
+            <Label htmlFor="pause-switch" className="font-body">Pause sending</Label>
+            <p className="text-xs text-muted-foreground mt-1">
+              Today: {todayCount} / {dailyLimit} sends
+            </p>
+          </div>
+          <Switch id="pause-switch" checked={paused} onCheckedChange={togglePause} />
+        </div>
+      </div>
+
+      {/* Pending applications */}
+      {apps.length > 0 && (
+        <section className="space-y-3">
+          <h2 className="font-serif text-foreground">Pending pastoral applications</h2>
+          <div className="bg-card border border-border rounded-sm divide-y divide-border">
+            {apps.map((a) => (
+              <div key={a.id} className="p-4 flex flex-col md:flex-row md:items-center gap-3 justify-between">
+                <div className="text-sm">
+                  <p className="text-foreground font-medium">{a.pastor_name} · {a.church_name}</p>
+                  <p className="text-muted-foreground">
+                    {a.email} · {a.denomination ?? "—"} · {a.church_size ?? "—"} · {a.country ?? "—"}
+                  </p>
+                </div>
+                <div className="flex gap-2">
+                  <Button size="sm" variant="outline" onClick={() => updateAppStatus(a.id, "rejected")}>
+                    Reject
+                  </Button>
+                  <Button size="sm" onClick={() => updateAppStatus(a.id, "approved")}>
+                    Approve
+                  </Button>
+                </div>
+              </div>
+            ))}
+          </div>
+        </section>
+      )}
+
+      {/* Leads */}
+      <section className="space-y-3">
+        <div className="flex flex-wrap items-center gap-3 justify-between">
+          <h2 className="font-serif text-foreground">Leads</h2>
+          <div className="flex gap-2 items-center">
+            <Select value={statusFilter} onValueChange={(v) => { setStatusFilter(v); setPage(0); }}>
+              <SelectTrigger className="w-[160px]"><SelectValue /></SelectTrigger>
+              <SelectContent>
+                {STATUSES.map((s) => <SelectItem key={s} value={s}>{s}</SelectItem>)}
+              </SelectContent>
+            </Select>
+            <Input
+              placeholder="Country (e.g. US)"
+              value={countryFilter}
+              onChange={(e) => { setCountryFilter(e.target.value); setPage(0); }}
+              className="w-[160px]"
+            />
+            <Button variant="outline" size="sm" onClick={() => setAdding((v) => !v)}>
+              {adding ? "Cancel" : "Add lead"}
+            </Button>
+          </div>
+        </div>
+
+        {adding && (
+          <div className="bg-card border border-border rounded-sm p-4 grid grid-cols-1 md:grid-cols-3 gap-3">
+            <Input placeholder="Pastor name *" value={addForm.pastor_name}
+              onChange={(e) => setAddForm((f) => ({ ...f, pastor_name: e.target.value }))} />
+            <Input placeholder="Church name *" value={addForm.church_name}
+              onChange={(e) => setAddForm((f) => ({ ...f, church_name: e.target.value }))} />
+            <Input placeholder="Email *" type="email" value={addForm.email}
+              onChange={(e) => setAddForm((f) => ({ ...f, email: e.target.value }))} />
+            <Input placeholder="Denomination (e.g. baptist)" value={addForm.denomination}
+              onChange={(e) => setAddForm((f) => ({ ...f, denomination: e.target.value.toLowerCase() }))} />
+            <Input placeholder="Country code (US)" value={addForm.country_code}
+              onChange={(e) => setAddForm((f) => ({ ...f, country_code: e.target.value }))} />
+            <Input placeholder="Church size (small/medium/large)" value={addForm.church_size}
+              onChange={(e) => setAddForm((f) => ({ ...f, church_size: e.target.value }))} />
+            <div className="md:col-span-3">
+              <Button onClick={addLead} disabled={submittingAdd}>
+                {submittingAdd ? "Adding…" : "Add lead"}
+              </Button>
+            </div>
+          </div>
+        )}
+
+        <div className="bg-card border border-border rounded-sm overflow-x-auto">
+          <table className="w-full text-sm">
+            <thead className="text-muted-foreground text-xs uppercase tracking-wider font-body">
+              <tr className="border-b border-border">
+                <th className="text-left p-3">Pastor</th>
+                <th className="text-left p-3">Church</th>
+                <th className="text-left p-3">Country</th>
+                <th className="text-left p-3">Status</th>
+                <th className="text-left p-3">Last contact</th>
+              </tr>
+            </thead>
+            <tbody>
+              {loadingLeads && (
+                <tr><td colSpan={5} className="p-6 text-center text-muted-foreground">Loading…</td></tr>
+              )}
+              {!loadingLeads && leads.length === 0 && (
+                <tr><td colSpan={5} className="p-6 text-center text-muted-foreground">No leads</td></tr>
+              )}
+              {leads.map((l) => (
+                <tr key={l.id} className="border-b border-border/40 last:border-0">
+                  <td className="p-3 text-foreground">{l.pastor_name}</td>
+                  <td className="p-3 text-foreground/80">
+                    {l.church_name}
+                    <span className="block text-xs text-muted-foreground">{l.email}</span>
+                  </td>
+                  <td className="p-3 text-foreground/80">{l.country_code}</td>
+                  <td className="p-3">
+                    <span className={`inline-block px-2 py-0.5 rounded-sm text-xs border ${STATUS_BADGE[l.status] ?? "bg-muted text-muted-foreground"}`}>
+                      {l.status}
+                    </span>
+                    {l.suppressed && (
+                      <span className="ml-2 text-xs text-muted-foreground">(suppressed)</span>
+                    )}
+                  </td>
+                  <td className="p-3 text-muted-foreground text-xs">
+                    {l.last_contacted_at
+                      ? new Date(l.last_contacted_at).toLocaleDateString()
+                      : "—"}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+
+        <div className="flex items-center justify-between">
+          <p className="text-xs text-muted-foreground">
+            Page {page + 1} of {totalPages} · {totalLeads} leads
+          </p>
+          <div className="flex gap-2">
+            <Button variant="outline" size="sm" disabled={page === 0}
+              onClick={() => setPage((p) => Math.max(0, p - 1))}>
+              Previous
+            </Button>
+            <Button variant="outline" size="sm" disabled={page + 1 >= totalPages}
+              onClick={() => setPage((p) => p + 1)}>
+              Next
+            </Button>
+          </div>
+        </div>
+      </section>
+    </main>
+  );
+}

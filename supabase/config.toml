@@ -27,3 +27,9 @@ project_id = "crkkimoblnrxpszehmkg"
     verify_jwt = false
   [functions.daily-verse]
     verify_jwt = false
+  [functions.elijah-outreach]
+    verify_jwt = false
+  [functions.handle-pastor-reply]
+    verify_jwt = false
+  [functions.outreach-resend-webhook]
+    verify_jwt = false

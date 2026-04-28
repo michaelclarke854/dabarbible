@@ -443,6 +443,178 @@ export type Database = {
         }
         Relationships: []
       }
+      outreach_config: {
+        Row: {
+          key: string
+          value: Json
+        }
+        Insert: {
+          key: string
+          value: Json
+        }
+        Update: {
+          key?: string
+          value?: Json
+        }
+        Relationships: []
+      }
+      outreach_email_log: {
+        Row: {
+          body_preview: string | null
+          clicked_at: string | null
+          delivered_at: string | null
+          id: string
+          lead_id: string
+          opened_at: string | null
+          resend_id: string | null
+          sent_at: string | null
+          sequence_step: number
+          status: string
+          subject: string
+        }
+        Insert: {
+          body_preview?: string | null
+          clicked_at?: string | null
+          delivered_at?: string | null
+          id?: string
+          lead_id: string
+          opened_at?: string | null
+          resend_id?: string | null
+          sent_at?: string | null
+          sequence_step?: number
+          status?: string
+          subject: string
+        }
+        Update: {
+          body_preview?: string | null
+          clicked_at?: string | null
+          delivered_at?: string | null
+          id?: string
+          lead_id?: string
+          opened_at?: string | null
+          resend_id?: string | null
+          sent_at?: string | null
+          sequence_step?: number
+          status?: string
+          subject?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "outreach_email_log_lead_id_fkey"
+            columns: ["lead_id"]
+            isOneToOne: false
+            referencedRelation: "pastor_leads"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      outreach_reply_log: {
+        Row: {
+          agent_response_sent: boolean | null
+          body_preview: string | null
+          from_email: string
+          from_name: string | null
+          id: string
+          intent: string | null
+          lead_id: string | null
+          processed: boolean | null
+          received_at: string | null
+          subject: string | null
+        }
+        Insert: {
+          agent_response_sent?: boolean | null
+          body_preview?: string | null
+          from_email: string
+          from_name?: string | null
+          id?: string
+          intent?: string | null
+          lead_id?: string | null
+          processed?: boolean | null
+          received_at?: string | null
+          subject?: string | null
+        }
+        Update: {
+          agent_response_sent?: boolean | null
+          body_preview?: string | null
+          from_email?: string
+          from_name?: string | null
+          id?: string
+          intent?: string | null
+          lead_id?: string | null
+          processed?: boolean | null
+          received_at?: string | null
+          subject?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "outreach_reply_log_lead_id_fkey"
+            columns: ["lead_id"]
+            isOneToOne: false
+            referencedRelation: "pastor_leads"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      pastor_leads: {
+        Row: {
+          church_name: string
+          church_size: string | null
+          country_code: string
+          created_at: string | null
+          denomination: string | null
+          email: string
+          id: string
+          initial_sent_at: string | null
+          internal_notes: string | null
+          language: string
+          last_contacted_at: string | null
+          pastor_name: string
+          reply_received_at: string | null
+          source: string
+          status: string
+          suppressed: boolean | null
+          trial_started_at: string | null
+        }
+        Insert: {
+          church_name: string
+          church_size?: string | null
+          country_code?: string
+          created_at?: string | null
+          denomination?: string | null
+          email: string
+          id?: string
+          initial_sent_at?: string | null
+          internal_notes?: string | null
+          language?: string
+          last_contacted_at?: string | null
+          pastor_name: string
+          reply_received_at?: string | null
+          source?: string
+          status?: string
+          suppressed?: boolean | null
+          trial_started_at?: string | null
+        }
+        Update: {
+          church_name?: string
+          church_size?: string | null
+          country_code?: string
+          created_at?: string | null
+          denomination?: string | null
+          email?: string
+          id?: string
+          initial_sent_at?: string | null
+          internal_notes?: string | null
+          language?: string
+          last_contacted_at?: string | null
+          pastor_name?: string
+          reply_received_at?: string | null
+          source?: string
+          status?: string
+          suppressed?: boolean | null
+          trial_started_at?: string | null
+        }
+        Relationships: []
+      }
       pastor_message_drafts: {
         Row: {
           community_id: string
@@ -495,6 +667,48 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      pastoral_access_applications: {
+        Row: {
+          approved_at: string | null
+          church_name: string
+          church_size: string | null
+          country: string | null
+          created_at: string | null
+          denomination: string | null
+          email: string
+          how_heard: string | null
+          id: string
+          pastor_name: string
+          status: string
+        }
+        Insert: {
+          approved_at?: string | null
+          church_name: string
+          church_size?: string | null
+          country?: string | null
+          created_at?: string | null
+          denomination?: string | null
+          email: string
+          how_heard?: string | null
+          id?: string
+          pastor_name: string
+          status?: string
+        }
+        Update: {
+          approved_at?: string | null
+          church_name?: string
+          church_size?: string | null
+          country?: string | null
+          created_at?: string | null
+          denomination?: string | null
+          email?: string
+          how_heard?: string | null
+          id?: string
+          pastor_name?: string
+          status?: string
+        }
+        Relationships: []
       }
       pastoral_announcements: {
         Row: {
