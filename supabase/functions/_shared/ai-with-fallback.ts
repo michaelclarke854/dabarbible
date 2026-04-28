@@ -35,7 +35,7 @@ export type AIRequest = {
 
 export type AIResult = {
   /** Which provider actually produced the response. */
-  provider: "claude" | "lovable";
+  provider: "claude" | "lovable" | "lovable-tools";
   /** OpenAI-shaped response body. */
   body: any;
 };
@@ -44,6 +44,54 @@ export type AIResult = {
 function shouldFallback(status: number): boolean {
   // Out of credit / rate limited / auth issues / server errors
   return status === 402 || status === 429 || status === 401 || status === 403 || status >= 500;
+}
+
+/**
+ * Safety wrapper: tool-calling requests must stay on the Lovable AI path.
+ *
+ * Why: Claude's /v1/messages tool schema (input_schema, tool_use blocks) is
+ * incompatible with the OpenAI-style {type:"function",function:{...}} shape
+ * we accept here. Forwarding tools to Anthropic would 400 or — worse —
+ * silently drop the tool and return free-text the caller cannot parse.
+ * Whenever the caller passes `tools` or `toolChoice`, we skip Claude entirely
+ * and go straight to the Lovable AI Gateway (which already speaks the
+ * OpenAI tool-calling schema natively).
+ */
+function isToolCall(req: AIRequest): boolean {
+  return Boolean((req.tools && req.tools.length > 0) || req.toolChoice);
+}
+
+/** Direct Lovable AI Gateway call (used by the tool-call safety path and the normal fallback). */
+async function callLovable(req: AIRequest, maxTokens: number): Promise<AIResult | null> {
+  const lovableKey = Deno.env.get("LOVABLE_API_KEY");
+  if (!lovableKey) {
+    console.error("Lovable AI unavailable: LOVABLE_API_KEY missing");
+    return null;
+  }
+
+  const body: Record<string, unknown> = {
+    model: req.fallbackModel,
+    messages: req.messages,
+    max_tokens: maxTokens,
+  };
+  if (req.tools) body.tools = req.tools;
+  if (req.toolChoice) body.tool_choice = req.toolChoice;
+
+  const resp = await fetch(LOVABLE_URL, {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${lovableKey}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(body),
+  });
+
+  if (!resp.ok) {
+    console.error("Lovable AI error:", resp.status, await resp.text());
+    return null;
+  }
+  const json = await resp.json();
+  return { provider: isToolCall(req) ? "lovable-tools" : "lovable", body: json };
 }
 
 /** Split an OpenAI-style messages array into Anthropic's system + messages shape. */
@@ -80,9 +128,13 @@ function anthropicToOpenAI(json: any) {
  */
 export async function chatWithFallback(req: AIRequest): Promise<AIResult | null> {
   const anthropicKey = Deno.env.get("ANTHROPIC_API_KEY");
-  const lovableKey = Deno.env.get("LOVABLE_API_KEY");
   const claudeModel = req.claudeModel ?? DEFAULT_CLAUDE_MODEL;
   const maxTokens = req.maxTokens ?? 1024;
+
+  // Safety: tool-calling requests bypass Claude (schema mismatch).
+  if (isToolCall(req)) {
+    return callLovable(req, maxTokens);
+  }
 
   // ── Try Claude first ──────────────────────────────────────────────────
   if (anthropicKey) {
@@ -121,34 +173,7 @@ export async function chatWithFallback(req: AIRequest): Promise<AIResult | null>
   }
 
   // ── Fallback: Lovable AI Gateway ──────────────────────────────────────
-  if (!lovableKey) {
-    console.error("Lovable fallback unavailable: LOVABLE_API_KEY missing");
-    return null;
-  }
-
-  const body: Record<string, unknown> = {
-    model: req.fallbackModel,
-    messages: req.messages,
-    max_tokens: maxTokens,
-  };
-  if (req.tools) body.tools = req.tools;
-  if (req.toolChoice) body.tool_choice = req.toolChoice;
-
-  const resp = await fetch(LOVABLE_URL, {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${lovableKey}`,
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify(body),
-  });
-
-  if (!resp.ok) {
-    console.error("Lovable AI error:", resp.status, await resp.text());
-    return null;
-  }
-  const json = await resp.json();
-  return { provider: "lovable", body: json };
+  return callLovable(req, maxTokens);
 }
 
 /**
