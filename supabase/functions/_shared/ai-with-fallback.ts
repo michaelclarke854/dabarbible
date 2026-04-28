@@ -232,36 +232,28 @@ export async function streamChatWithFallback(req: AIRequest): Promise<{
 
   // ── Try Claude streaming ──────────────────────────────────────────────
   if (anthropicKey) {
-    try {
-      const { system, messages } = splitForAnthropic(req.messages);
-      const resp = await fetch(ANTHROPIC_URL, {
-        method: "POST",
-        headers: {
-          "x-api-key": anthropicKey,
-          "anthropic-version": ANTHROPIC_VERSION,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          model: claudeModel,
-          max_tokens: maxTokens,
-          stream: true,
-          system,
-          messages,
-        }),
-      });
+    const { system, messages } = splitForAnthropic(req.messages);
+    const resp = await fetchClaudeWithRetry(
+      { model: claudeModel, max_tokens: maxTokens, stream: true, system, messages },
+      {
+        "x-api-key": anthropicKey,
+        "anthropic-version": ANTHROPIC_VERSION,
+        "Content-Type": "application/json",
+      },
+    );
 
-      if (resp.ok && resp.body) {
-        return { provider: "claude", stream: claudeSSEToOpenAISSE(resp.body) };
-      }
-
-      if (!shouldFallback(resp.status)) {
-        console.error("Claude stream error (no fallback):", resp.status);
-        return { provider: "error", status: resp.status };
-      }
-      console.warn(`Claude stream ${resp.status} — falling back to Lovable AI`);
-    } catch (e) {
-      console.warn("Claude stream network error — falling back:", e);
+    if (resp?.ok && resp.body) {
+      return { provider: "claude", stream: claudeSSEToOpenAISSE(resp.body) };
     }
+    if (resp && !shouldFallback(resp.status)) {
+      console.error("Claude stream error (no fallback):", resp.status);
+      return { provider: "error", status: resp.status };
+    }
+    console.warn(
+      resp
+        ? `Claude stream ${resp.status} after retries — falling back to Lovable AI`
+        : "Claude stream network failure after retries — falling back to Lovable AI",
+    );
   }
 
   // ── Fallback: Lovable AI Gateway streaming ────────────────────────────
