@@ -64,6 +64,18 @@ type ReplyLogRow = {
   body_preview: string | null;
 };
 
+type LeadGenLogRow = {
+  id: string;
+  status: string;
+  found_count: number | null;
+  inserted_count: number | null;
+  skipped_count: number | null;
+  error_message: string | null;
+  search_target: string | null;
+  started_at: string | null;
+  completed_at: string | null;
+};
+
 interface EmailTemplate {
   id: string;
   template_key: string;
@@ -161,6 +173,8 @@ export default function OutreachDashboard() {
   // Debug logs
   const [emailLogs, setEmailLogs] = useState<EmailLogRow[]>([]);
   const [replyLogs, setReplyLogs] = useState<ReplyLogRow[]>([]);
+  const [leadGenLogs, setLeadGenLogs] = useState<LeadGenLogRow[]>([]);
+  const [expanding, setExpanding] = useState(false);
 
   // Templates
   const [templates, setTemplates] = useState<EmailTemplate[]>([]);
@@ -249,6 +263,13 @@ export default function OutreachDashboard() {
     ]);
     setEmailLogs((emailLogRes.data as EmailLogRow[]) ?? []);
     setReplyLogs((replyLogRes.data as ReplyLogRow[]) ?? []);
+
+    const leadGenRes = await supabase
+      .from("lead_gen_log")
+      .select("id, status, found_count, inserted_count, skipped_count, error_message, search_target, started_at, completed_at")
+      .order("started_at", { ascending: false, nullsFirst: false })
+      .limit(10);
+    setLeadGenLogs((leadGenRes.data as LeadGenLogRow[]) ?? []);
 
     const templatesRes = await supabase
       .from("email_templates")
@@ -358,6 +379,18 @@ export default function OutreachDashboard() {
     refresh();
   };
 
+  const triggerExpansion = async () => {
+    setExpanding(true);
+    const { data, error } = await supabase.functions.invoke("expand-pastor-leads", { body: {} });
+    setExpanding(false);
+    if (error) {
+      toast.error(error.message);
+      return;
+    }
+    toast.success(`Expansion: ${JSON.stringify(data)}`);
+    refresh();
+  };
+
   const totalPages = Math.max(1, Math.ceil(totalLeads / PAGE_SIZE));
 
   if (authLoading || !user) return null;
@@ -373,6 +406,9 @@ export default function OutreachDashboard() {
         </div>
         <div className="flex gap-2">
           <Button variant="outline" onClick={refresh}>Refresh</Button>
+          <Button variant="outline" onClick={triggerExpansion} disabled={expanding}>
+            {expanding ? "Expanding…" : "Expand leads"}
+          </Button>
           <Button onClick={triggerNow}>Run now</Button>
         </div>
       </div>
