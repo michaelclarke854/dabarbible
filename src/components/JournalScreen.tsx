@@ -194,13 +194,25 @@ const JournalScreen = ({
         <ReflectionsSection latestPrompt={latestPrompt} stirPrompt={stirPrompt} onStirConsumed={onStirConsumed} />
       ) : (
         <>
-          <input
-            type="text"
-            value={searchInput}
-            onChange={(e) => setSearchInput(e.target.value)}
-            placeholder="Search saved wisdom by topic, word, or phrase…"
-            className="w-full bg-transparent border-b border-border pb-2 mb-8 text-sm font-body text-foreground placeholder:text-muted-foreground/50 outline-none focus:border-gold transition-colors"
-          />
+          <div className="relative mb-8">
+            <input
+              type="text"
+              value={searchInput}
+              onChange={(e) => setSearchInput(e.target.value)}
+              placeholder="Search saved wisdom by topic, word, or phrase…"
+              className="w-full bg-transparent border-b border-border pb-2 pr-7 text-sm font-body text-foreground placeholder:text-muted-foreground/50 outline-none focus:border-gold transition-colors"
+            />
+            {searchInput && (
+              <button
+                type="button"
+                onClick={() => setSearchInput("")}
+                aria-label="Clear search"
+                className="absolute right-0 top-0 bottom-2 flex items-center text-muted-foreground/60 hover:text-foreground transition-colors text-lg leading-none px-1"
+              >
+                ×
+              </button>
+            )}
+          </div>
 
           {search && !isLoading && !error && (
             <p className="font-body text-xs text-muted-foreground/70 -mt-6 mb-6">
