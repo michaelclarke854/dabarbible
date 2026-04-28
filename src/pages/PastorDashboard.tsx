@@ -656,6 +656,35 @@ export default function PastorDashboard() {
           </div>
         </section>
       )}
+
+      {/* ── Congregation pulse ── */}
+      <PulseSection
+        pulse={pulse}
+        loading={pulseLoading}
+        regenerating={pulseRegenerating}
+        onRegenerate={regeneratePulse}
+        onUseDraft={handleUseDraft}
+      />
+
+      {/* ── Pastoral attention (threshold alerts) ── */}
+      <AlertsSection
+        alerts={alerts}
+        onReveal={revealAlert}
+        onContacted={markAlertContacted}
+        onDismiss={dismissAlert}
+      />
+
+      {/* ── Check-in requests ── */}
+      <CheckinsSection checkins={checkins} onAcknowledge={acknowledgeCheckin} />
+
+      {/* ── Pastoral announcements ── */}
+      <AnnouncementsSection
+        announcements={announcements}
+        sending={sendingAnnouncement}
+        onSend={sendAnnouncement}
+        composerInitial={composerInitial}
+        onComposerConsumed={() => setComposerInitial(null)}
+      />
     </div>
   );
 }
