@@ -771,6 +771,25 @@ function TemplateCard({
             {charCount} characters · ~{wordCount} words
           </span>
         </div>
+
+        {hasUnknown && (
+          <div className="text-xs text-red-400 border border-red-500/30 bg-red-500/10 rounded-sm px-2 py-1.5">
+            Unknown merge field{unknownFields.length > 1 ? "s" : ""}:{" "}
+            {unknownFields.map((f) => (
+              <code key={f} className="bg-red-500/20 px-1 mx-0.5 rounded-sm">{`{{${f}}}`}</code>
+            ))}
+            {" "}— save is blocked until removed.
+          </div>
+        )}
+        {!hasUnknown && !hasNameField && (
+          <div className="text-xs text-amber-400 border border-amber-500/30 bg-amber-500/10 rounded-sm px-2 py-1.5">
+            No name field used. Consider adding{" "}
+            <code className="bg-amber-500/20 px-1 mx-0.5 rounded-sm">{"{{first_name}}"}</code>
+            {" "}or{" "}
+            <code className="bg-amber-500/20 px-1 mx-0.5 rounded-sm">{"{{pastor_name}}"}</code>
+            {" "}to personalize this email.
+          </div>
+        )}
       </div>
 
       <div className="flex items-center justify-end gap-3">
@@ -783,7 +802,7 @@ function TemplateCard({
             Reset to saved
           </button>
         )}
-        <Button size="sm" onClick={save} disabled={!dirty || saving}>
+        <Button size="sm" onClick={save} disabled={!dirty || saving || hasUnknown}>
           {saving ? "Saving…" : "Save template"}
         </Button>
       </div>
