@@ -9,6 +9,7 @@ import {
 } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
 import { toast } from "sonner";
 
 type Lead = {
@@ -61,6 +62,25 @@ type ReplyLogRow = {
   agent_response_sent: boolean | null;
   received_at: string | null;
   body_preview: string | null;
+};
+
+interface EmailTemplate {
+  id: string;
+  template_key: string;
+  step: number;
+  denomination: string;
+  subject: string;
+  body: string;
+  is_active: boolean;
+  version: number;
+  updated_at: string;
+}
+
+const STEP_LABELS: Record<number, string> = {
+  0: "Transactional — pastoral access approval",
+  1: "Step 1 — First contact",
+  2: "Step 2 — Follow-up",
+  3: "Step 3 — Final touch",
 };
 
 const EMAIL_STATUS_BADGE: Record<string, string> = {
