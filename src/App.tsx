@@ -27,6 +27,8 @@ const DoctrinePage = lazy(() => import("./pages/DoctrinePage.tsx"));
 const UnsubscribePage = lazy(() => import("./pages/UnsubscribePage.tsx"));
 const UnsubscribeVersePage = lazy(() => import("./pages/UnsubscribeVersePage.tsx"));
 const NotFound = lazy(() => import("./pages/NotFound.tsx"));
+const PastoralAccessPage = lazy(() => import("./pages/PastoralAccessPage.tsx"));
+const OutreachDashboard = lazy(() => import("./pages/admin/OutreachDashboard.tsx"));
 
 // Dev-only visual regression fixtures (tree-shaken in production builds).
 const VisualAskFixture = import.meta.env.DEV
@@ -114,6 +116,8 @@ const App = () => (
               <Route path="/doctrine" element={<DoctrinePage />} />
               <Route path="/unsubscribe" element={<UnsubscribePage />} />
               <Route path="/unsubscribe-verse" element={<UnsubscribeVersePage />} />
+              <Route path="/pastor-access" element={<PastoralAccessPage />} />
+              <Route path="/admin/outreach" element={<OutreachDashboard />} />
               {import.meta.env.DEV && VisualAskFixture && (
                 <Route path="/__visual/ask" element={<VisualAskFixture />} />
               )}
