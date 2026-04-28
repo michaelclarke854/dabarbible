@@ -546,6 +546,15 @@ serve(async (req) => {
               .limit(1);
           }
 
+          // Fire-and-forget category classification — never awaited, never blocks
+          classifyAndStoreCategory(
+            supabase,
+            sessionId,
+            userId,
+            question,
+            crisisResult.detected,
+          );
+
           if (userId && sessionId) {
             const detectedThemes = detectThemes(question + " " + responseText);
             if (detectedThemes.length > 0) {
@@ -612,5 +621,118 @@ async function logSession(
   } catch (err) {
     console.error("Failed to log session:", err);
     return null;
+  }
+}
+
+// ── Reflection category classification (fire-and-forget) ──
+// Only runs for authenticated community members on non-crisis sessions.
+// Stores result on wisdom_sessions.reflection_category. Silent failure on any error.
+
+const VALID_CATEGORIES = [
+  "grief_and_loss", "anxiety_and_fear", "doubt_and_faith",
+  "relationships", "purpose_and_calling", "forgiveness",
+  "suffering_and_theodicy", "spiritual_growth", "identity",
+  "sin_and_repentance", "gratitude_and_joy", "general",
+] as const;
+
+const CLASSIFY_SYSTEM_PROMPT = `You classify spiritual reflection questions into one of exactly 12 pastoral categories. You MUST call the classify_reflection tool with exactly one of these categories:
+
+grief_and_loss | anxiety_and_fear | doubt_and_faith | relationships | purpose_and_calling | forgiveness | suffering_and_theodicy | spiritual_growth | identity | sin_and_repentance | gratitude_and_joy | general
+
+Choose the single best fit. If unclear, use "general".`;
+
+async function classifyAndStoreCategory(
+  // deno-lint-ignore no-explicit-any
+  supabase: any,
+  sessionId: string | null,
+  userId: string | null,
+  question: string,
+  crisisDetected: boolean,
+): Promise<void> {
+  try {
+    if (!sessionId) return;
+
+    // If a crisis was detected, mark the category and exit — never aggregate into pulse.
+    if (crisisDetected) {
+      await supabase
+        .from("wisdom_sessions")
+        .update({ reflection_category: "crisis_escalated" })
+        .eq("id", sessionId);
+      return;
+    }
+
+    // Cost guard: only classify for authenticated community members.
+    if (!userId) return;
+    const { data: membership } = await supabase
+      .from("pastoral_community_members")
+      .select("community_id")
+      .eq("user_id", userId)
+      .maybeSingle();
+    if (!membership) return;
+
+    const apiKey = Deno.env.get("LOVABLE_API_KEY");
+    if (!apiKey) return;
+
+    const aiRes = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${apiKey}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        model: "google/gemini-2.5-flash-lite",
+        messages: [
+          { role: "system", content: CLASSIFY_SYSTEM_PROMPT },
+          { role: "user", content: `Classify this reflection question: "${question.substring(0, 300)}"` },
+        ],
+        tools: [{
+          type: "function",
+          function: {
+            name: "classify_reflection",
+            description: "Assign exactly one pastoral category to the reflection question.",
+            parameters: {
+              type: "object",
+              properties: {
+                category: {
+                  type: "string",
+                  enum: [...VALID_CATEGORIES],
+                  description: "The single best-fit pastoral category.",
+                },
+              },
+              required: ["category"],
+              additionalProperties: false,
+            },
+          },
+        }],
+        tool_choice: { type: "function", function: { name: "classify_reflection" } },
+      }),
+    });
+
+    if (!aiRes.ok) {
+      console.error(`Category classification gateway error ${aiRes.status}`);
+      return;
+    }
+
+    const payload = await aiRes.json();
+    const toolCall = payload?.choices?.[0]?.message?.tool_calls?.[0];
+    let category = "general";
+    if (toolCall?.function?.arguments) {
+      try {
+        const args = JSON.parse(toolCall.function.arguments);
+        if (typeof args.category === "string" && (VALID_CATEGORIES as readonly string[]).includes(args.category)) {
+          category = args.category;
+        }
+      } catch {
+        category = "general";
+      }
+    }
+
+    await supabase
+      .from("wisdom_sessions")
+      .update({ reflection_category: category })
+      .eq("id", sessionId);
+  } catch (err) {
+    // Classification failure must never surface to the user
+    console.error("Category classification failed (non-fatal):", err);
   }
 }
