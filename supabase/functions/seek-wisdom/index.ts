@@ -546,6 +546,15 @@ serve(async (req) => {
               .limit(1);
           }
 
+          // Fire-and-forget category classification — never awaited, never blocks
+          classifyAndStoreCategory(
+            supabase,
+            sessionId,
+            userId,
+            question,
+            crisisResult.detected,
+          );
+
           if (userId && sessionId) {
             const detectedThemes = detectThemes(question + " " + responseText);
             if (detectedThemes.length > 0) {
