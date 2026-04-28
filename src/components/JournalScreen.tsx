@@ -19,6 +19,8 @@ interface WisdomEntry {
 
 type JournalTab = "voice" | "reflections";
 
+const JOURNAL_SEARCH_STORAGE_KEY = "dabar.journal.search";
+
 const JournalScreen = ({
   stirPrompt,
   onStirConsumed,
@@ -31,16 +33,43 @@ const JournalScreen = ({
   onUpgrade?: () => void;
 }) => {
   const [activeTab, setActiveTab] = useState<JournalTab>(stirPrompt ? "reflections" : "voice");
-  const [searchInput, setSearchInput] = useState("");
-  const [search, setSearch] = useState("");
+  const [searchInput, setSearchInput] = useState<string>(() => {
+    if (typeof window === "undefined") return "";
+    try {
+      return window.localStorage.getItem(JOURNAL_SEARCH_STORAGE_KEY) ?? "";
+    } catch {
+      return "";
+    }
+  });
+  const [search, setSearch] = useState<string>(() => {
+    if (typeof window === "undefined") return "";
+    try {
+      return (window.localStorage.getItem(JOURNAL_SEARCH_STORAGE_KEY) ?? "").trim();
+    } catch {
+      return "";
+    }
+  });
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [menuOpenId, setMenuOpenId] = useState<string | null>(null);
   const [unsaveToast, setUnsaveToast] = useState<{ id: string } | null>(null);
   const queryClient = useQueryClient();
 
-  // Debounce search → server-side
+  // Debounce search → applied filter, and persist to localStorage so the
+  // last search term is restored when the user returns to the Journal.
   useEffect(() => {
-    const t = setTimeout(() => setSearch(searchInput.trim()), 300);
+    const t = setTimeout(() => {
+      const trimmed = searchInput.trim();
+      setSearch(trimmed);
+      try {
+        if (trimmed) {
+          window.localStorage.setItem(JOURNAL_SEARCH_STORAGE_KEY, trimmed);
+        } else {
+          window.localStorage.removeItem(JOURNAL_SEARCH_STORAGE_KEY);
+        }
+      } catch {
+        /* ignore quota / privacy-mode errors */
+      }
+    }, 300);
     return () => clearTimeout(t);
   }, [searchInput]);
 
