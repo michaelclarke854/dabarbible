@@ -389,6 +389,48 @@ export type Database = {
         }
         Relationships: []
       }
+      generated_videos: {
+        Row: {
+          created_at: string
+          error_message: string | null
+          id: string
+          public_url: string | null
+          reflection_theme: string | null
+          render_status: string
+          storage_path: string | null
+          verse_ref: string | null
+          verse_text: string | null
+          video_type: string
+          week_start: string
+        }
+        Insert: {
+          created_at?: string
+          error_message?: string | null
+          id?: string
+          public_url?: string | null
+          reflection_theme?: string | null
+          render_status?: string
+          storage_path?: string | null
+          verse_ref?: string | null
+          verse_text?: string | null
+          video_type: string
+          week_start: string
+        }
+        Update: {
+          created_at?: string
+          error_message?: string | null
+          id?: string
+          public_url?: string | null
+          reflection_theme?: string | null
+          render_status?: string
+          storage_path?: string | null
+          verse_ref?: string | null
+          verse_text?: string | null
+          video_type?: string
+          week_start?: string
+        }
+        Relationships: []
+      }
       journal_agent_runs: {
         Row: {
           created_at: string

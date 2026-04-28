@@ -33,3 +33,5 @@ project_id = "crkkimoblnrxpszehmkg"
     verify_jwt = false
   [functions.expand-pastor-leads]
     verify_jwt = false
+  [functions.register-videos]
+    verify_jwt = false
