@@ -188,7 +188,7 @@ export async function chatWithFallback(req: AIRequest): Promise<AIResult | null>
  * response in that case.
  */
 export async function streamChatWithFallback(req: AIRequest): Promise<{
-  provider: "claude" | "lovable";
+  provider: "claude" | "lovable" | "lovable-tools";
   stream: ReadableStream<Uint8Array>;
 } | { provider: "error"; status: number }> {
   const anthropicKey = Deno.env.get("ANTHROPIC_API_KEY");
@@ -196,8 +196,12 @@ export async function streamChatWithFallback(req: AIRequest): Promise<{
   const claudeModel = req.claudeModel ?? DEFAULT_CLAUDE_MODEL;
   const maxTokens = req.maxTokens ?? 1024;
 
-  // ── Try Claude streaming ──────────────────────────────────────────────
-  if (anthropicKey) {
+  // Safety: tool-calling streams skip Claude entirely (schema mismatch
+  // between OpenAI-style tools and Anthropic's tool_use blocks).
+  const toolCall = isToolCall(req);
+
+  // ── Try Claude streaming (only for plain message generation) ──────────
+  if (!toolCall && anthropicKey) {
     try {
       const { system, messages } = splitForAnthropic(req.messages);
       const resp = await fetch(ANTHROPIC_URL, {
@@ -246,13 +250,15 @@ export async function streamChatWithFallback(req: AIRequest): Promise<{
       max_tokens: maxTokens,
       stream: true,
       messages: req.messages,
+      ...(req.tools ? { tools: req.tools } : {}),
+      ...(req.toolChoice ? { tool_choice: req.toolChoice } : {}),
     }),
   });
 
   if (!resp.ok || !resp.body) {
     return { provider: "error", status: resp.status || 500 };
   }
-  return { provider: "lovable", stream: resp.body };
+  return { provider: toolCall ? "lovable-tools" : "lovable", stream: resp.body };
 }
 
 /**
