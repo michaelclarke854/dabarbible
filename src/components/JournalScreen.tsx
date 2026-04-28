@@ -45,25 +45,33 @@ const JournalScreen = ({
   }, [searchInput]);
 
   const { data: entries = [], isLoading, error } = useQuery({
-    queryKey: ["journal", search],
+    queryKey: ["journal"],
     queryFn: async () => {
-      let query = supabase
+      const { data, error } = await supabase
         .from("wisdom_sessions")
         .select("*")
         .eq("saved_to_journal", true)
         .order("created_at", { ascending: false })
         .limit(200);
-
-      if (search) {
-        const escaped = search.replace(/[%_]/g, (m) => `\\${m}`);
-        query = query.or(`question.ilike.%${escaped}%,response.ilike.%${escaped}%`);
-      }
-
-      const { data, error } = await query;
       if (error) throw error;
       return data as WisdomEntry[];
     },
   });
+
+  // Filter across question, response, and scripture refs (client-side so we
+  // can match partial scripture references like "John" → "John 3:16").
+  const filteredEntries = (() => {
+    const q = search.trim().toLowerCase();
+    if (!q) return entries;
+    return entries.filter((e) => {
+      if (e.question?.toLowerCase().includes(q)) return true;
+      if (e.response?.toLowerCase().includes(q)) return true;
+      if (Array.isArray(e.scripture_refs)) {
+        return e.scripture_refs.some((ref) => ref?.toLowerCase().includes(q));
+      }
+      return false;
+    });
+  })();
 
   const latestPrompt = entries.length > 0
     ? entries[0].response.split("\n").find((l) => l.trim().endsWith("?"))?.trim()
@@ -72,9 +80,9 @@ const JournalScreen = ({
   const unsaveEntry = useCallback(async (entryId: string) => {
     setMenuOpenId(null);
     // Snapshot for rollback
-    const previous = queryClient.getQueryData<WisdomEntry[]>(["journal", search]);
+    const previous = queryClient.getQueryData<WisdomEntry[]>(["journal"]);
     // Optimistic removal
-    queryClient.setQueryData(["journal", search], (old: WisdomEntry[] | undefined) =>
+    queryClient.setQueryData(["journal"], (old: WisdomEntry[] | undefined) =>
       (old || []).filter((e) => e.id !== entryId)
     );
     const { error } = await supabase
@@ -83,12 +91,12 @@ const JournalScreen = ({
       .eq("id", entryId);
     if (error) {
       // Rollback
-      if (previous) queryClient.setQueryData(["journal", search], previous);
+      if (previous) queryClient.setQueryData(["journal"], previous);
       toast.error("Couldn't remove from journal. Try again.");
       return;
     }
     setUnsaveToast({ id: entryId });
-  }, [queryClient, search]);
+  }, [queryClient]);
 
   const undoUnsave = useCallback(async (entryId: string) => {
     const { error } = await supabase
@@ -167,7 +175,7 @@ const JournalScreen = ({
 
           {search && !isLoading && !error && (
             <p className="font-body text-xs text-muted-foreground/70 -mt-6 mb-6">
-              {entries.length} match{entries.length === 1 ? "" : "es"} for "{search}"
+              {filteredEntries.length} match{filteredEntries.length === 1 ? "" : "es"} for "{search}"
             </p>
           )}
 
@@ -182,7 +190,7 @@ const JournalScreen = ({
                 Check your connection and try again.
               </p>
             </div>
-          ) : entries.length === 0 ? (
+          ) : filteredEntries.length === 0 ? (
             <div className="text-center py-16">
               <p className="font-serif text-lg text-muted-foreground">
                 {search ? "No entries found." : "No saved wisdom yet."}
@@ -193,7 +201,13 @@ const JournalScreen = ({
             </div>
           ) : (
             <div className="space-y-8">
-              {entries.map((entry) => (
+              {filteredEntries.map((entry) => {
+                const q = search.trim().toLowerCase();
+                const refMatched =
+                  !!q &&
+                  Array.isArray(entry.scripture_refs) &&
+                  entry.scripture_refs.some((r) => r?.toLowerCase().includes(q));
+                return (
                 <article
                   key={entry.id}
                   className="pb-8 border-b border-border/50 last:border-none relative group"
@@ -247,17 +261,19 @@ const JournalScreen = ({
                   {expandedId !== entry.id && (
                     <p className="text-xs font-body text-gold mt-2">Tap to read full response</p>
                   )}
-                  {entry.scripture_refs?.length > 0 && expandedId === entry.id && (
+                  {entry.scripture_refs?.length > 0 &&
+                    (expandedId === entry.id || refMatched) && (
                     <div className="mt-4">
                       {entry.scripture_refs.map((ref, i) => (
                         <p key={i} className="text-gold font-serif text-xs tracking-wide">
-                          — {ref}
+                          — {highlightMatch(ref, search)}
                         </p>
                       ))}
                     </div>
                   )}
                 </article>
-              ))}
+                );
+              })}
             </div>
           )}
 
