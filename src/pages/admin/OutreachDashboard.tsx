@@ -148,6 +148,9 @@ export default function OutreachDashboard() {
   const [emailLogs, setEmailLogs] = useState<EmailLogRow[]>([]);
   const [replyLogs, setReplyLogs] = useState<ReplyLogRow[]>([]);
 
+  // Templates
+  const [templates, setTemplates] = useState<EmailTemplate[]>([]);
+
   // Config
   const [paused, setPaused] = useState(false);
   const [dailyLimit, setDailyLimit] = useState(50);
@@ -232,6 +235,14 @@ export default function OutreachDashboard() {
     ]);
     setEmailLogs((emailLogRes.data as EmailLogRow[]) ?? []);
     setReplyLogs((replyLogRes.data as ReplyLogRow[]) ?? []);
+
+    const templatesRes = await supabase
+      .from("email_templates")
+      .select("*")
+      .eq("is_active", true)
+      .order("step", { ascending: true })
+      .order("denomination", { ascending: true });
+    setTemplates((templatesRes.data as EmailTemplate[]) ?? []);
 
     setLoadingLeads(false);
   }, [page, statusFilter, countryFilter]);
