@@ -175,7 +175,7 @@ const JournalScreen = ({
 
           {search && !isLoading && !error && (
             <p className="font-body text-xs text-muted-foreground/70 -mt-6 mb-6">
-              {entries.length} match{entries.length === 1 ? "" : "es"} for "{search}"
+              {filteredEntries.length} match{filteredEntries.length === 1 ? "" : "es"} for "{search}"
             </p>
           )}
 
@@ -190,7 +190,7 @@ const JournalScreen = ({
                 Check your connection and try again.
               </p>
             </div>
-          ) : entries.length === 0 ? (
+          ) : filteredEntries.length === 0 ? (
             <div className="text-center py-16">
               <p className="font-serif text-lg text-muted-foreground">
                 {search ? "No entries found." : "No saved wisdom yet."}
@@ -201,7 +201,13 @@ const JournalScreen = ({
             </div>
           ) : (
             <div className="space-y-8">
-              {entries.map((entry) => (
+              {filteredEntries.map((entry) => {
+                const q = search.trim().toLowerCase();
+                const refMatched =
+                  !!q &&
+                  Array.isArray(entry.scripture_refs) &&
+                  entry.scripture_refs.some((r) => r?.toLowerCase().includes(q));
+                return (
                 <article
                   key={entry.id}
                   className="pb-8 border-b border-border/50 last:border-none relative group"
@@ -255,17 +261,19 @@ const JournalScreen = ({
                   {expandedId !== entry.id && (
                     <p className="text-xs font-body text-gold mt-2">Tap to read full response</p>
                   )}
-                  {entry.scripture_refs?.length > 0 && expandedId === entry.id && (
+                  {entry.scripture_refs?.length > 0 &&
+                    (expandedId === entry.id || refMatched) && (
                     <div className="mt-4">
                       {entry.scripture_refs.map((ref, i) => (
                         <p key={i} className="text-gold font-serif text-xs tracking-wide">
-                          — {ref}
+                          — {highlightMatch(ref, search)}
                         </p>
                       ))}
                     </div>
                   )}
                 </article>
-              ))}
+                );
+              })}
             </div>
           )}
 
