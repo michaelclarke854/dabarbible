@@ -67,13 +67,12 @@ type ReplyLogRow = {
 type LeadGenLogRow = {
   id: string;
   status: string;
-  found_count: number | null;
-  inserted_count: number | null;
-  skipped_count: number | null;
-  error_message: string | null;
-  search_target: string | null;
-  started_at: string | null;
-  completed_at: string | null;
+  leads_found: number | null;
+  leads_inserted: number | null;
+  leads_skipped: number | null;
+  errors: string[] | null;
+  sources_searched: string[] | null;
+  run_at: string | null;
 };
 
 interface EmailTemplate {
@@ -266,8 +265,8 @@ export default function OutreachDashboard() {
 
     const leadGenRes = await supabase
       .from("lead_gen_log")
-      .select("id, status, found_count, inserted_count, skipped_count, error_message, search_target, started_at, completed_at")
-      .order("started_at", { ascending: false, nullsFirst: false })
+      .select("id, status, leads_found, leads_inserted, leads_skipped, errors, sources_searched, run_at")
+      .order("run_at", { ascending: false, nullsFirst: false })
       .limit(10);
     setLeadGenLogs((leadGenRes.data as LeadGenLogRow[]) ?? []);
 
