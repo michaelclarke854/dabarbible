@@ -21,9 +21,10 @@ function bytesToBase64(buf: ArrayBuffer): string {
 
 async function signSvix(secret: string, id: string, ts: string, body: string) {
   const raw = secret.startsWith("whsec_") ? secret.slice(6) : secret;
+  const keyBytes = base64ToBytes(raw);
   const key = await crypto.subtle.importKey(
     "raw",
-    base64ToBytes(raw),
+    keyBytes.buffer.slice(keyBytes.byteOffset, keyBytes.byteOffset + keyBytes.byteLength) as ArrayBuffer,
     { name: "HMAC", hash: "SHA-256" },
     false,
     ["sign"],
