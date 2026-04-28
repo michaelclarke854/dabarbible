@@ -482,6 +482,39 @@ export type Database = {
         }
         Relationships: []
       }
+      lead_gen_log: {
+        Row: {
+          errors: string[] | null
+          id: string
+          leads_found: number
+          leads_inserted: number
+          leads_skipped: number
+          run_at: string
+          sources_searched: string[] | null
+          status: string
+        }
+        Insert: {
+          errors?: string[] | null
+          id?: string
+          leads_found?: number
+          leads_inserted?: number
+          leads_skipped?: number
+          run_at?: string
+          sources_searched?: string[] | null
+          status?: string
+        }
+        Update: {
+          errors?: string[] | null
+          id?: string
+          leads_found?: number
+          leads_inserted?: number
+          leads_skipped?: number
+          run_at?: string
+          sources_searched?: string[] | null
+          status?: string
+        }
+        Relationships: []
+      }
       outreach_config: {
         Row: {
           key: string
@@ -602,6 +635,8 @@ export type Database = {
           created_at: string | null
           denomination: string | null
           email: string
+          email_verified: boolean
+          email_verified_at: string | null
           id: string
           initial_sent_at: string | null
           internal_notes: string | null
@@ -610,6 +645,7 @@ export type Database = {
           pastor_name: string
           reply_received_at: string | null
           source: string
+          source_url: string | null
           status: string
           suppressed: boolean | null
           trial_started_at: string | null
@@ -621,6 +657,8 @@ export type Database = {
           created_at?: string | null
           denomination?: string | null
           email: string
+          email_verified?: boolean
+          email_verified_at?: string | null
           id?: string
           initial_sent_at?: string | null
           internal_notes?: string | null
@@ -629,6 +667,7 @@ export type Database = {
           pastor_name: string
           reply_received_at?: string | null
           source?: string
+          source_url?: string | null
           status?: string
           suppressed?: boolean | null
           trial_started_at?: string | null
@@ -640,6 +679,8 @@ export type Database = {
           created_at?: string | null
           denomination?: string | null
           email?: string
+          email_verified?: boolean
+          email_verified_at?: string | null
           id?: string
           initial_sent_at?: string | null
           internal_notes?: string | null
@@ -648,6 +689,7 @@ export type Database = {
           pastor_name?: string
           reply_received_at?: string | null
           source?: string
+          source_url?: string | null
           status?: string
           suppressed?: boolean | null
           trial_started_at?: string | null
