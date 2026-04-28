@@ -7,6 +7,8 @@ import ReflectionsSection from "./ReflectionsSection";
 import UndoToast from "./UndoToast";
 import { MoreVertical } from "lucide-react";
 import { highlightMatch } from "@/utils/highlightMatch";
+import { exportJournalToPdf } from "@/utils/exportJournalPdf";
+import { Download } from "lucide-react";
 
 interface WisdomEntry {
   id: string;
@@ -214,11 +216,37 @@ const JournalScreen = ({
             )}
           </div>
 
-          {search && !isLoading && !error && (
-            <p className="font-body text-xs text-muted-foreground/70 -mt-6 mb-6">
-              {filteredEntries.length} match{filteredEntries.length === 1 ? "" : "es"} for "{search}"
+          <div className="flex items-center justify-between gap-3 -mt-6 mb-6 min-h-[20px]">
+            <p className="font-body text-xs text-muted-foreground/70">
+              {search
+                ? `${filteredEntries.length} match${filteredEntries.length === 1 ? "" : "es"} for "${search}"`
+                : entries.length > 0
+                ? `${entries.length} saved entr${entries.length === 1 ? "y" : "ies"}`
+                : ""}
             </p>
-          )}
+            {!isLoading && !error && filteredEntries.length > 0 && (
+              <button
+                type="button"
+                onClick={() => {
+                  try {
+                    exportJournalToPdf({
+                      entries: filteredEntries,
+                      searchTerm: search || undefined,
+                    });
+                    toast.success("Journal exported as PDF.");
+                  } catch (err) {
+                    console.error("Journal PDF export failed:", err);
+                    toast.error("Couldn't export PDF. Try again.");
+                  }
+                }}
+                className="inline-flex items-center gap-1.5 font-body text-xs tracking-wide text-gold hover:text-gold/80 transition-colors"
+                aria-label="Export journal to PDF"
+              >
+                <Download size={12} />
+                Export PDF
+              </button>
+            )}
+          </div>
 
           {isLoading ? (
             <div className="flex justify-center py-20">
