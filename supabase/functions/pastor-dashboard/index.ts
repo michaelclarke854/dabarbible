@@ -306,5 +306,213 @@ Return the outline as clean text the pastor can copy and adapt directly.`;
     return json({ success: true });
   }
 
+  // ── ACTION: get_pulse ─────────────────────────────────────────────────
+  // Returns the most recent congregation_pulse row for the pastor's community.
+  if (action === "get_pulse") {
+    if (!profile.pastoral_community_id) {
+      return json({ pulse: null });
+    }
+    const { data: pulse, error: pulseErr } = await supabase
+      .from("congregation_pulse")
+      .select("*")
+      .eq("community_id", profile.pastoral_community_id)
+      .order("week_start", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+    if (pulseErr) return json({ error: pulseErr.message }, 500);
+    return json({ pulse: pulse ?? null });
+  }
+
+  // ── ACTION: list_pulses (history) ─────────────────────────────────────
+  if (action === "list_pulses") {
+    if (!profile.pastoral_community_id) return json({ pulses: [] });
+    const limit = Math.min(Number(body.limit) || 12, 52);
+    const { data: pulses, error: pErr } = await supabase
+      .from("congregation_pulse")
+      .select("id, week_start, struggling, searching, grateful, top_categories, had_activity, broadcast_sent, broadcast_sent_at")
+      .eq("community_id", profile.pastoral_community_id)
+      .order("week_start", { ascending: false })
+      .limit(limit);
+    if (pErr) return json({ error: pErr.message }, 500);
+    return json({ pulses: pulses ?? [] });
+  }
+
+  // ── ACTION: regenerate_pulse (manual trigger) ─────────────────────────
+  // Calls the pulse-generator edge function for this pastor's community.
+  if (action === "regenerate_pulse") {
+    if (!profile.pastoral_community_id) {
+      return json({ error: "No community configured" }, 400);
+    }
+    const cronSecret = Deno.env.get("CRON_SECRET");
+    if (!cronSecret) return json({ error: "Server misconfigured" }, 500);
+
+    const resp = await fetch(`${supabaseUrl}/functions/v1/pulse-generator`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "x-cron-secret": cronSecret,
+      },
+      body: JSON.stringify({ community_id: profile.pastoral_community_id }),
+    });
+    const result = await resp.json().catch(() => ({}));
+    if (!resp.ok) {
+      return json({ error: result?.error ?? "Pulse generation failed" }, 500);
+    }
+    return json({ success: true, result });
+  }
+
+  // ── ACTION: list_alerts ───────────────────────────────────────────────
+  if (action === "list_alerts") {
+    if (!profile.pastoral_community_id) return json({ alerts: [] });
+    const status = (body.status as string) ?? "pending";
+    const { data: alerts, error: aErr } = await supabase
+      .from("pastoral_threshold_alerts")
+      .select("id, alert_type, signal_count, status, created_at, revealed_at, contacted_at")
+      .eq("community_id", profile.pastoral_community_id)
+      .eq("status", status)
+      .order("created_at", { ascending: false })
+      .limit(50);
+    if (aErr) return json({ error: aErr.message }, 500);
+    return json({ alerts: alerts ?? [] });
+  }
+
+  // ── ACTION: reveal_alert ──────────────────────────────────────────────
+  // Pastor explicitly clicks to see the member behind a persistent-struggle alert.
+  if (action === "reveal_alert") {
+    const alertId = body.alert_id as string;
+    if (!alertId) return json({ error: "alert_id required" }, 400);
+    const { data: updated, error: uErr } = await supabase
+      .from("pastoral_threshold_alerts")
+      .update({ status: "revealed", revealed_at: new Date().toISOString() })
+      .eq("id", alertId)
+      .eq("community_id", profile.pastoral_community_id)
+      .select("id, member_id, alert_type, signal_count, revealed_at")
+      .single();
+    if (uErr || !updated) return json({ error: uErr?.message ?? "Not found" }, 404);
+    return json({ alert: updated });
+  }
+
+  // ── ACTION: dismiss_alert ─────────────────────────────────────────────
+  if (action === "dismiss_alert") {
+    const alertId = body.alert_id as string;
+    if (!alertId) return json({ error: "alert_id required" }, 400);
+    const { error: dErr } = await supabase
+      .from("pastoral_threshold_alerts")
+      .update({ status: "dismissed" })
+      .eq("id", alertId)
+      .eq("community_id", profile.pastoral_community_id);
+    if (dErr) return json({ error: dErr.message }, 500);
+    return json({ success: true });
+  }
+
+  // ── ACTION: mark_alert_contacted ──────────────────────────────────────
+  if (action === "mark_alert_contacted") {
+    const alertId = body.alert_id as string;
+    if (!alertId) return json({ error: "alert_id required" }, 400);
+    const { error: cErr } = await supabase
+      .from("pastoral_threshold_alerts")
+      .update({ status: "contacted", contacted_at: new Date().toISOString() })
+      .eq("id", alertId)
+      .eq("community_id", profile.pastoral_community_id);
+    if (cErr) return json({ error: cErr.message }, 500);
+    return json({ success: true });
+  }
+
+  // ── ACTION: list_checkins ─────────────────────────────────────────────
+  if (action === "list_checkins") {
+    if (!profile.pastoral_community_id) return json({ checkins: [] });
+    const status = (body.status as string) ?? "pending";
+    const { data: checkins, error: cErr } = await supabase
+      .from("pastoral_checkin_requests")
+      .select("id, member_id, mood_signal, trigger_type, status, requested_at, resolved_at")
+      .eq("community_id", profile.pastoral_community_id)
+      .eq("status", status)
+      .order("requested_at", { ascending: false })
+      .limit(50);
+    if (cErr) return json({ error: cErr.message }, 500);
+    return json({ checkins: checkins ?? [] });
+  }
+
+  // ── ACTION: acknowledge_checkin ───────────────────────────────────────
+  if (action === "acknowledge_checkin") {
+    const checkinId = body.checkin_id as string;
+    if (!checkinId) return json({ error: "checkin_id required" }, 400);
+    const newStatus = (body.status as string) === "resolved" ? "resolved" : "acknowledged";
+    const update: Record<string, unknown> = { status: newStatus };
+    if (newStatus === "resolved") update.resolved_at = new Date().toISOString();
+    const { error: aErr } = await supabase
+      .from("pastoral_checkin_requests")
+      .update(update)
+      .eq("id", checkinId)
+      .eq("community_id", profile.pastoral_community_id);
+    if (aErr) return json({ error: aErr.message }, 500);
+    return json({ success: true });
+  }
+
+  // ── ACTION: send_announcement ─────────────────────────────────────────
+  // Pastor publishes a pastoral message (often derived from pulse.ai_draft) to community.
+  if (action === "send_announcement") {
+    if (!profile.pastoral_community_id) {
+      return json({ error: "No community configured" }, 400);
+    }
+    const messageBody = (body.message_body as string)?.trim();
+    const scriptureRefs = Array.isArray(body.scripture_refs) ? (body.scripture_refs as string[]).slice(0, 12) : [];
+    const pulseId = (body.pulse_id as string | undefined) || null;
+
+    if (!messageBody || messageBody.length < 10 || messageBody.length > 8000) {
+      return json({ error: "message_body must be 10-8000 chars" }, 400);
+    }
+
+    // Count recipients
+    const { count: recipientCount } = await supabase
+      .from("pastoral_community_members")
+      .select("*", { count: "exact", head: true })
+      .eq("community_id", profile.pastoral_community_id);
+
+    const { data: announcement, error: insErr } = await supabase
+      .from("pastoral_announcements")
+      .insert({
+        community_id: profile.pastoral_community_id,
+        pastor_id: userId,
+        pulse_id: pulseId,
+        message_body: messageBody,
+        scripture_refs: scriptureRefs,
+        recipient_count: recipientCount ?? 0,
+        delivered_count: 0,
+      })
+      .select()
+      .single();
+
+    if (insErr || !announcement) {
+      console.error("Announcement insert error:", insErr);
+      return json({ error: insErr?.message ?? "Could not save announcement" }, 500);
+    }
+
+    // Mark pulse as broadcast
+    if (pulseId) {
+      await supabase
+        .from("congregation_pulse")
+        .update({ broadcast_sent: true, broadcast_sent_at: new Date().toISOString() })
+        .eq("id", pulseId)
+        .eq("community_id", profile.pastoral_community_id);
+    }
+
+    return json({ announcement });
+  }
+
+  // ── ACTION: list_announcements ────────────────────────────────────────
+  if (action === "list_announcements") {
+    if (!profile.pastoral_community_id) return json({ announcements: [] });
+    const limit = Math.min(Number(body.limit) || 20, 100);
+    const { data: anns, error: lErr } = await supabase
+      .from("pastoral_announcements")
+      .select("id, message_body, scripture_refs, recipient_count, delivered_count, sent_at, pulse_id")
+      .eq("community_id", profile.pastoral_community_id)
+      .order("sent_at", { ascending: false })
+      .limit(limit);
+    if (lErr) return json({ error: lErr.message }, 500);
+    return json({ announcements: anns ?? [] });
+  }
+
   return json({ error: "Unknown action" }, 400);
 });
