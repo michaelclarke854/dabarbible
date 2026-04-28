@@ -152,38 +152,31 @@ export async function chatWithFallback(req: AIRequest): Promise<AIResult | null>
 
   // ── Try Claude first ──────────────────────────────────────────────────
   if (anthropicKey) {
-    try {
-      const { system, messages } = splitForAnthropic(req.messages);
-      const resp = await fetch(ANTHROPIC_URL, {
-        method: "POST",
-        headers: {
-          "x-api-key": anthropicKey,
-          "anthropic-version": ANTHROPIC_VERSION,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          model: claudeModel,
-          max_tokens: maxTokens,
-          system,
-          messages,
-        }),
-      });
+    const { system, messages } = splitForAnthropic(req.messages);
+    const resp = await fetchClaudeWithRetry(
+      { model: claudeModel, max_tokens: maxTokens, system, messages },
+      {
+        "x-api-key": anthropicKey,
+        "anthropic-version": ANTHROPIC_VERSION,
+        "Content-Type": "application/json",
+      },
+    );
 
-      if (resp.ok) {
-        const json = await resp.json();
-        return { provider: "claude", body: anthropicToOpenAI(json) };
-      }
-
-      if (!shouldFallback(resp.status)) {
-        // Non-recoverable (e.g. 400 bad request) — surface as a failure so
-        // we don't silently hide a real bug behind the fallback.
-        console.error("Claude error (no fallback):", resp.status, await resp.text());
-        return null;
-      }
-      console.warn(`Claude ${resp.status} — falling back to Lovable AI`);
-    } catch (e) {
-      console.warn("Claude network error — falling back to Lovable AI:", e);
+    if (resp?.ok) {
+      const json = await resp.json();
+      return { provider: "claude", body: anthropicToOpenAI(json) };
     }
+    if (resp && !shouldFallback(resp.status)) {
+      // Non-recoverable (e.g. 400 bad request) — surface as a failure so
+      // we don't silently hide a real bug behind the fallback.
+      console.error("Claude error (no fallback):", resp.status, await resp.text());
+      return null;
+    }
+    console.warn(
+      resp
+        ? `Claude ${resp.status} after retries — falling back to Lovable AI`
+        : "Claude network failure after retries — falling back to Lovable AI",
+    );
   }
 
   // ── Fallback: Lovable AI Gateway ──────────────────────────────────────
