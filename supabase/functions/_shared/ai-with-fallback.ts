@@ -46,6 +46,72 @@ function shouldFallback(status: number): boolean {
   return status === 402 || status === 429 || status === 401 || status === 403 || status >= 500;
 }
 
+/**
+ * Transient errors worth retrying on the SAME provider before falling back:
+ * - 429 (rate limited — often clears in <1s)
+ * - 5xx (server hiccup)
+ * Auth (401/403) and credit (402) won't recover from a retry, so we skip
+ * those and fall straight through to the next provider.
+ */
+function isTransient(status: number): boolean {
+  return status === 429 || status >= 500;
+}
+
+/** Backoff delays in ms between Claude attempts. Total worst-case wait ~700ms. */
+const RETRY_BACKOFF_MS = [200, 500];
+
+/** Honor `Retry-After` (seconds or HTTP-date) but cap to avoid user-perceptible latency. */
+function retryAfterMs(headerValue: string | null, fallbackMs: number): number {
+  if (!headerValue) return fallbackMs;
+  const asInt = Number(headerValue);
+  if (Number.isFinite(asInt)) return Math.min(asInt * 1000, 1500);
+  const asDate = Date.parse(headerValue);
+  if (Number.isFinite(asDate)) {
+    return Math.min(Math.max(asDate - Date.now(), 0), 1500);
+  }
+  return fallbackMs;
+}
+
+const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
+
+/**
+ * Call Anthropic with short exponential backoff on transient failures.
+ * Returns the final Response (success or terminal failure) or `null` on a
+ * persistent network error after all retries.
+ */
+async function fetchClaudeWithRetry(body: unknown, headers: HeadersInit): Promise<Response | null> {
+  const init: RequestInit = {
+    method: "POST",
+    headers,
+    body: JSON.stringify(body),
+  };
+
+  for (let attempt = 0; attempt <= RETRY_BACKOFF_MS.length; attempt++) {
+    try {
+      const resp = await fetch(ANTHROPIC_URL, init);
+      if (resp.ok || !isTransient(resp.status)) return resp;
+
+      // Transient: maybe retry.
+      if (attempt === RETRY_BACKOFF_MS.length) return resp; // out of retries
+      const wait = retryAfterMs(resp.headers.get("retry-after"), RETRY_BACKOFF_MS[attempt]);
+      // Drain the body so the connection can be reused.
+      try { await resp.body?.cancel(); } catch { /* ignore */ }
+      console.warn(`Claude ${resp.status} — retrying in ${wait}ms (attempt ${attempt + 1})`);
+      await sleep(wait);
+    } catch (e) {
+      // Network error
+      if (attempt === RETRY_BACKOFF_MS.length) {
+        console.warn("Claude network error after retries:", e);
+        return null;
+      }
+      const wait = RETRY_BACKOFF_MS[attempt];
+      console.warn(`Claude network error — retrying in ${wait}ms (attempt ${attempt + 1}):`, e);
+      await sleep(wait);
+    }
+  }
+  return null;
+}
+
 /** Split an OpenAI-style messages array into Anthropic's system + messages shape. */
 function splitForAnthropic(messages: ChatMessage[]): { system?: string; messages: ChatMessage[] } {
   const sys = messages.filter((m) => m.role === "system").map((m) => m.content).join("\n\n");
