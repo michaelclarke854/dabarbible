@@ -304,6 +304,32 @@ export default function OutreachDashboard() {
       toast.error(error.message);
       return;
     }
+
+    if (status === "approved") {
+      const app = apps.find((a) => a.id === id);
+      if (app) {
+        const { error: emailError } = await supabase.functions.invoke(
+          "send-pastoral-approval",
+          {
+            body: {
+              pastor_name: app.pastor_name,
+              email: app.email,
+              church_name: app.church_name,
+            },
+          },
+        );
+        if (emailError) {
+          toast.warning(
+            "Application approved but approval email failed to send. Check logs.",
+          );
+        } else {
+          toast.success("Application approved and welcome email sent.");
+        }
+        refresh();
+        return;
+      }
+    }
+
     toast.success(status === "approved" ? "Application approved" : "Application rejected");
     refresh();
   };
