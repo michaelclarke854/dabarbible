@@ -45,25 +45,33 @@ const JournalScreen = ({
   }, [searchInput]);
 
   const { data: entries = [], isLoading, error } = useQuery({
-    queryKey: ["journal", search],
+    queryKey: ["journal"],
     queryFn: async () => {
-      let query = supabase
+      const { data, error } = await supabase
         .from("wisdom_sessions")
         .select("*")
         .eq("saved_to_journal", true)
         .order("created_at", { ascending: false })
         .limit(200);
-
-      if (search) {
-        const escaped = search.replace(/[%_]/g, (m) => `\\${m}`);
-        query = query.or(`question.ilike.%${escaped}%,response.ilike.%${escaped}%`);
-      }
-
-      const { data, error } = await query;
       if (error) throw error;
       return data as WisdomEntry[];
     },
   });
+
+  // Filter across question, response, and scripture refs (client-side so we
+  // can match partial scripture references like "John" → "John 3:16").
+  const filteredEntries = (() => {
+    const q = search.trim().toLowerCase();
+    if (!q) return entries;
+    return entries.filter((e) => {
+      if (e.question?.toLowerCase().includes(q)) return true;
+      if (e.response?.toLowerCase().includes(q)) return true;
+      if (Array.isArray(e.scripture_refs)) {
+        return e.scripture_refs.some((ref) => ref?.toLowerCase().includes(q));
+      }
+      return false;
+    });
+  })();
 
   const latestPrompt = entries.length > 0
     ? entries[0].response.split("\n").find((l) => l.trim().endsWith("?"))?.trim()
