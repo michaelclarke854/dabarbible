@@ -17,7 +17,7 @@ log() { echo "$LOG_PREFIX $*"; }
 warn() { echo "$LOG_PREFIX WARNING: $*" >&2; }
 fail() { echo "$LOG_PREFIX ERROR: $*" >&2; exit 1; }
 
-# --- Load service role key ---
+# --- Load CRON_SECRET ---
 if [ ! -f "$ENV_FILE" ]; then
   fail "$ENV_FILE not found"
 fi
@@ -26,13 +26,12 @@ set -a
 source "$ENV_FILE"
 set +a
 
-if [ -z "${SUPABASE_SERVICE_ROLE_KEY:-}" ]; then
-  fail "SUPABASE_SERVICE_ROLE_KEY missing from $ENV_FILE"
+if [ -z "${CRON_SECRET:-}" ]; then
+  fail "CRON_SECRET missing from $ENV_FILE"
 fi
 
 SUPABASE_URL="https://crkkimoblnrxpszehmkg.supabase.co"
-BUCKET="dabar-videos"
-PUBLIC_BASE="$SUPABASE_URL/storage/v1/object/public/$BUCKET"
+UPLOAD_FN_URL="$SUPABASE_URL/functions/v1/upload-video"
 
 # --- Date math ---
 # ISO week number (1-53) and Monday of current week (YYYY-MM-DD).
@@ -110,68 +109,36 @@ npx remotion render PastoralTrust out/pastoral.mp4 \
   --codec=h264 --jpeg-quality=80 --concurrency=2 \
   || fail "PastoralTrust render failed"
 
-# --- Upload helper ---
-upload() {
+# --- Upload helper (sends MP4 bytes to upload-video edge function) ---
+# Args: <local_file> <video_type> <verse_ref> <verse_text>
+# verse_ref/verse_text may be empty for pastoral_trust.
+upload_video() {
   local local_file="$1"
-  local remote_path="$2"
-  local url="$SUPABASE_URL/storage/v1/object/$BUCKET/$remote_path"
-  log "Uploading $local_file -> $remote_path"
+  local video_type="$2"
+  local v_ref="$3"
+  local v_text="$4"
+  log "Uploading $local_file as $video_type..."
   local http_code
   http_code=$(curl -sS -o /tmp/dabar-upload.log -w "%{http_code}" \
-    -X PUT "$url" \
-    -H "Authorization: Bearer $SUPABASE_SERVICE_ROLE_KEY" \
+    -X POST "$UPLOAD_FN_URL" \
+    -H "Authorization: Bearer $CRON_SECRET" \
     -H "Content-Type: video/mp4" \
-    -H "x-upsert: true" \
+    -H "x-video-type: $video_type" \
+    -H "x-week-start: $WEEK_START" \
+    -H "x-verse-ref: $v_ref" \
+    -H "x-verse-text: $v_text" \
     --data-binary "@$local_file")
   if [ "$http_code" -lt 200 ] || [ "$http_code" -ge 300 ]; then
     cat /tmp/dabar-upload.log >&2 || true
-    fail "Upload failed ($http_code) for $remote_path"
+    fail "upload-video failed ($http_code) for $video_type"
   fi
+  cat /tmp/dabar-upload.log >&2 || true
+  echo >&2
 }
 
-SOCIAL_REMOTE="social/${WEEK_START}.mp4"
-WHATSAPP_REMOTE="whatsapp/${WEEK_START}.mp4"
-PASTORAL_REMOTE="pastoral/latest.mp4"
-
-upload "$OUT_DIR/social.mp4"   "$SOCIAL_REMOTE"
-upload "$OUT_DIR/whatsapp.mp4" "$WHATSAPP_REMOTE"
-upload "$OUT_DIR/pastoral.mp4" "$PASTORAL_REMOTE"
-
-SOCIAL_URL="$PUBLIC_BASE/$SOCIAL_REMOTE"
-WHATSAPP_URL="$PUBLIC_BASE/$WHATSAPP_REMOTE"
-PASTORAL_URL="$PUBLIC_BASE/$PASTORAL_REMOTE"
-
-log "social_url=$SOCIAL_URL"
-log "whatsapp_url=$WHATSAPP_URL"
-log "pastoral_url=$PASTORAL_URL"
-
-# --- Register via edge function (graceful failure) ---
-REGISTER_BODY=$(cat <<EOF
-{
-  "week_start": "$WEEK_START",
-  "verse_ref": $VERSE_REF_JSON,
-  "verse_text": $VERSE_TEXT_JSON,
-  "social_url": "$SOCIAL_URL",
-  "whatsapp_url": "$WHATSAPP_URL",
-  "pastoral_url": "$PASTORAL_URL"
-}
-EOF
-)
-
-log "Calling register-videos edge function..."
-REG_CODE=$(curl -sS -o /tmp/dabar-register.log -w "%{http_code}" \
-  -X POST "$SUPABASE_URL/functions/v1/register-videos" \
-  -H "Authorization: Bearer $SUPABASE_SERVICE_ROLE_KEY" \
-  -H "Content-Type: application/json" \
-  --data "$REGISTER_BODY") || REG_CODE="000"
-
-if [ "$REG_CODE" -ge 200 ] && [ "$REG_CODE" -lt 300 ]; then
-  log "register-videos OK ($REG_CODE)"
-else
-  warn "register-videos not yet deployed or failed (HTTP $REG_CODE). Response:"
-  cat /tmp/dabar-register.log >&2 || true
-  warn "Continuing — uploads succeeded; registration can be retried later."
-fi
+upload_video "$OUT_DIR/social.mp4"   "social"         "$VERSE_REF" "$VERSE_TEXT"
+upload_video "$OUT_DIR/whatsapp.mp4" "whatsapp_card"  "$VERSE_REF" "$VERSE_TEXT"
+upload_video "$OUT_DIR/pastoral.mp4" "pastoral_trust" ""           ""
 
 log "DONE."
 exit 0
