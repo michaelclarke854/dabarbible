@@ -440,47 +440,36 @@ serve(async (req) => {
       await logPromise;
     }
 
-    const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
-    if (!LOVABLE_API_KEY) throw new Error("LOVABLE_API_KEY is not configured");
-
     const patternContext = buildPatternContext(userPatterns);
     const systemPrompt = getSystemPrompt(validatedAgeGroup, patternContext, safeLang, safeVersion, crisisResult.severity);
 
-    // ── Streaming AI call ──
-    const aiResponse = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${LOVABLE_API_KEY}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        model: "google/gemini-2.5-flash",
-        max_tokens: 1200,
-        stream: true,
-        messages: [
-          { role: "system", content: systemPrompt },
-          { role: "user", content: question },
-        ],
-      }),
+    // ── Streaming AI call: Claude first, Lovable AI as fallback ──
+    const streamResult = await streamChatWithFallback({
+      messages: [
+        { role: "system", content: systemPrompt },
+        { role: "user", content: question },
+      ],
+      fallbackModel: "google/gemini-2.5-flash",
+      maxTokens: 1200,
     });
 
-    if (!aiResponse.ok) {
-      if (aiResponse.status === 429) {
+    if ("status" in streamResult) {
+      if (streamResult.status === 429) {
         return new Response(
           JSON.stringify({ error: "The voice needs a moment of rest. Please try again shortly." }),
           { status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" } }
         );
       }
-      if (aiResponse.status === 402) {
+      if (streamResult.status === 402) {
         return new Response(
           JSON.stringify({ error: "Service temporarily unavailable. Please try again later." }),
           { status: 402, headers: { ...corsHeaders, "Content-Type": "application/json" } }
         );
       }
-      const errorText = await aiResponse.text();
-      console.error("AI gateway error:", aiResponse.status, errorText);
+      console.error("AI gateway error:", streamResult.status);
       throw new Error("Failed to receive wisdom");
     }
+    console.log(`Wisdom stream provider: ${streamResult.provider}`);
 
     let fullText = "";
     const encoder = new TextEncoder();
@@ -489,7 +478,7 @@ serve(async (req) => {
     const readableStream = new ReadableStream({
       async start(controller) {
         try {
-          const reader = aiResponse.body!.getReader();
+          const reader = streamResult.stream.getReader();
           let buffer = "";
 
           while (true) {
