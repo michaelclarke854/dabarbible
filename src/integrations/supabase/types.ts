@@ -88,6 +88,71 @@ export type Database = {
           },
         ]
       }
+      congregation_pulse: {
+        Row: {
+          ai_draft: string | null
+          ai_verses: Json | null
+          ai_word_count: number | null
+          broadcast_sent: boolean
+          broadcast_sent_at: string | null
+          community_id: string
+          created_at: string
+          email_sent_at: string | null
+          email_sent_to_pastor: boolean
+          grateful: number
+          had_activity: boolean
+          id: string
+          searching: number
+          struggling: number
+          top_categories: Json | null
+          week_start: string
+        }
+        Insert: {
+          ai_draft?: string | null
+          ai_verses?: Json | null
+          ai_word_count?: number | null
+          broadcast_sent?: boolean
+          broadcast_sent_at?: string | null
+          community_id: string
+          created_at?: string
+          email_sent_at?: string | null
+          email_sent_to_pastor?: boolean
+          grateful?: number
+          had_activity?: boolean
+          id?: string
+          searching?: number
+          struggling?: number
+          top_categories?: Json | null
+          week_start: string
+        }
+        Update: {
+          ai_draft?: string | null
+          ai_verses?: Json | null
+          ai_word_count?: number | null
+          broadcast_sent?: boolean
+          broadcast_sent_at?: string | null
+          community_id?: string
+          created_at?: string
+          email_sent_at?: string | null
+          email_sent_to_pastor?: boolean
+          grateful?: number
+          had_activity?: boolean
+          id?: string
+          searching?: number
+          struggling?: number
+          top_categories?: Json | null
+          week_start?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "congregation_pulse_community_id_fkey"
+            columns: ["community_id"]
+            isOneToOne: false
+            referencedRelation: "pastoral_communities"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       crisis_events: {
         Row: {
           age_group: string | null
@@ -431,31 +496,135 @@ export type Database = {
           },
         ]
       }
+      pastoral_announcements: {
+        Row: {
+          community_id: string
+          delivered_count: number
+          id: string
+          message_body: string
+          pastor_id: string
+          pulse_id: string | null
+          recipient_count: number
+          scripture_refs: string[]
+          sent_at: string
+        }
+        Insert: {
+          community_id: string
+          delivered_count?: number
+          id?: string
+          message_body: string
+          pastor_id: string
+          pulse_id?: string | null
+          recipient_count?: number
+          scripture_refs?: string[]
+          sent_at?: string
+        }
+        Update: {
+          community_id?: string
+          delivered_count?: number
+          id?: string
+          message_body?: string
+          pastor_id?: string
+          pulse_id?: string | null
+          recipient_count?: number
+          scripture_refs?: string[]
+          sent_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "pastoral_announcements_community_id_fkey"
+            columns: ["community_id"]
+            isOneToOne: false
+            referencedRelation: "pastoral_communities"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "pastoral_announcements_pulse_id_fkey"
+            columns: ["pulse_id"]
+            isOneToOne: false
+            referencedRelation: "congregation_pulse"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      pastoral_checkin_requests: {
+        Row: {
+          community_id: string
+          id: string
+          member_id: string
+          mood_signal: string
+          requested_at: string
+          resolved_at: string | null
+          status: string
+          trigger_type: string
+        }
+        Insert: {
+          community_id: string
+          id?: string
+          member_id: string
+          mood_signal: string
+          requested_at?: string
+          resolved_at?: string | null
+          status?: string
+          trigger_type?: string
+        }
+        Update: {
+          community_id?: string
+          id?: string
+          member_id?: string
+          mood_signal?: string
+          requested_at?: string
+          resolved_at?: string | null
+          status?: string
+          trigger_type?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "pastoral_checkin_requests_community_id_fkey"
+            columns: ["community_id"]
+            isOneToOne: false
+            referencedRelation: "pastoral_communities"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       pastoral_communities: {
         Row: {
           created_at: string
+          first_broadcast_sent_at: string | null
+          first_member_joined_at: string | null
           id: string
           invite_code: string
           name: string
+          onboarding_completed: boolean
           pastor_id: string
+          seat_cap: number
           type: string
           updated_at: string
         }
         Insert: {
           created_at?: string
+          first_broadcast_sent_at?: string | null
+          first_member_joined_at?: string | null
           id?: string
           invite_code?: string
           name: string
+          onboarding_completed?: boolean
           pastor_id: string
+          seat_cap?: number
           type?: string
           updated_at?: string
         }
         Update: {
           created_at?: string
+          first_broadcast_sent_at?: string | null
+          first_member_joined_at?: string | null
           id?: string
           invite_code?: string
           name?: string
+          onboarding_completed?: boolean
           pastor_id?: string
+          seat_cap?: number
           type?: string
           updated_at?: string
         }
@@ -465,18 +634,21 @@ export type Database = {
         Row: {
           community_id: string
           id: string
+          join_source: string
           joined_at: string
           user_id: string
         }
         Insert: {
           community_id: string
           id?: string
+          join_source?: string
           joined_at?: string
           user_id: string
         }
         Update: {
           community_id?: string
           id?: string
+          join_source?: string
           joined_at?: string
           user_id?: string
         }
@@ -626,6 +798,56 @@ export type Database = {
             columns: ["lead_id"]
             isOneToOne: false
             referencedRelation: "pastoral_leads"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      pastoral_threshold_alerts: {
+        Row: {
+          alert_type: string
+          community_id: string
+          contacted_at: string | null
+          created_at: string
+          email_sent: boolean
+          id: string
+          member_id: string
+          nudge_sent: boolean
+          revealed_at: string | null
+          signal_count: number
+          status: string
+        }
+        Insert: {
+          alert_type?: string
+          community_id: string
+          contacted_at?: string | null
+          created_at?: string
+          email_sent?: boolean
+          id?: string
+          member_id: string
+          nudge_sent?: boolean
+          revealed_at?: string | null
+          signal_count?: number
+          status?: string
+        }
+        Update: {
+          alert_type?: string
+          community_id?: string
+          contacted_at?: string | null
+          created_at?: string
+          email_sent?: boolean
+          id?: string
+          member_id?: string
+          nudge_sent?: boolean
+          revealed_at?: string | null
+          signal_count?: number
+          status?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "pastoral_threshold_alerts_community_id_fkey"
+            columns: ["community_id"]
+            isOneToOne: false
+            referencedRelation: "pastoral_communities"
             referencedColumns: ["id"]
           },
         ]
@@ -1184,6 +1406,7 @@ export type Database = {
           flagged: boolean
           id: string
           question: string
+          reflection_category: string | null
           response: string
           saved_to_journal: boolean | null
           scripture_refs: string[] | null
@@ -1195,6 +1418,7 @@ export type Database = {
           flagged?: boolean
           id?: string
           question: string
+          reflection_category?: string | null
           response: string
           saved_to_journal?: boolean | null
           scripture_refs?: string[] | null
@@ -1206,6 +1430,7 @@ export type Database = {
           flagged?: boolean
           id?: string
           question?: string
+          reflection_category?: string | null
           response?: string
           saved_to_journal?: boolean | null
           scripture_refs?: string[] | null
