@@ -6,11 +6,18 @@ import {
   CommunityTheme,
   PastorDraft,
   TimeRange,
+  CongregationPulse,
 } from "@/hooks/usePastorDashboard";
 import { trackEvent } from "@/lib/trackEvent";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 import jsPDF from "jspdf";
+import {
+  PulseSection,
+  AlertsSection,
+  CheckinsSection,
+  AnnouncementsSection,
+} from "@/components/pastor/PastoralPortalSections";
 
 const THEME_LABELS: Record<string, string> = {
   forgiveness: "Forgiveness",
@@ -51,6 +58,19 @@ export default function PastorDashboard() {
     range,
     setRange,
     refresh,
+    pulse,
+    pulseLoading,
+    pulseRegenerating,
+    regeneratePulse,
+    alerts,
+    revealAlert,
+    dismissAlert,
+    markAlertContacted,
+    checkins,
+    acknowledgeCheckin,
+    announcements,
+    sendAnnouncement,
+    sendingAnnouncement,
   } = usePastorDashboard();
 
   const [selectedTheme, setSelectedTheme] = useState<CommunityTheme | null>(null);
@@ -59,6 +79,19 @@ export default function PastorDashboard() {
   const [shareCopied, setShareCopied] = useState(false);
   const [rotating, setRotating] = useState(false);
   const [fallbackShareUrl, setFallbackShareUrl] = useState<string | null>(null);
+  const [composerInitial, setComposerInitial] = useState<{
+    messageBody: string;
+    scriptureRefs: string[];
+    pulseId: string | null;
+  } | null>(null);
+
+  const handleUseDraft = (p: CongregationPulse) => {
+    setComposerInitial({
+      messageBody: p.ai_draft ?? "",
+      scriptureRefs: p.ai_verses ?? [],
+      pulseId: p.id,
+    });
+  };
 
   if (isHydrating) {
     return (
