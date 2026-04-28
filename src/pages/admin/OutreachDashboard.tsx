@@ -64,6 +64,17 @@ type ReplyLogRow = {
   body_preview: string | null;
 };
 
+type LeadGenLogRow = {
+  id: string;
+  status: string;
+  leads_found: number | null;
+  leads_inserted: number | null;
+  leads_skipped: number | null;
+  errors: string[] | null;
+  sources_searched: string[] | null;
+  run_at: string | null;
+};
+
 interface EmailTemplate {
   id: string;
   template_key: string;
@@ -161,6 +172,8 @@ export default function OutreachDashboard() {
   // Debug logs
   const [emailLogs, setEmailLogs] = useState<EmailLogRow[]>([]);
   const [replyLogs, setReplyLogs] = useState<ReplyLogRow[]>([]);
+  const [leadGenLogs, setLeadGenLogs] = useState<LeadGenLogRow[]>([]);
+  const [expanding, setExpanding] = useState(false);
 
   // Templates
   const [templates, setTemplates] = useState<EmailTemplate[]>([]);
@@ -249,6 +262,13 @@ export default function OutreachDashboard() {
     ]);
     setEmailLogs((emailLogRes.data as EmailLogRow[]) ?? []);
     setReplyLogs((replyLogRes.data as ReplyLogRow[]) ?? []);
+
+    const leadGenRes = await supabase
+      .from("lead_gen_log")
+      .select("id, status, leads_found, leads_inserted, leads_skipped, errors, sources_searched, run_at")
+      .order("run_at", { ascending: false, nullsFirst: false })
+      .limit(10);
+    setLeadGenLogs((leadGenRes.data as LeadGenLogRow[]) ?? []);
 
     const templatesRes = await supabase
       .from("email_templates")
@@ -358,6 +378,18 @@ export default function OutreachDashboard() {
     refresh();
   };
 
+  const triggerExpansion = async () => {
+    setExpanding(true);
+    const { data, error } = await supabase.functions.invoke("expand-pastor-leads", { body: {} });
+    setExpanding(false);
+    if (error) {
+      toast.error(error.message);
+      return;
+    }
+    toast.success(`Expansion: ${JSON.stringify(data)}`);
+    refresh();
+  };
+
   const totalPages = Math.max(1, Math.ceil(totalLeads / PAGE_SIZE));
 
   if (authLoading || !user) return null;
@@ -373,6 +405,9 @@ export default function OutreachDashboard() {
         </div>
         <div className="flex gap-2">
           <Button variant="outline" onClick={refresh}>Refresh</Button>
+          <Button variant="outline" onClick={triggerExpansion} disabled={expanding}>
+            {expanding ? "Expanding…" : "Expand leads"}
+          </Button>
           <Button onClick={triggerNow}>Run now</Button>
         </div>
       </div>
@@ -628,6 +663,63 @@ export default function OutreachDashboard() {
                   <td className="p-3 text-muted-foreground text-xs font-mono">{r.lead_id ? r.lead_id.slice(0, 8) : "—"}</td>
                 </tr>
               ))}
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      {/* Lead generation log */}
+      <section className="space-y-3">
+        <div className="flex items-center justify-between">
+          <h2 className="font-serif text-foreground">Lead generation log</h2>
+          <p className="text-xs text-muted-foreground">Last 10 autonomous expansion runs</p>
+        </div>
+        <div className="bg-card border border-border rounded-sm overflow-x-auto">
+          <table className="w-full text-sm">
+            <thead className="text-muted-foreground text-xs uppercase tracking-wider font-body">
+              <tr className="border-b border-border">
+                <th className="text-left p-3">Run</th>
+                <th className="text-left p-3">Status</th>
+                <th className="text-left p-3">Found</th>
+                <th className="text-left p-3">Inserted</th>
+                <th className="text-left p-3">Skipped</th>
+                <th className="text-left p-3">Sources</th>
+                <th className="text-left p-3">Errors</th>
+              </tr>
+            </thead>
+            <tbody>
+              {leadGenLogs.length === 0 && (
+                <tr><td colSpan={7} className="p-6 text-center text-muted-foreground">No expansion runs yet</td></tr>
+              )}
+              {leadGenLogs.map((g) => {
+                const statusClass =
+                  g.status === "success"
+                    ? "bg-green-500/15 text-green-300 border-green-500/30"
+                    : g.status === "partial"
+                    ? "bg-yellow-500/15 text-yellow-300 border-yellow-500/30"
+                    : g.status === "error" || g.status === "failed"
+                    ? "bg-red-500/15 text-red-300 border-red-500/30"
+                    : "bg-muted text-muted-foreground";
+                return (
+                  <tr key={g.id} className="border-b border-border/40 last:border-0">
+                    <td className="p-3 text-muted-foreground text-xs whitespace-nowrap">{fmtTs(g.run_at)}</td>
+                    <td className="p-3">
+                      <span className={`inline-block px-2 py-0.5 rounded-sm text-xs border ${statusClass}`}>
+                        {g.status}
+                      </span>
+                    </td>
+                    <td className="p-3 text-foreground">{g.leads_found ?? 0}</td>
+                    <td className="p-3 text-foreground">{g.leads_inserted ?? 0}</td>
+                    <td className="p-3 text-muted-foreground">{g.leads_skipped ?? 0}</td>
+                    <td className="p-3 text-muted-foreground text-xs max-w-[260px] truncate" title={g.sources_searched?.join(", ") ?? ""}>
+                      {g.sources_searched?.length ? g.sources_searched.join(", ") : "—"}
+                    </td>
+                    <td className="p-3 text-red-300/80 text-xs max-w-[260px] truncate" title={g.errors?.join(" | ") ?? ""}>
+                      {g.errors?.length ? g.errors.join(" | ") : "—"}
+                    </td>
+                  </tr>
+                );
+              })}
             </tbody>
           </table>
         </div>
