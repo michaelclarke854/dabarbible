@@ -5,6 +5,7 @@ import { formatTimestamp, wasEdited } from "@/utils/formatTimestamp";
 import { toast } from "sonner";
 import UndoToast from "./UndoToast";
 import { MoreVertical } from "lucide-react";
+import { highlightMatch } from "@/utils/highlightMatch";
 
 interface ReflectionEntry {
   id: string;
@@ -360,9 +361,15 @@ const ReflectionsSection = ({ latestPrompt, stirPrompt, onStirConsumed }: { late
         type="text"
         value={search}
         onChange={(e) => setSearch(e.target.value)}
-        placeholder="Search reflections…"
+        placeholder="Search reflections by topic, word, or phrase…"
         className="w-full bg-transparent border-b border-border pb-2 mb-8 text-sm font-body text-foreground placeholder:text-muted-foreground/50 outline-none focus:border-gold transition-colors"
       />
+
+      {search.trim() && !isLoading && !error && (
+        <p className="font-body text-xs text-muted-foreground/70 -mt-6 mb-6">
+          {filtered.length} match{filtered.length === 1 ? "" : "es"} for "{search.trim()}"
+        </p>
+      )}
 
       {isLoading ? (
         <div className="flex justify-center py-20">
@@ -396,7 +403,7 @@ const ReflectionsSection = ({ latestPrompt, stirPrompt, onStirConsumed }: { late
                 >
                   {entry.title && (
                     <p className="font-serif text-base text-foreground">
-                      {entry.title}
+                      {highlightMatch(entry.title, search)}
                     </p>
                   )}
                   <div className="mt-1 space-y-0.5">
@@ -410,7 +417,7 @@ const ReflectionsSection = ({ latestPrompt, stirPrompt, onStirConsumed }: { late
                     )}
                   </div>
                   <p className="font-body text-sm text-muted-foreground/70 mt-1 line-clamp-2 leading-relaxed">
-                    {entry.body}
+                    {highlightMatch(entry.body, search)}
                   </p>
                 </button>
                 {/* Three-dot menu */}
