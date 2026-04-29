@@ -704,6 +704,18 @@ const Index = () => {
                 userId={user?.id}
                 profileVersion={preferredBibleVersion}
                 onProfileVersionChanged={(v) => setPreferredBibleVersion(v)}
+                onContinueExploring={(seed) => {
+                  trackEvent("continue_exploring_clicked", {
+                    screen: "response",
+                    metadata: { seed_question: seed },
+                    userId: user?.id ?? null,
+                  });
+                  setScreen("ask");
+                  setCurrentResponse(null);
+                  setShowSoftGate(false);
+                  // Defer so AskScreen mounts before submission
+                  setTimeout(() => seekWisdom(seed), 50);
+                }}
               />
               {renderSoftGate()}
             </>
