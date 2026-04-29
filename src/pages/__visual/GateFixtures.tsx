@@ -249,7 +249,7 @@ export const GuestLandingHeroFixture = () => {
   useEffect(() => {}, []);
   return (
     <div data-fixture="guest-landing-hero">
-      <LandingHero onAsk={() => {}} />
+      <LandingHero onSeekWisdom={() => {}} isLoading={false} onSignIn={() => {}} />
     </div>
   );
 };
