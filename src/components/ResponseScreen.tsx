@@ -31,6 +31,7 @@ interface ResponseScreenProps {
   userId?: string;
   profileVersion?: string;
   onProfileVersionChanged?: (v: string) => void;
+  onContinueExploring?: (seedQuestion: string) => void;
 }
 
 const STAGE_LABELS: Record<string, string> = {
@@ -38,6 +39,30 @@ const STAGE_LABELS: Record<string, string> = {
   scripture: "Searching scripture…",
   reflecting: "Reflecting…",
 };
+
+const CONTINUE_SEEDS = [
+  "What would surrender look like here?",
+  "Where is God already at work in this?",
+  "What scripture speaks to this fear?",
+  "How do I forgive when it still hurts?",
+  "What does faithfulness look like today?",
+  "How do I hear God's voice clearly?",
+];
+
+function pickSeeds(currentQuestion: string, n = 3): string[] {
+  const pool = CONTINUE_SEEDS.filter(
+    (s) => s.toLowerCase() !== currentQuestion.trim().toLowerCase()
+  );
+  const picked: string[] = [];
+  const used = new Set<number>();
+  while (picked.length < n && used.size < pool.length) {
+    const i = Math.floor(Math.random() * pool.length);
+    if (used.has(i)) continue;
+    used.add(i);
+    picked.push(pool[i]);
+  }
+  return picked;
+}
 
 const ResponseScreen = ({
   question,
@@ -54,11 +79,13 @@ const ResponseScreen = ({
   userId,
   profileVersion,
   onProfileVersionChanged,
+  onContinueExploring,
 }: ResponseScreenProps) => {
   const [visibleBlocks, setVisibleBlocks] = useState(0);
   const blocks = useMemo(() => parseResponse(response), [response]);
   const thresholdQuestion = useMemo(() => extractThresholdQuestion(blocks), [blocks]);
   const shouldReduceMotion = useReducedMotion();
+  const seedQuestions = useMemo(() => pickSeeds(question, 3), [question]);
 
   // During streaming, show all blocks immediately; after streaming ends, keep them all visible
   useEffect(() => {
@@ -164,6 +191,25 @@ const ResponseScreen = ({
             >
               "What did this stir in you?" →
             </button>
+          )}
+
+          {onContinueExploring && (
+            <div className="mt-8 pt-6 border-t border-gold/15">
+              <p className="font-serif text-xs tracking-widest uppercase text-muted-foreground mb-3">
+                Continue exploring
+              </p>
+              <div className="flex flex-col gap-2">
+                {seedQuestions.map((seed) => (
+                  <button
+                    key={seed}
+                    onClick={() => onContinueExploring(seed)}
+                    className="text-left font-serif text-sm md:text-base text-foreground/85 hover:text-gold transition-colors leading-relaxed py-1"
+                  >
+                    → {seed}
+                  </button>
+                ))}
+              </div>
+            </div>
           )}
         </div>
       )}
