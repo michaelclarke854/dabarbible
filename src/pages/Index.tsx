@@ -672,17 +672,13 @@ const Index = () => {
                 userId={user.id}
                 onDismiss={() => refreshProfile()}
               />
-            ) : !user && !landingDismissed && getGuestQuestionsUsed() === 0 ? (
+            ) : !user && getGuestQuestionsUsed() === 0 ? (
               <LandingHero
-                onAsk={() => {
-                  setLandingDismissed(true);
-                  // Defer focus until AskScreen is mounted on next paint.
-                  requestAnimationFrame(() => {
-                    document
-                      .querySelector<HTMLTextAreaElement>("[data-ask-input]")
-                      ?.focus();
-                  });
-                }}
+                onSeekWisdom={seekWisdom}
+                isLoading={isLoading}
+                onSignIn={() =>
+                  openAuthModal("landing_signin", "Welcome back. Sign in to continue.")
+                }
               />
             ) : (
               <AskScreen onSeekWisdom={seekWisdom} isLoading={isLoading} />
