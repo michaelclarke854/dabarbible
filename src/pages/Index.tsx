@@ -82,9 +82,6 @@ const Index = () => {
   });
   const [scriptureDeepLink, setScriptureDeepLink] = useState<{ book: string; chapter: number; verse: number; version?: string } | null>(null);
   const [currentSessionId, setCurrentSessionId] = useState<string | null>(null);
-  // LandingHero is shown once per first-time guest visit. Dismissed when the
-  // visitor clicks "Ask your first question" or otherwise interacts.
-  const [landingDismissed, setLandingDismissed] = useState(false);
   const abortRef = useRef<AbortController | null>(null);
 
   // Cancel in-flight request on unmount
