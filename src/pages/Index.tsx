@@ -512,6 +512,10 @@ const Index = () => {
   if (needsAgeGate) {
     return <AgeGateScreen />;
   }
+  // Onboarding intent — shown once after signup before first question
+  if (user && needsOnboardingIntent && !needsAgeGate && !emailUnconfirmed) {
+    return <OnboardingIntent onComplete={() => refreshProfile()} />;
+  }
 
   const showAuthModal = authModal.open;
 
