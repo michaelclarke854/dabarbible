@@ -6,6 +6,7 @@ import UserEditDrawer from "@/components/UserEditDrawer";
 import { useTrueEngagement } from "@/hooks/useTrueEngagement";
 import PastoralPipelineTab from "@/components/admin/PastoralPipelineTab";
 import {
+import { SubscriberGateWidget } from "@/components/admin/SubscriberGateWidget";
   BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell,
 } from "recharts";
 import {
