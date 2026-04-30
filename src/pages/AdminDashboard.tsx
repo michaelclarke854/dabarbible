@@ -6,6 +6,7 @@ import UserEditDrawer from "@/components/UserEditDrawer";
 import { useTrueEngagement } from "@/hooks/useTrueEngagement";
 import PastoralPipelineTab from "@/components/admin/PastoralPipelineTab";
 import {
+import { SubscriberGateWidget } from "@/components/admin/SubscriberGateWidget";
   BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell,
 } from "recharts";
 import {
@@ -1452,6 +1453,7 @@ export default function AdminDashboard() {
       <main className="flex-1 p-8 overflow-y-auto">
         <div className="max-w-5xl">
           {/* Alert banners */}
+          <SubscriberGateWidget />
           {alerts.length === 0 ? (
             <div className="bg-green-500/10 border border-green-500/30 rounded-sm px-4 py-3 mb-6">
               <p className="text-green-400 text-sm font-body">✓ All systems healthy</p>

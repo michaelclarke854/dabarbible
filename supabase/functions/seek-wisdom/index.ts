@@ -40,6 +40,18 @@ const THEOLOGICAL_FALSE_POSITIVES = [
   "glorified", "resurrection", "eschatology", "tribulation", "millennium",
 ];
 
+// ── Hard question detection ──────────────────
+
+const HARD_QUESTION_SIGNALS = [
+  /punishing me/i,
+  /why did god let/i,
+  /stopped believing/i,
+  /where was god/i,
+  /too broken/i,
+  /good people suffer/i,
+  /prayer.*change/i,
+];
+
 // ── Crisis detection ──────────────────
 
 interface CrisisResult {
@@ -370,15 +382,17 @@ serve(async (req) => {
     let validatedAgeGroup = ageGroup || null;
     let userPatterns: { theme: string; occurrence: number; first_seen: string }[] = [];
     let userRole = "free";
+    let onboardingIntentKey: string | null = null;
 
     if (userId) {
       const [profileResult, patternsResult] = await Promise.all([
-        supabase.from("profiles").select("age_group, language_preference, role, plan, trial_ends_at").eq("user_id", userId).single(),
+        supabase.from("profiles").select("age_group, language_preference, role, plan, trial_ends_at, onboarding_intent_key").eq("user_id", userId).single(),
         supabase.from("user_patterns").select("theme, occurrence, first_seen").eq("user_id", userId),
       ]);
       if (profileResult.data?.age_group) validatedAgeGroup = profileResult.data.age_group;
       if (profileResult.data?.role) userRole = profileResult.data.role;
       if (patternsResult.data) userPatterns = patternsResult.data;
+      onboardingIntentKey = (profileResult.data as any)?.onboarding_intent_key || null;
 
       if (profileResult.data?.plan === "trial" && profileResult.data?.trial_ends_at) {
         const trialEnd = new Date(profileResult.data.trial_ends_at);
@@ -441,7 +455,20 @@ serve(async (req) => {
     }
 
     const patternContext = buildPatternContext(userPatterns);
-    const systemPrompt = getSystemPrompt(validatedAgeGroup, patternContext, safeLang, safeVersion, crisisResult.severity);
+
+    // ── Intent context (from onboarding) ──
+    const intentContext = onboardingIntentKey
+      ? `\nUser context: This person came to DABAR because they are dealing with "${onboardingIntentKey}". Let this inform your pastoral tone and the depth of your response — do not reference this label directly.`
+      : "";
+
+    // ── Hard question context ──
+    const isHardQuestion = HARD_QUESTION_SIGNALS.some(p => p.test(question));
+    const hardQuestionContext = isHardQuestion
+      ? `\nThis is a "hard question" — one without a clean theological answer. Do NOT give a tidy resolution. Do NOT quote three verses and wrap it up. Acknowledge the genuine tension. Use the Threshold step to open a door, not close one. The user needs to be heard more than they need to be answered.`
+      : "";
+
+    const systemPrompt = getSystemPrompt(validatedAgeGroup, patternContext, safeLang, safeVersion, crisisResult.severity)
+      + intentContext + hardQuestionContext;
 
     // ── Streaming AI call: Claude first, Lovable AI as fallback ──
     const streamResult = await streamChatWithFallback({

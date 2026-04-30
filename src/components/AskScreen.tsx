@@ -1,5 +1,7 @@
 import { useState, useEffect, useRef, forwardRef } from "react";
 import { Link } from "react-router-dom";
+import { HardQuestionMode } from "@/components/HardQuestionMode";
+import { trackEvent } from "@/lib/trackEvent";
 
 interface AskScreenProps {
   onSeekWisdom: (question: string) => void;
@@ -39,6 +41,7 @@ const AskScreen = forwardRef<HTMLDivElement, AskScreenProps>(({ onSeekWisdom, is
     Math.floor(Math.random() * QUESTION_PLACEHOLDERS.length)
   );
   const placeholderTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const [hardModeOpen, setHardModeOpen] = useState(false);
 
   useEffect(() => {
     intervalRef.current = setInterval(() => {
@@ -133,6 +136,24 @@ const AskScreen = forwardRef<HTMLDivElement, AskScreenProps>(({ onSeekWisdom, is
         {isLoading ? "Seeking…" : "Seek Wisdom"}
       </button>
 
+      {!isLoading && (
+        <button
+          type="button"
+          onClick={() => {
+            trackEvent("hard_question_mode_opened", { screen: "ask" });
+            setHardModeOpen(true);
+          }}
+          className="mt-4 text-xs font-body text-gold hover:text-gold-dark transition-opacity"
+        >
+          Afraid to ask? Start here →
+        </button>
+      )}
+      {hardModeOpen && (
+        <HardQuestionMode
+          onSelectQuestion={(q) => setQuestion(q)}
+          onClose={() => setHardModeOpen(false)}
+        />
+      )}
       {isLoading && (
         <div className="mt-10 flex flex-col items-center gap-3">
           <div className="w-3 h-3 rounded-full bg-gold animate-candle-glow" />

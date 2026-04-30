@@ -18,6 +18,7 @@ import TrialInterstitial from "@/components/TrialInterstitial";
 import AppLoadingSkeleton from "@/components/AppLoadingSkeleton";
 import EmailConfirmationPending from "@/components/EmailConfirmationPending";
 import AgeGateScreen from "@/components/AgeGateScreen";
+import { OnboardingIntent } from "@/components/OnboardingIntent";
 import DailyVerseOptIn from "@/components/DailyVerseOptIn";
 import { parseScriptureRef } from "@/data/kjvBooks";
 import { useAuth } from "@/contexts/AuthContext";
@@ -55,7 +56,7 @@ const Index = () => {
   const {
     user, role, plan, isSuspended, ageGroup, hasFullAccess, isBeta, isAdmin, isPastor,
     languagePreference, setLanguagePreference, preferredBibleVersion, setPreferredBibleVersion,
-    refreshProfile, loading: authLoading, isHydrating, emailUnconfirmed, userEmail, trial,
+    refreshProfile, loading: authLoading, isHydrating, emailUnconfirmed, userEmail, trial, needsOnboardingIntent,
     needsAgeGate, pendingCheckin,
   } = useAuth();
 
@@ -510,6 +511,10 @@ const Index = () => {
   // Age gate for Google OAuth users without age_group
   if (needsAgeGate) {
     return <AgeGateScreen />;
+  }
+  // Onboarding intent — shown once after signup before first question
+  if (user && needsOnboardingIntent && !needsAgeGate && !emailUnconfirmed) {
+    return <OnboardingIntent onComplete={() => refreshProfile()} />;
   }
 
   const showAuthModal = authModal.open;
