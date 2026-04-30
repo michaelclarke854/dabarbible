@@ -290,6 +290,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     trial,
     needsAgeGate,
     pendingCheckin,
+    needsOnboardingIntent,
     refreshProfile,
     setLanguagePreference,
     setPreferredBibleVersion,
