@@ -127,6 +127,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setPendingCheckin((profile as any).pending_checkin || false);
         setIsPastor((profile as any).is_pastor || false);
         setPastoralCommunityId((profile as any).pastoral_community_id || null);
+        setNeedsOnboardingIntent(!(profile as any).onboarding_completed_at);
       }
     } catch (error) {
       console.error("fetchProfile error:", error);
