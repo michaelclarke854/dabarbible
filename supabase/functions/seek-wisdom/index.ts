@@ -382,6 +382,7 @@ serve(async (req) => {
     let validatedAgeGroup = ageGroup || null;
     let userPatterns: { theme: string; occurrence: number; first_seen: string }[] = [];
     let userRole = "free";
+    let onboardingIntentKey: string | null = null;
 
     if (userId) {
       const [profileResult, patternsResult] = await Promise.all([
@@ -391,6 +392,7 @@ serve(async (req) => {
       if (profileResult.data?.age_group) validatedAgeGroup = profileResult.data.age_group;
       if (profileResult.data?.role) userRole = profileResult.data.role;
       if (patternsResult.data) userPatterns = patternsResult.data;
+      onboardingIntentKey = (profileResult.data as any)?.onboarding_intent_key || null;
 
       if (profileResult.data?.plan === "trial" && profileResult.data?.trial_ends_at) {
         const trialEnd = new Date(profileResult.data.trial_ends_at);
@@ -455,14 +457,9 @@ serve(async (req) => {
     const patternContext = buildPatternContext(userPatterns);
 
     // ── Intent context (from onboarding) ──
-    let intentContext = "";
-    if (userId) {
-      // profileResult is in scope from the Promise.all above
-      const intentKey = (profileResult as any)?.data?.onboarding_intent_key;
-      if (intentKey) {
-        intentContext = `\nUser context: This person came to DABAR because they are dealing with "${intentKey}". Let this inform your pastoral tone and the depth of your response — do not reference this label directly.`;
-      }
-    }
+    const intentContext = onboardingIntentKey
+      ? `\nUser context: This person came to DABAR because they are dealing with "${onboardingIntentKey}". Let this inform your pastoral tone and the depth of your response — do not reference this label directly.`
+      : "";
 
     // ── Hard question context ──
     const isHardQuestion = HARD_QUESTION_SIGNALS.some(p => p.test(question));
