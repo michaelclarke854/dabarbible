@@ -1,5 +1,7 @@
 import { useState, useEffect, useRef, forwardRef } from "react";
 import { Link } from "react-router-dom";
+import { HardQuestionMode } from "@/components/HardQuestionMode";
+import { trackEvent } from "@/lib/trackEvent";
 
 interface AskScreenProps {
   onSeekWisdom: (question: string) => void;
