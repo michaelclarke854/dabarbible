@@ -41,6 +41,7 @@ const AskScreen = forwardRef<HTMLDivElement, AskScreenProps>(({ onSeekWisdom, is
     Math.floor(Math.random() * QUESTION_PLACEHOLDERS.length)
   );
   const placeholderTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const [hardModeOpen, setHardModeOpen] = useState(false);
 
   useEffect(() => {
     intervalRef.current = setInterval(() => {
