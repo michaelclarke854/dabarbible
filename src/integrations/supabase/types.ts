@@ -557,6 +557,30 @@ export type Database = {
         }
         Relationships: []
       }
+      onboarding_intent: {
+        Row: {
+          created_at: string | null
+          id: string
+          intent_key: string
+          intent_label: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string
+          intent_key: string
+          intent_label: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          intent_key?: string
+          intent_label?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       outreach_config: {
         Row: {
           key: string
@@ -1225,6 +1249,8 @@ export type Database = {
           is_pastor: boolean
           is_suspended: boolean | null
           language_preference: string
+          onboarding_completed_at: string | null
+          onboarding_intent_key: string | null
           pastoral_community_id: string | null
           pending_checkin: boolean
           plan: string
@@ -1262,6 +1288,8 @@ export type Database = {
           is_pastor?: boolean
           is_suspended?: boolean | null
           language_preference?: string
+          onboarding_completed_at?: string | null
+          onboarding_intent_key?: string | null
           pastoral_community_id?: string | null
           pending_checkin?: boolean
           plan?: string
@@ -1299,6 +1327,8 @@ export type Database = {
           is_pastor?: boolean
           is_suspended?: boolean | null
           language_preference?: string
+          onboarding_completed_at?: string | null
+          onboarding_intent_key?: string | null
           pastoral_community_id?: string | null
           pending_checkin?: boolean
           plan?: string
