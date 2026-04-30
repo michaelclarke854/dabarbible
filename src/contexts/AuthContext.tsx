@@ -238,6 +238,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           setEmailUnconfirmed(false);
           setIsPastor(false);
           setPastoralCommunityId(null);
+          setNeedsOnboardingIntent(false);
           setTrial({ isOnTrial: false, trialEndsAt: null, trialStartedAt: null, trialConverted: false, trialNudgeSent: DEFAULT_NUDGE, daysLeft: 0, trialExpired: false });
           setNeedsAgeGate(false);
           setIsHydrating(false);
