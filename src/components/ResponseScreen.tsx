@@ -34,6 +34,7 @@ interface ResponseScreenProps {
   profileVersion?: string;
   onProfileVersionChanged?: (v: string) => void;
   onContinueExploring?: (seedQuestion: string) => void;
+  crisisActive?: boolean;
 }
 
 const STAGE_LABELS: Record<string, string> = {
@@ -82,6 +83,7 @@ const ResponseScreen = ({
   profileVersion,
   onProfileVersionChanged,
   onContinueExploring,
+  crisisActive,
 }: ResponseScreenProps) => {
   const [visibleBlocks, setVisibleBlocks] = useState(0);
   const blocks = useMemo(() => parseResponse(response), [response]);
@@ -106,6 +108,23 @@ const ResponseScreen = ({
       <p className="font-body text-sm text-muted-foreground italic mb-8 leading-relaxed">
         "{question}"
       </p>
+
+      {crisisActive && (
+        <div
+          className="flex items-center gap-2 mb-4 px-3 py-2 rounded-sm"
+          style={{
+            background: "rgba(217,119,6,0.08)",
+            border: "0.5px solid rgba(217,119,6,0.25)",
+          }}
+        >
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="rgba(217,119,6,0.7)" strokeWidth="2">
+            <path d="M12 9v4M12 17h.01M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z" />
+          </svg>
+          <span style={{ fontFamily: "'DM Sans', sans-serif", fontSize: 11, color: "rgba(217,119,6,0.7)" }}>
+            This reflection will be saved with a crisis marker in your journal
+          </span>
+        </div>
+      )}
 
       <div className="w-8 h-px bg-gold mb-8" />
 
