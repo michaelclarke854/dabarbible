@@ -723,6 +723,7 @@ const Index = () => {
                 isSaved={isSaved}
                 onScriptureRef={handleScriptureDeepLink}
                 userId={user?.id}
+                crisisActive={crisisActive}
                 profileVersion={preferredBibleVersion}
                 onProfileVersionChanged={(v) => setPreferredBibleVersion(v)}
                 onContinueExploring={(seed) => {
