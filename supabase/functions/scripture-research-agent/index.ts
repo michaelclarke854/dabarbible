@@ -37,6 +37,35 @@ const THEOLOGICAL_FALSE_POSITIVES = [
   "glorified", "resurrection", "eschatology", "tribulation", "millennium",
 ];
 
+// ── Intent personalisation context (module-level constant) ──────────────────
+const INTENT_CONTEXT: Record<string, { registered: string; firstSession: string }> = {
+  grief: {
+    registered: `USER INTENT CONTEXT — GRIEF: This user is grieving or processing loss. Lead with lament before hope. Reflect their pain honestly before moving to Scripture — never rush toward reassurance or silver linings. Let the darkness be named.`,
+    firstSession: `USER INTENT CONTEXT — GRIEF (first session): This user is grieving. Open with exceptional gentleness. Simply reflect that they are carrying something heavy and that bringing it here is an act of courage. Do not rush to scripture or wisdom — let them feel heard first.`,
+  },
+  doubt: {
+    registered: `USER INTENT CONTEXT — DOUBT: This user is wrestling with doubt or hard questions. Honour the intellectual and spiritual weight of their question. Do not soothe or offer premature resolution — engage with honesty. The reflective question should sit in the tension and invite deeper inquiry, not close it.`,
+    firstSession: `USER INTENT CONTEXT — DOUBT (first session): This user is exploring doubt. Open with warmth and intellectual respect — let them know hard questions are welcome here. Save the full engagement for subsequent sessions.`,
+  },
+  direction: {
+    registered: `USER INTENT CONTEXT — DIRECTION: This user needs discernment for a significant decision. Reflect the weight of the decision they are carrying. Focus on discernment frameworks from Scripture. The reflective question must point toward a concrete next step.`,
+    firstSession: `USER INTENT CONTEXT — DIRECTION (first session): This user faces a decision. Open with acknowledgement that bringing big decisions to Scripture is itself an act of faith.`,
+  },
+  habit: {
+    registered: `USER INTENT CONTEXT — HABIT: This user wants to grow in faith through daily practice. Use a devotional, formation-focused register. Be practical and actionable — not just explanatory.`,
+    firstSession: `USER INTENT CONTEXT — HABIT (first session): This user wants daily growth. Welcome them warmly. Keep the first response encouraging and accessible — build confidence before depth.`,
+  },
+  crisis: {
+    registered: `USER INTENT CONTEXT — CRISIS: This user identified as being in a dark place. Crisis detection is already active and will route as appropriate. If the message passes crisis detection, respond with extraordinary gentleness. Never project emotions — follow their words precisely.`,
+    firstSession: `USER INTENT CONTEXT — CRISIS (first session): This user is in a dark place. Respond with maximum care. If crisis detection has cleared the message, open with simple, warm acknowledgement. One step at a time.`,
+  },
+  curious: {
+    registered: `USER INTENT CONTEXT — CURIOUS: This user is exploring faith, possibly without a strong prior tradition. Use an inviting, non-threatening register. Avoid assumed knowledge of Christian vocabulary or tradition.`,
+    firstSession: `USER INTENT CONTEXT — CURIOUS (first session): This user is new to exploring faith. Make the first response exceptionally welcoming. Avoid theology-dense language. The goal is to make them want to come back.`,
+  },
+};
+// ─────────────────────────────────────────────────────────────────────────────
+
 interface CrisisResult {
   detected: boolean;
   severity: "crisis" | "watch" | null;
@@ -198,15 +227,17 @@ serve(async (req) => {
     // ── Auth & profile validation ──
     let validatedAgeGroup = ageGroup;
     let userRole = "free";
+    let onboardingIntentKey: string | null = null;
 
     if (userId) {
       const { data: profile } = await supabase
         .from("profiles")
-        .select("age_group, role, plan, trial_ends_at")
+        .select("age_group, role, plan, trial_ends_at, onboarding_intent_key")
         .eq("user_id", userId).single();
 
       if (profile?.age_group) validatedAgeGroup = profile.age_group;
       if (profile?.role) userRole = profile.role;
+      onboardingIntentKey = (profile as any)?.onboarding_intent_key || null;
 
       if (profile?.plan === "trial" && profile?.trial_ends_at) {
         if (new Date(profile.trial_ends_at) < new Date()) {
@@ -272,6 +303,21 @@ serve(async (req) => {
       // For crisis-level: inject crisis prompt addendum into synthesis
     }
 
+    // ── Intent personalisation ──
+    let sessionCount = 0;
+    if (userId) {
+      const { count } = await supabase
+        .from("wisdom_sessions")
+        .select("id", { count: "exact", head: true })
+        .eq("user_id", userId);
+      sessionCount = count ?? 0;
+    }
+    const isFirstSession = sessionCount === 0;
+    const intentEntry = onboardingIntentKey ? INTENT_CONTEXT[onboardingIntentKey] : null;
+    const intentBlock = intentEntry
+      ? `\n\n${isFirstSession ? intentEntry.firstSession : intentEntry.registered}`
+      : '';
+
     // ══════════════════════════════════════════════
     // CALL 1: Theme extraction + scripture tool use
     // ══════════════════════════════════════════════
@@ -319,8 +365,8 @@ serve(async (req) => {
 
     // Inject crisis prompt if crisis-level
     const systemPrompt = (crisisResult.detected && crisisResult.severity === "crisis")
-      ? SYNTHESIS_SYSTEM + "\n\n" + CRISIS_PROMPT_ADDENDUM
-      : SYNTHESIS_SYSTEM;
+      ? SYNTHESIS_SYSTEM + intentBlock + "\n\n" + CRISIS_PROMPT_ADDENDUM
+      : SYNTHESIS_SYSTEM + intentBlock;
 
     const call2Res = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
       method: "POST",
@@ -412,10 +458,11 @@ serve(async (req) => {
     return new Response(readableStream, {
       headers: {
         ...corsHeaders,
-        "Access-Control-Expose-Headers": "X-Session-Id",
+        "Access-Control-Expose-Headers": "X-Session-Id, X-Intent-Key",
         "Content-Type": "text/plain; charset=utf-8",
         "X-Content-Type-Options": "nosniff",
         "X-Session-Id": sessionId || "",
+        "X-Intent-Key": onboardingIntentKey || "",
       },
     });
   } catch (e) {

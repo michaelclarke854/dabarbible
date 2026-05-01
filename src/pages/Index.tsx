@@ -74,6 +74,7 @@ const Index = () => {
     response: string;
     scriptures: string[];
   } | null>(null);
+  const [currentIntentKey, setCurrentIntentKey] = useState<string | null>(null);
   const [isStreaming, setIsStreaming] = useState(false);
   const [agentStage, setAgentStage] = useState<"thinking" | "scripture" | "reflecting" | null>(null);
   const [authModal, setAuthModal] = useState<{ open: boolean; message?: string }>({ open: false });
@@ -238,6 +239,7 @@ const Index = () => {
       setIsSaved(false);
       setShowSoftGate(false);
       setCurrentSessionId(null);
+      setCurrentIntentKey(null);
 
       // Cancel any prior in-flight request and create a fresh controller
       abortRef.current?.abort();
@@ -313,6 +315,8 @@ const Index = () => {
 
         // Capture session ID from response headers (set by edge function)
         const sessionIdHeader = response.headers.get("X-Session-Id");
+        const intentHeader = response.headers.get("X-Intent-Key");
+        if (intentHeader) setCurrentIntentKey(intentHeader);
         if (sessionIdHeader) {
           setCurrentSessionId(sessionIdHeader);
           // Tag session with crisis marker if user was in crisis state
@@ -715,7 +719,6 @@ const Index = () => {
                 isStreaming={isStreaming}
                 agentStage={agentStage}
                 onAskAgain={() => { setScreen("ask"); setCurrentResponse(null); setShowSoftGate(false); setCrisisActive(false); }}
-                
                 onReflect={reflectOnThis}
                 onStir={(thresholdQ) => {
                   reflectOnThis().then(() => {
@@ -730,6 +733,7 @@ const Index = () => {
                 onScriptureRef={handleScriptureDeepLink}
                 userId={user?.id}
                 crisisActive={crisisActive}
+                intentKey={currentIntentKey}
                 profileVersion={preferredBibleVersion}
                 onProfileVersionChanged={(v) => setPreferredBibleVersion(v)}
                 onContinueExploring={(seed) => {

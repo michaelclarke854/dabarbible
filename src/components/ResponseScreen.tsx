@@ -4,6 +4,15 @@ import { parseResponse, extractThresholdQuestion, ScriptureCard, type ContentBlo
 import { Share2 } from "lucide-react";
 import { toast } from "sonner";
 
+const INTENT_LABELS: Record<string, string> = {
+  grief:     'Responding with grief in mind',
+  doubt:     'Responding with your questions in mind',
+  direction: 'Responding with discernment in mind',
+  habit:     'Responding with daily growth in mind',
+  crisis:    'Responding with care',
+  curious:   'Responding with openness in mind',
+};
+
 const CRISIS_RESOURCE_MARKERS = [
   "you don't have to carry this alone",
   "988 suicide & crisis lifeline",
@@ -35,6 +44,7 @@ interface ResponseScreenProps {
   onProfileVersionChanged?: (v: string) => void;
   onContinueExploring?: (seedQuestion: string) => void;
   crisisActive?: boolean;
+  intentKey?: string | null;
 }
 
 const STAGE_LABELS: Record<string, string> = {
@@ -84,6 +94,7 @@ const ResponseScreen = ({
   onProfileVersionChanged,
   onContinueExploring,
   crisisActive,
+  intentKey,
 }: ResponseScreenProps) => {
   const [visibleBlocks, setVisibleBlocks] = useState(0);
   const blocks = useMemo(() => parseResponse(response), [response]);
@@ -108,6 +119,25 @@ const ResponseScreen = ({
       <p className="font-body text-sm text-muted-foreground italic mb-8 leading-relaxed">
         "{question}"
       </p>
+
+      {intentKey && !isStreaming && visibleBlocks >= blocks.length && (
+        <p
+          style={{
+            fontFamily: "'DM Sans', sans-serif",
+            fontSize: 10,
+            fontWeight: 300,
+            color: 'rgba(184,145,58,0.45)',
+            letterSpacing: '0.08em',
+            textTransform: 'uppercase' as const,
+            marginTop: -24,
+            marginBottom: 12,
+            animation: 'dabar-fadeup 0.6s ease 0.3s forwards',
+            opacity: 0,
+          }}
+        >
+          {INTENT_LABELS[intentKey] ?? null}
+        </p>
+      )}
 
       {crisisActive && (
         <div
