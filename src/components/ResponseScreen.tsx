@@ -218,10 +218,34 @@ const ResponseScreen = ({
           <button
             type="button"
             onClick={async () => {
-              const scriptureBlock = blocks.find(b => b.type === "scripture");
-              const scriptureText = scriptureBlock ? scriptureBlock.content : "";
-              const tq = thresholdQuestion || "";
-              const shareText = [scriptureText, tq, "dabarbible.com"].filter(Boolean).join("\n\n");
+              // Build formatted share text from all blocks
+              const parts: string[] = [];
+
+              // Collect text blocks (mirror/wisdom) excluding the threshold question
+              const textLines = blocks
+                .filter(b => b.type === "text" && b.content !== thresholdQuestion)
+                .map(b => b.content);
+              if (textLines.length) {
+                parts.push(textLines.join("\n\n"));
+              }
+
+              // Format scripture references cleanly
+              const scriptureBlocks = blocks.filter(b => b.type === "scripture");
+              if (scriptureBlocks.length) {
+                const formatted = scriptureBlocks
+                  .map(b => `"${b.verseText || b.content}"\n— ${b.reference || "Scripture"}`)
+                  .join("\n\n");
+                parts.push(formatted);
+              }
+
+              // Add threshold question
+              if (thresholdQuestion) {
+                parts.push(thresholdQuestion);
+              }
+
+              parts.push("— DabarBible.com");
+
+              const shareText = parts.join("\n\n");
               try {
                 if (navigator.share) {
                   await navigator.share({ title: "A reflection from DabarBible", text: shareText });
