@@ -1,6 +1,8 @@
 import { useEffect, useState, useMemo } from "react";
 import { motion, useReducedMotion } from "framer-motion";
 import { parseResponse, extractThresholdQuestion, ScriptureCard, type ContentBlock } from "./WisdomResponseBlocks";
+import { Share2 } from "lucide-react";
+import { toast } from "sonner";
 
 const CRISIS_RESOURCE_MARKERS = [
   "you don't have to carry this alone",
@@ -192,6 +194,45 @@ const ResponseScreen = ({
               "What did this stir in you?" →
             </button>
           )}
+
+          {/* Share reflection */}
+          <button
+            type="button"
+            onClick={async () => {
+              const scriptureBlock = blocks.find(b => b.type === "scripture");
+              const scriptureText = scriptureBlock ? scriptureBlock.content : "";
+              const tq = thresholdQuestion || "";
+              const shareText = [scriptureText, tq, "dabarbible.com"].filter(Boolean).join("\n\n");
+              try {
+                if (navigator.share) {
+                  await navigator.share({ title: "A reflection from DabarBible", text: shareText });
+                } else {
+                  await navigator.clipboard.writeText(shareText);
+                  toast.success("Copied to clipboard");
+                }
+              } catch {
+                // user cancelled share sheet
+              }
+            }}
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: 6,
+              background: "none",
+              border: "0.5px solid rgba(184,145,58,0.25)",
+              borderRadius: 8,
+              padding: "8px 14px",
+              cursor: "pointer",
+              marginTop: 8,
+              transition: "border-color 0.2s ease",
+            }}
+            className="hover:border-gold/50"
+          >
+            <Share2 size={14} color="#b8913a" strokeWidth={1.5} />
+            <span style={{ fontFamily: "'DM Sans', sans-serif", fontSize: 12, fontWeight: 300, color: "rgba(184,145,58,0.7)" }}>
+              Share this reflection
+            </span>
+          </button>
 
           {onContinueExploring && (
             <div className="mt-8 pt-6 border-t border-gold/15">

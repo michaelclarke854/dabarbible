@@ -1,8 +1,9 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useSearchParams } from "react-router-dom";
 import { motion, useReducedMotion } from "framer-motion";
 import { fadeUp } from "@/lib/motionVariants";
 import { trackEvent } from "@/lib/trackEvent";
+import { TrustStrip } from "@/components/ask/TrustStrip";
 
 interface LandingHeroProps {
   /** Submit a question directly from the landing screen. */
@@ -23,6 +24,16 @@ const EXAMPLE = {
     "Scripture does not explain suffering away — it enters into it. From Job to the Psalms to the cross, God consistently meets people in the middle of pain rather than removing it.",
 };
 
+const EXAMPLE_GRIEF = {
+  question: "Where was God when I needed Him most?",
+  mirror:
+    "That question doesn't come from curiosity — it comes from a wound. Something happened that shook the ground beneath your faith, and you're still standing in the rubble.",
+  scripture:
+    "Psalm 34:18 — 'The LORD is nigh unto them that are of a broken heart; and saveth such as be of a contrite spirit.'",
+  bridge:
+    "Scripture doesn't promise you won't feel abandoned. It promises that in the depths of that feeling, God draws closest — even when you can't sense it yet.",
+};
+
 const SEED_QUESTIONS = [
   "How do I forgive someone who isn't sorry?",
   "Why does God feel so distant right now?",
@@ -38,6 +49,20 @@ export function LandingHero({ onSeekWisdom, isLoading, onSignIn }: LandingHeroPr
   const shouldReduceMotion = useReducedMotion();
   const inputRef = useRef<HTMLTextAreaElement | null>(null);
   const [question, setQuestion] = useState("");
+  const [searchParams] = useSearchParams();
+  const landingContext = searchParams.get("context");
+  const isGrief = landingContext === "grief";
+
+  const tagline = isGrief
+    ? "For those carrying grief and the questions it brings"
+    : "For the questions faith rarely answers cleanly";
+  const hookCopy = isGrief
+    ? "You don't have to carry this alone"
+    : "Ask your first question — no account needed";
+  const inputPlaceholder = isGrief
+    ? "What are you carrying right now?"
+    : "Or write your own question…";
+  const example = isGrief ? EXAMPLE_GRIEF : EXAMPLE;
 
   // Pick 3 seed questions once per mount (stable across re-renders).
   const chips = useMemo(() => {
@@ -86,6 +111,19 @@ export function LandingHero({ onSeekWisdom, isLoading, onSignIn }: LandingHeroPr
 
       {/* Wordmark */}
       <motion.div {...reveal(0)} className="mb-2 mt-2">
+        <p
+          style={{
+            fontFamily: "'DM Sans', sans-serif",
+            fontSize: "10.5px",
+            letterSpacing: "0.18em",
+            textTransform: "uppercase" as const,
+            color: "rgba(184,145,58,0.6)",
+            marginBottom: 6,
+            animation: "dabar-fadeup 0.6s ease forwards",
+          }}
+        >
+          AI-powered spiritual discernment
+        </p>
         <h1 className="font-serif text-4xl sm:text-5xl text-foreground tracking-widest">
           DABAR
         </h1>
@@ -99,12 +137,25 @@ export function LandingHero({ onSeekWisdom, isLoading, onSignIn }: LandingHeroPr
         {...reveal(0.15)}
         className="font-serif text-lg sm:text-xl text-foreground/90 leading-relaxed max-w-md mt-6"
       >
-        Bring your questions to scripture.
-        <br className="hidden sm:inline" />{" "}
-        <span className="text-gold">Receive wisdom grounded in the Word.</span>
+        {tagline}
       </motion.p>
 
-      <div className="w-12 h-px bg-gold my-8" />
+      <motion.p
+        {...reveal(0.2)}
+        className="font-body text-sm text-muted-foreground mt-3"
+      >
+        {hookCopy}
+      </motion.p>
+
+      <motion.p
+        {...reveal(0.25)}
+        className="font-body text-muted-foreground/50 mt-2 text-center"
+        style={{ fontSize: "10px", letterSpacing: "0.04em" }}
+      >
+        Free for 30 days · $4.99/month after · Cancel anytime
+      </motion.p>
+
+      <div className="w-12 h-px bg-gold my-6" />
 
       {/* Example response preview card — strongest proof of value */}
       <motion.div
@@ -116,16 +167,16 @@ export function LandingHero({ onSeekWisdom, isLoading, onSignIn }: LandingHeroPr
           style={{ height: '1px', width: '28px', background: 'rgba(196,151,58,0.4)' }}
         />
         <p className="font-['Playfair_Display'] italic text-sm text-muted-foreground mb-5 leading-relaxed">
-          "{EXAMPLE.question}"
+          "{example.question}"
         </p>
         <p className="font-body normal-case text-base sm:text-lg leading-relaxed text-foreground mb-4">
-          {EXAMPLE.mirror}
+          {example.mirror}
         </p>
         <p className="scripture-italic text-base sm:text-lg leading-relaxed text-foreground/90 border-l-2 border-gold/60 pl-4 py-1 my-4">
-          {EXAMPLE.scripture}
+          {example.scripture}
         </p>
         <p className="font-body normal-case text-base leading-relaxed text-foreground/85">
-          {EXAMPLE.bridge}
+          {example.bridge}
         </p>
       </motion.div>
 
@@ -153,7 +204,7 @@ export function LandingHero({ onSeekWisdom, isLoading, onSignIn }: LandingHeroPr
           data-ask-input=""
           value={question}
           onChange={(e) => setQuestion(e.target.value)}
-          placeholder="Or write your own question…"
+          placeholder={inputPlaceholder}
           disabled={isLoading}
           onKeyDown={(e) => {
             if (e.key === "Enter" && !e.shiftKey) {
@@ -169,10 +220,28 @@ export function LandingHero({ onSeekWisdom, isLoading, onSignIn }: LandingHeroPr
           type="button"
           onClick={handleSubmit}
           disabled={!question.trim() || isLoading}
-          className="w-full font-serif tracking-widest text-sm uppercase py-4 bg-gold text-primary-foreground rounded-sm transition-all duration-300 disabled:opacity-40 disabled:cursor-not-allowed enabled:hover:bg-gold-dark"
+          style={{
+            width: "100%",
+            height: 54,
+            borderRadius: 6,
+            border: "0.5px solid rgba(184,145,58,0.4)",
+            background: "linear-gradient(135deg, #b8913a 0%, #d4a84b 100%)",
+            color: "#0e0b07",
+            fontFamily: "'Cormorant Garamond', serif",
+            fontSize: 16,
+            fontStyle: "italic",
+            fontWeight: 500,
+            letterSpacing: "0.06em",
+            cursor: !question.trim() || isLoading ? "not-allowed" : "pointer",
+            opacity: !question.trim() || isLoading ? 0.4 : 1,
+            transition: "all 0.3s ease",
+            animation: !question.trim() && !isLoading ? "dabar-pulse-cta 3s ease-in-out infinite" : "none",
+          }}
         >
           {isLoading ? "Seeking…" : "Seek Wisdom"}
         </button>
+
+        <TrustStrip />
 
         <p className="font-body text-[11px] text-muted-foreground/80 mt-3 text-center leading-relaxed">
           Scripture-grounded reflection ·{" "}
@@ -181,7 +250,7 @@ export function LandingHero({ onSeekWisdom, isLoading, onSignIn }: LandingHeroPr
           </Link>
         </p>
         <p className="font-body text-xs text-muted-foreground mt-1 text-center tracking-wide">
-          Free · No card required · 30-day trial
+          Free · No card required
         </p>
       </motion.div>
 

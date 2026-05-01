@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback, useRef, lazy, Suspense } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { Flame, BookOpen, Globe, BookText, Lock, Settings, Clock } from "lucide-react";
 import AskScreen from "@/components/AskScreen";
 import CrisisCheckinCard from "@/components/CrisisCheckinCard";
@@ -53,6 +53,8 @@ const PageSpinner = () => (
 
 const Index = () => {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const landingContext = searchParams.get("context");
   const {
     user, role, plan, isSuspended, ageGroup, hasFullAccess, isBeta, isAdmin, isPastor,
     languagePreference, setLanguagePreference, preferredBibleVersion, setPreferredBibleVersion,
@@ -514,7 +516,7 @@ const Index = () => {
   }
   // Onboarding intent — shown once after signup before first question
   if (user && needsOnboardingIntent && !needsAgeGate && !emailUnconfirmed) {
-    return <OnboardingIntent onComplete={() => refreshProfile()} />;
+    return <OnboardingIntent onComplete={() => refreshProfile()} defaultHighlight={landingContext === "grief" ? "grief" : undefined} />;
   }
 
   const showAuthModal = authModal.open;

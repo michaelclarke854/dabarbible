@@ -116,9 +116,10 @@ const ICONS: Record<IntentKey, JSX.Element> = {
 
 interface OnboardingIntentProps {
   onComplete: () => void;
+  defaultHighlight?: string;
 }
 
-export function OnboardingIntent({ onComplete }: OnboardingIntentProps) {
+export function OnboardingIntent({ onComplete, defaultHighlight }: OnboardingIntentProps) {
   const { user } = useAuth();
   const [selected, setSelected] = useState<IntentKey | null>(null);
   const [saving, setSaving] = useState(false);
@@ -282,7 +283,9 @@ export function OnboardingIntent({ onComplete }: OnboardingIntentProps) {
                   ? "rgba(184,145,58,0.22)"
                   : selected === intent.key
                     ? "rgba(184,145,58,0.55)"
-                    : "rgba(184,145,58,0.13)"
+                    : defaultHighlight === intent.key
+                      ? "rgba(184,145,58,0.45)"
+                      : "rgba(184,145,58,0.13)"
               }`,
               borderRadius: 10,
               padding: "11px 13px",
@@ -417,7 +420,7 @@ export function OnboardingIntent({ onComplete }: OnboardingIntentProps) {
             marginBottom: 10,
           }}
         >
-          Your answers are private and shape only your experience.{" "}
+          What you bring here stays here.{" "}
           <a
             href="/privacy"
             style={{

@@ -131,7 +131,23 @@ const AskScreen = forwardRef<HTMLDivElement, AskScreenProps>(({ onSeekWisdom, is
       <button
         onClick={handleSubmit}
         disabled={!question.trim() || isLoading}
-        className="font-serif tracking-widest text-sm uppercase px-10 py-4 bg-gold text-primary-foreground rounded-sm transition-all duration-300 disabled:opacity-40 disabled:cursor-not-allowed enabled:animate-golden-pulse enabled:hover:bg-gold-dark"
+        style={{
+          height: 54,
+          borderRadius: 6,
+          border: "0.5px solid rgba(184,145,58,0.4)",
+          background: "linear-gradient(135deg, #b8913a 0%, #d4a84b 100%)",
+          color: "#0e0b07",
+          fontFamily: "'Cormorant Garamond', serif",
+          fontSize: 16,
+          fontStyle: "italic",
+          fontWeight: 500,
+          letterSpacing: "0.06em",
+          cursor: !question.trim() || isLoading ? "not-allowed" : "pointer",
+          opacity: !question.trim() || isLoading ? 0.4 : 1,
+          transition: "all 0.3s ease",
+          animation: !question.trim() && !isLoading ? "dabar-pulse-cta 3s ease-in-out infinite" : "none",
+          padding: "0 40px",
+        }}
       >
         {isLoading ? "Seeking…" : "Seek Wisdom"}
       </button>

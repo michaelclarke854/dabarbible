@@ -3,6 +3,7 @@ import { useInfiniteQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { formatTimestamp } from "@/utils/formatTimestamp";
 import { parseResponse, ScriptureCard } from "./WisdomResponseBlocks";
+import { HistoryEmptyState } from "@/components/history/HistoryEmptyState";
 
 interface HistoryEntryData {
   id: string;
@@ -95,14 +96,13 @@ const HistoryScreen = () => {
           </p>
         </div>
       ) : entries.length === 0 ? (
-        <div className="text-center py-16">
-          <p className="font-serif text-lg text-muted-foreground">
-            {search ? "No entries found." : "No history yet."}
-          </p>
-          <p className="font-body text-sm text-muted-foreground/60 mt-2">
-            Your past questions will appear here.
-          </p>
-        </div>
+        search ? (
+          <div className="text-center py-16">
+            <p className="font-serif text-lg text-muted-foreground">No entries found.</p>
+          </div>
+        ) : (
+          <HistoryEmptyState onAskQuestion={() => window.location.assign("/")} />
+        )
       ) : (
         <div className="space-y-8">
           {entries.map((entry) => {
