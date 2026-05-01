@@ -181,7 +181,19 @@ const AuthModal = forwardRef<HTMLDivElement, AuthModalProps>(({ isOpen, onClose,
     // Redirect in progress — overlay persists until return
   };
 
-  const inputClass = "w-full bg-transparent border-b border-border pb-2 text-sm font-body outline-none focus:border-gold transition-colors disabled:opacity-50";
+  const inputStyle: React.CSSProperties = {
+    background: "rgba(255,255,255,0.04)",
+    border: "0.5px solid rgba(184,145,58,0.3)",
+    borderRadius: 8,
+    padding: "11px 13px",
+    color: "#e8dfc8",
+    fontFamily: "'DM Sans', sans-serif",
+    fontSize: 13,
+    fontWeight: 300,
+    width: "100%",
+    outline: "none",
+    transition: "border-color 0.2s ease",
+  };
 
   const dobFields = (
     <div className="pt-2">
@@ -225,8 +237,8 @@ const AuthModal = forwardRef<HTMLDivElement, AuthModalProps>(({ isOpen, onClose,
   // Forgot password mode
   if (mode === "forgot") {
     return (
-      <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm px-6">
-        <div className="bg-card rounded-sm shadow-xl max-w-sm w-full p-8 relative max-h-[90vh] overflow-y-auto border border-border">
+      <div className="fixed inset-0 z-50 flex items-center justify-center px-6" style={{ backgroundColor: "rgba(10,8,5,0.85)", backdropFilter: "blur(4px)" }}>
+        <div style={{ background: "#1a1410", border: "0.5px solid rgba(184,145,58,0.25)", borderRadius: 12, padding: "28px 24px", maxWidth: 400, width: "100%" }} className="relative max-h-[90vh] overflow-y-auto">
           <button
             onClick={onClose}
             aria-label="Close"
@@ -235,7 +247,7 @@ const AuthModal = forwardRef<HTMLDivElement, AuthModalProps>(({ isOpen, onClose,
             ×
           </button>
 
-          <h3 className="font-serif text-xl text-center mb-6 tracking-wide">
+          <h3 style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: 22, fontWeight: 400, color: "#f0ead8", textAlign: "center", marginBottom: 20, letterSpacing: "0.04em" }}>
             Reset Password
           </h3>
 
@@ -262,7 +274,7 @@ const AuthModal = forwardRef<HTMLDivElement, AuthModalProps>(({ isOpen, onClose,
                 onChange={(e) => setEmail(e.target.value)}
                 placeholder="Email"
                 required
-                className={inputClass}
+                style={inputStyle}
               />
               {forgotError && (
                 <p className="text-xs text-destructive font-body">{forgotError}</p>
@@ -287,8 +299,8 @@ const AuthModal = forwardRef<HTMLDivElement, AuthModalProps>(({ isOpen, onClose,
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm px-6">
-      <div className="bg-card rounded-sm shadow-xl max-w-sm w-full p-8 relative max-h-[90vh] overflow-y-auto border border-border">
+    <div className="fixed inset-0 z-50 flex items-center justify-center px-6" style={{ backgroundColor: "rgba(10,8,5,0.85)", backdropFilter: "blur(4px)" }}>
+      <div style={{ background: "#1a1410", border: "0.5px solid rgba(184,145,58,0.25)", borderRadius: 12, padding: "28px 24px", maxWidth: 400, width: "100%" }} className="relative max-h-[90vh] overflow-y-auto">
         {/* Full-modal overlay during OAuth redirect */}
         {oauthLoading && (
           <div className="absolute inset-0 z-10 flex flex-col items-center justify-center bg-card/95 backdrop-blur-sm rounded-sm">
@@ -307,12 +319,15 @@ const AuthModal = forwardRef<HTMLDivElement, AuthModalProps>(({ isOpen, onClose,
         </button>
 
         {message && (
-          <p className="font-serif text-sm text-foreground/80 text-center mb-6 leading-relaxed">
+          <p style={{ fontFamily: "'DM Sans', sans-serif", fontSize: 12, fontWeight: 300, color: "rgba(240,234,216,0.4)", textAlign: "center", marginBottom: 20, letterSpacing: "0.03em", lineHeight: 1.5 }}>
             {message}
           </p>
         )}
 
-        <h3 className="font-serif text-xl text-center mb-6 tracking-wide">
+        <p style={{ fontFamily: "'DM Sans', sans-serif", fontSize: 12, fontWeight: 300, color: "rgba(240,234,216,0.4)", textAlign: "center", marginBottom: 4, letterSpacing: "0.03em", lineHeight: 1.5 }}>
+          Your spiritual discernment companion — 30 days free, no card needed.
+        </p>
+        <h3 style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: 22, fontWeight: 400, color: "#f0ead8", textAlign: "center", marginBottom: 20, letterSpacing: "0.04em" }}>
           {mode === "signup" ? "Create Account" : "Sign In"}
         </h3>
 
@@ -324,7 +339,7 @@ const AuthModal = forwardRef<HTMLDivElement, AuthModalProps>(({ isOpen, onClose,
             placeholder="Email"
             required
             disabled={oauthLoading}
-            className={inputClass}
+            style={{ ...inputStyle, opacity: oauthLoading ? 0.5 : 1 }}
           />
           <input
             type="password"
@@ -334,7 +349,7 @@ const AuthModal = forwardRef<HTMLDivElement, AuthModalProps>(({ isOpen, onClose,
             required
             minLength={8}
             disabled={oauthLoading}
-            className={inputClass}
+            style={{ ...inputStyle, opacity: oauthLoading ? 0.5 : 1 }}
           />
 
           {mode === "signin" && (
