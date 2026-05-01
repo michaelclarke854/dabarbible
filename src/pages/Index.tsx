@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback, useRef, lazy, Suspense } from "react";
+import { useSearchParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { useNavigate } from "react-router-dom";
@@ -53,6 +54,8 @@ const PageSpinner = () => (
 
 const Index = () => {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const landingContext = searchParams.get("context");
   const {
     user, role, plan, isSuspended, ageGroup, hasFullAccess, isBeta, isAdmin, isPastor,
     languagePreference, setLanguagePreference, preferredBibleVersion, setPreferredBibleVersion,
@@ -514,7 +517,7 @@ const Index = () => {
   }
   // Onboarding intent — shown once after signup before first question
   if (user && needsOnboardingIntent && !needsAgeGate && !emailUnconfirmed) {
-    return <OnboardingIntent onComplete={() => refreshProfile()} />;
+    return <OnboardingIntent onComplete={() => refreshProfile()} defaultHighlight={landingContext === "grief" ? "grief" : undefined} />;
   }
 
   const showAuthModal = authModal.open;
