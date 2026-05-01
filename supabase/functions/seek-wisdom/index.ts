@@ -40,6 +40,37 @@ const THEOLOGICAL_FALSE_POSITIVES = [
   "glorified", "resurrection", "eschatology", "tribulation", "millennium",
 ];
 
+// ── Intent personalisation context (module-level constant) ──────────────────
+// Defined outside the handler so it is constructed once at module load,
+// not on every invocation.
+const INTENT_CONTEXT: Record<string, { registered: string; firstSession: string }> = {
+  grief: {
+    registered: `USER INTENT CONTEXT — GRIEF: This user is grieving or processing loss. Lead with lament before hope. The Mirror section must reflect their pain honestly before moving to Scripture — never rush toward reassurance or silver linings. Let the darkness be named. The Threshold question should honour the grief, not resolve it.`,
+    firstSession: `USER INTENT CONTEXT — GRIEF (first session): This user is grieving. Open with exceptional gentleness. The Mirror should simply reflect that they are carrying something heavy and that bringing it here is an act of courage. Do not rush to scripture or wisdom — let them feel heard first.`,
+  },
+  doubt: {
+    registered: `USER INTENT CONTEXT — DOUBT: This user is wrestling with doubt or hard questions. Honour the intellectual and spiritual weight of their question. Do not soothe or offer premature resolution — engage with honesty. The Mirror should reflect the wrestling itself. The Threshold question should sit in the tension and invite deeper inquiry, not close it.`,
+    firstSession: `USER INTENT CONTEXT — DOUBT (first session): This user is exploring doubt. Open with warmth and intellectual respect — let them know hard questions are welcome here. The Mirror should be light and inviting, not heavy. Save the full engagement for subsequent sessions.`,
+  },
+  direction: {
+    registered: `USER INTENT CONTEXT — DIRECTION: This user needs discernment for a significant decision. The Mirror should reflect the weight of the decision they are carrying. The Wisdom section should focus on discernment frameworks from Scripture. The Threshold question must point toward a concrete next step, a question to bring to prayer, or a person to consult.`,
+    firstSession: `USER INTENT CONTEXT — DIRECTION (first session): This user faces a decision. Open with acknowledgement that bringing big decisions to Scripture is itself an act of faith. The Threshold question should be simple and grounding.`,
+  },
+  habit: {
+    registered: `USER INTENT CONTEXT — HABIT: This user wants to grow in faith through daily practice. Use a devotional, formation-focused register. The Wisdom section should be practical and actionable — not just explanatory. The Threshold question should build toward a daily practice, a repeatable act, or a specific commitment.`,
+    firstSession: `USER INTENT CONTEXT — HABIT (first session): This user wants daily growth. Welcome them warmly. Keep the first response encouraging and accessible — build confidence before depth.`,
+  },
+  crisis: {
+    registered: `USER INTENT CONTEXT — CRISIS: This user identified as being in a dark place. Crisis detection is already active and will route as appropriate. If the message passes crisis detection, respond with extraordinary gentleness. Never project emotions or assume the extent of their pain — follow their words precisely. The Threshold question should be a single, simple, grounding question.`,
+    firstSession: `USER INTENT CONTEXT — CRISIS (first session): This user is in a dark place. Respond with maximum care. If crisis detection has cleared the message, open with simple, warm acknowledgement. One step at a time.`,
+  },
+  curious: {
+    registered: `USER INTENT CONTEXT — CURIOUS: This user is exploring faith, possibly without a strong prior tradition. Use an inviting, non-threatening register. Avoid assumed knowledge of Christian vocabulary or tradition. The Threshold question should invite further exploration — curious, open-ended, welcoming rather than challenging.`,
+    firstSession: `USER INTENT CONTEXT — CURIOUS (first session): This user is new to exploring faith. Make the first response exceptionally welcoming. Avoid theology-dense language. The goal is to make them want to come back.`,
+  },
+};
+// ─────────────────────────────────────────────────────────────────────────────
+
 // ── Hard question detection ──────────────────
 
 const HARD_QUESTION_SIGNALS = [
@@ -456,10 +487,23 @@ serve(async (req) => {
 
     const patternContext = buildPatternContext(userPatterns);
 
-    // ── Intent context (from onboarding) ──
-    const intentContext = onboardingIntentKey
-      ? `\nUser context: This person came to DABAR because they are dealing with "${onboardingIntentKey}". Let this inform your pastoral tone and the depth of your response — do not reference this label directly.`
-      : "";
+    // ── Intent personalisation ───────────────────────────────────────────────────
+    // Determine if this is the user's first session
+    let sessionCount = 0;
+    if (userId) {
+      const { count } = await supabase
+        .from("wisdom_sessions")
+        .select("id", { count: "exact", head: true })
+        .eq("user_id", userId);
+      sessionCount = count ?? 0;
+    }
+    const isFirstSession = sessionCount === 0;
+
+    const intentEntry = onboardingIntentKey ? INTENT_CONTEXT[onboardingIntentKey] : null;
+    const intentBlock = intentEntry
+      ? `\n\n${isFirstSession ? intentEntry.firstSession : intentEntry.registered}`
+      : '';
+    // ─────────────────────────────────────────────────────────────────────────────
 
     // ── Hard question context ──
     const isHardQuestion = HARD_QUESTION_SIGNALS.some(p => p.test(question));
@@ -468,7 +512,7 @@ serve(async (req) => {
       : "";
 
     const systemPrompt = getSystemPrompt(validatedAgeGroup, patternContext, safeLang, safeVersion, crisisResult.severity)
-      + intentContext + hardQuestionContext;
+      + intentBlock + hardQuestionContext;
 
     // ── Streaming AI call: Claude first, Lovable AI as fallback ──
     const streamResult = await streamChatWithFallback({
@@ -608,10 +652,11 @@ serve(async (req) => {
     return new Response(readableStream, {
       headers: {
         ...corsHeaders,
-        "Access-Control-Expose-Headers": "X-Crisis-Severity",
+        "Access-Control-Expose-Headers": "X-Crisis-Severity, X-Intent-Key",
         "Content-Type": "text/plain; charset=utf-8",
         "X-Content-Type-Options": "nosniff",
         "X-Crisis-Severity": crisisResult.severity || "",
+        "X-Intent-Key": onboardingIntentKey || "",
       },
     });
   } catch (e) {
