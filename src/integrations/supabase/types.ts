@@ -1769,6 +1769,7 @@ export type Database = {
       wisdom_sessions: {
         Row: {
           created_at: string
+          crisis_marker: boolean
           expires_at: string | null
           flagged: boolean
           id: string
@@ -1781,6 +1782,7 @@ export type Database = {
         }
         Insert: {
           created_at?: string
+          crisis_marker?: boolean
           expires_at?: string | null
           flagged?: boolean
           id?: string
@@ -1793,6 +1795,7 @@ export type Database = {
         }
         Update: {
           created_at?: string
+          crisis_marker?: boolean
           expires_at?: string | null
           flagged?: boolean
           id?: string

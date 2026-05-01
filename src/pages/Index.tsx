@@ -98,6 +98,9 @@ const Index = () => {
   // Soft gate state for guest limit
   const [showSoftGate, setShowSoftGate] = useState(false);
 
+  // Crisis check-in state — true if user just said "still struggling"
+  const [crisisActive, setCrisisActive] = useState(false);
+
   // Centralized AuthModal opener — fires analytics in one place
   const openAuthModal = useCallback((trigger: string, message?: string) => {
     trackEvent('auth_modal_opened', {
@@ -310,7 +313,17 @@ const Index = () => {
 
         // Capture session ID from response headers (set by edge function)
         const sessionIdHeader = response.headers.get("X-Session-Id");
-        if (sessionIdHeader) setCurrentSessionId(sessionIdHeader);
+        if (sessionIdHeader) {
+          setCurrentSessionId(sessionIdHeader);
+          // Tag session with crisis marker if user was in crisis state
+          if (crisisActive && user) {
+            supabase
+              .from("wisdom_sessions")
+              .update({ crisis_marker: true } as any)
+              .eq("id", sessionIdHeader)
+              .then(() => {});
+          }
+        }
 
         // Set up streaming response
         setCurrentResponse({ question, response: "", scriptures: [] });
@@ -384,7 +397,7 @@ const Index = () => {
         setIsStreaming(false);
       }
     },
-    [user, ageGroup, needsAgeGate, checkDailyLimit, incrementDailyUsage, refreshProfile, languagePreference, preferredBibleVersion]
+    [user, ageGroup, needsAgeGate, checkDailyLimit, incrementDailyUsage, refreshProfile, languagePreference, preferredBibleVersion, crisisActive]
   );
 
   const reflectOnThis = useCallback(async () => {
@@ -675,6 +688,7 @@ const Index = () => {
               <CrisisCheckinCard
                 userId={user.id}
                 onDismiss={() => refreshProfile()}
+                onDismissWithCrisisState={(stillStruggling) => setCrisisActive(stillStruggling)}
               />
             ) : !user && getGuestQuestionsUsed() === 0 ? (
               <LandingHero
@@ -695,7 +709,8 @@ const Index = () => {
                 scriptures={currentResponse.scriptures}
                 isStreaming={isStreaming}
                 agentStage={agentStage}
-                onAskAgain={() => { setScreen("ask"); setCurrentResponse(null); setShowSoftGate(false); }}
+                onAskAgain={() => { setScreen("ask"); setCurrentResponse(null); setShowSoftGate(false); setCrisisActive(false); }}
+                
                 onReflect={reflectOnThis}
                 onStir={(thresholdQ) => {
                   reflectOnThis().then(() => {
@@ -709,6 +724,7 @@ const Index = () => {
                 isSaved={isSaved}
                 onScriptureRef={handleScriptureDeepLink}
                 userId={user?.id}
+                crisisActive={crisisActive}
                 profileVersion={preferredBibleVersion}
                 onProfileVersionChanged={(v) => setPreferredBibleVersion(v)}
                 onContinueExploring={(seed) => {
