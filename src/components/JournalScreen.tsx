@@ -9,6 +9,7 @@ import { MoreVertical } from "lucide-react";
 import { highlightMatch } from "@/utils/highlightMatch";
 import { exportJournalToPdf } from "@/utils/exportJournalPdf";
 import { Download } from "lucide-react";
+import { BookOpen } from "lucide-react";
 
 interface WisdomEntry {
   id: string;
@@ -55,6 +56,7 @@ const JournalScreen = ({
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [menuOpenId, setMenuOpenId] = useState<string | null>(null);
   const [unsaveToast, setUnsaveToast] = useState<{ id: string } | null>(null);
+  const [scriptureFilter, setScriptureFilter] = useState<string | null>(null);
   const queryClient = useQueryClient();
 
   // Debounce search → applied filter, and persist to localStorage so the
@@ -93,9 +95,17 @@ const JournalScreen = ({
   // Filter across question, response, and scripture refs (client-side so we
   // can match partial scripture references like "John" → "John 3:16").
   const filteredEntries = (() => {
+    let result = entries;
+    if (scriptureFilter) {
+      const sf = scriptureFilter.toLowerCase();
+      result = result.filter((e) =>
+        Array.isArray(e.scripture_refs) &&
+        e.scripture_refs.some((ref) => ref?.toLowerCase().includes(sf))
+      );
+    }
     const q = search.trim().toLowerCase();
-    if (!q) return entries;
-    return entries.filter((e) => {
+    if (!q) return result;
+    return result.filter((e) => {
       if (e.question?.toLowerCase().includes(q)) return true;
       if (e.response?.toLowerCase().includes(q)) return true;
       if (Array.isArray(e.scripture_refs)) {
@@ -103,6 +113,25 @@ const JournalScreen = ({
       }
       return false;
     });
+  })();
+
+  // Extract unique scripture book names for filter chips
+  const scriptureBooks = (() => {
+    const bookCounts = new Map<string, number>();
+    for (const e of entries) {
+      if (!Array.isArray(e.scripture_refs)) continue;
+      for (const ref of e.scripture_refs) {
+        if (!ref) continue;
+        const match = ref.match(/^(\d?\s*[A-Za-z]+)/);
+        if (match) {
+          const book = match[1].trim();
+          bookCounts.set(book, (bookCounts.get(book) || 0) + 1);
+        }
+      }
+    }
+    return Array.from(bookCounts.entries())
+      .sort((a, b) => b[1] - a[1])
+      .map(([book, count]) => ({ book, count }));
   })();
 
   const latestPrompt = entries.length > 0
@@ -217,7 +246,43 @@ const JournalScreen = ({
             )}
           </div>
 
-          <div className="flex items-center justify-between gap-3 -mt-6 mb-6 min-h-[20px]">
+          {/* Scripture reference filter chips */}
+          {scriptureBooks.length > 0 && (
+            <div className="mb-5">
+              <div className="flex items-center gap-1.5 mb-2">
+                <BookOpen size={11} className="text-gold/50" />
+                <span className="font-body text-[10px] tracking-[0.1em] uppercase text-muted-foreground/60">
+                  Filter by Scripture
+                </span>
+              </div>
+              <div className="flex flex-wrap gap-1.5">
+                {scriptureFilter && (
+                  <button
+                    onClick={() => setScriptureFilter(null)}
+                    className="font-body text-[11px] tracking-wide px-2.5 py-1 rounded-sm border border-gold/20 text-muted-foreground/60 hover:text-foreground transition-colors"
+                  >
+                    All
+                  </button>
+                )}
+                {scriptureBooks.map(({ book, count }) => (
+                  <button
+                    key={book}
+                    onClick={() => setScriptureFilter(scriptureFilter === book ? null : book)}
+                    className={`font-body text-[11px] tracking-wide px-2.5 py-1 rounded-sm border transition-colors ${
+                      scriptureFilter === book
+                        ? "border-gold bg-gold/15 text-gold"
+                        : "border-border/50 text-muted-foreground/70 hover:border-gold/30 hover:text-foreground"
+                    }`}
+                  >
+                    {book}
+                    <span className="ml-1 text-[9px] opacity-50">{count}</span>
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+
+          <div className="flex items-center justify-between gap-3 mb-6 min-h-[20px]">
             <p className="font-body text-xs text-muted-foreground/70">
               {search
                 ? `${filteredEntries.length} match${filteredEntries.length === 1 ? "" : "es"} for "${search}"`
