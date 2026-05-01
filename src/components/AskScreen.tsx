@@ -6,6 +6,8 @@ import { trackEvent } from "@/lib/trackEvent";
 interface AskScreenProps {
   onSeekWisdom: (question: string) => void;
   isLoading: boolean;
+  guestQuestionsUsed?: number;
+  guestLimit?: number;
 }
 
 const SOUL_PROMPTS = [
@@ -29,7 +31,7 @@ const QUESTION_PLACEHOLDERS = [
   "How do I find peace in this season?",
 ];
 
-const AskScreen = forwardRef<HTMLDivElement, AskScreenProps>(({ onSeekWisdom, isLoading }, ref) => {
+const AskScreen = forwardRef<HTMLDivElement, AskScreenProps>(({ onSeekWisdom, isLoading, guestQuestionsUsed, guestLimit }, ref) => {
   const [question, setQuestion] = useState("");
   const [promptIndex, setPromptIndex] = useState(() =>
     Math.floor(Math.random() * SOUL_PROMPTS.length)
@@ -176,6 +178,36 @@ const AskScreen = forwardRef<HTMLDivElement, AskScreenProps>(({ onSeekWisdom, is
           <span className="text-xs font-body text-muted-foreground tracking-wide">
             Be still, and wait…
           </span>
+        </div>
+      )}
+
+      {/* Guest free-questions counter */}
+      {guestLimit != null && guestQuestionsUsed != null && (
+        <div className="mt-6 text-center">
+          <p className="font-body text-[11px] tracking-wide text-muted-foreground/70">
+            {guestQuestionsUsed >= guestLimit ? (
+              <span className="text-gold">
+                Sign in to continue seeking wisdom
+              </span>
+            ) : (
+              <>
+                <span className="text-gold font-medium">
+                  {guestLimit - guestQuestionsUsed}
+                </span>
+                {" "}free question{guestLimit - guestQuestionsUsed === 1 ? "" : "s"} remaining
+              </>
+            )}
+          </p>
+          <div className="flex justify-center gap-1.5 mt-2">
+            {Array.from({ length: guestLimit }).map((_, i) => (
+              <div
+                key={i}
+                className={`w-1.5 h-1.5 rounded-full transition-colors ${
+                  i < guestQuestionsUsed ? "bg-gold/30" : "bg-gold"
+                }`}
+              />
+            ))}
+          </div>
         </div>
       )}
     </div>
