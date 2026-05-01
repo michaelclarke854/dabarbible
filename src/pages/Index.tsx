@@ -710,6 +710,8 @@ const Index = () => {
                 isStreaming={isStreaming}
                 agentStage={agentStage}
                 onAskAgain={() => { setScreen("ask"); setCurrentResponse(null); setShowSoftGate(false); }}
+                // Note: crisisActive resets naturally when user navigates away; 
+                // we clear it on "ask again" to avoid tagging unrelated sessions
                 onReflect={reflectOnThis}
                 onStir={(thresholdQ) => {
                   reflectOnThis().then(() => {
