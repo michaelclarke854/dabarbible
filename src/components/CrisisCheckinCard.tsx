@@ -4,9 +4,10 @@ import { supabase } from "@/integrations/supabase/client";
 interface CrisisCheckinCardProps {
   userId: string;
   onDismiss: () => void;
+  onDismissWithCrisisState?: (stillStruggling: boolean) => void;
 }
 
-const CrisisCheckinCard = ({ userId, onDismiss }: CrisisCheckinCardProps) => {
+const CrisisCheckinCard = ({ userId, onDismiss, onDismissWithCrisisState }: CrisisCheckinCardProps) => {
   const [showResources, setShowResources] = useState(false);
 
   const dismiss = async () => {
@@ -17,7 +18,14 @@ const CrisisCheckinCard = ({ userId, onDismiss }: CrisisCheckinCardProps) => {
     onDismiss();
   };
 
-  const handleBetter = () => dismiss();
+  const handleBetter = async () => {
+    await supabase
+      .from("profiles")
+      .update({ pending_checkin: false } as any)
+      .eq("user_id", userId);
+    onDismissWithCrisisState?.(false);
+    onDismiss();
+  };
 
   const handleStillStruggling = async () => {
     setShowResources(true);
@@ -65,7 +73,11 @@ const CrisisCheckinCard = ({ userId, onDismiss }: CrisisCheckinCardProps) => {
               </ul>
             </div>
             <button
-              onClick={() => { setShowResources(false); onDismiss(); }}
+              onClick={() => {
+                setShowResources(false);
+                onDismissWithCrisisState?.(true);
+                onDismiss();
+              }}
               className="font-body text-sm text-muted-foreground hover:text-foreground transition-colors"
             >
               Continue →
