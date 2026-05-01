@@ -10,6 +10,7 @@ import { highlightMatch } from "@/utils/highlightMatch";
 import { exportJournalToPdf } from "@/utils/exportJournalPdf";
 import { Download } from "lucide-react";
 import { BookOpen } from "lucide-react";
+import { useAuth } from "@/contexts/AuthContext";
 
 interface WisdomEntry {
   id: string;
@@ -30,12 +31,37 @@ const JournalScreen = ({
   onStirConsumed,
   isFreePlan = false,
   onUpgrade,
+  onSignIn,
 }: {
   stirPrompt?: string | null;
   onStirConsumed?: () => void;
   isFreePlan?: boolean;
   onUpgrade?: () => void;
+  onSignIn?: () => void;
 }) => {
+  const { user } = useAuth();
+
+  // Gate: guests see a sign-in prompt instead of the journal
+  if (!user) {
+    return (
+      <div className="min-h-[calc(100vh-80px)] px-6 py-8 max-w-2xl mx-auto flex flex-col items-center justify-center text-center">
+        <BookOpen size={32} className="text-gold/40 mb-4" />
+        <h2 className="font-serif text-xl text-foreground tracking-wide mb-3">
+          Your journal awaits
+        </h2>
+        <p className="font-body text-sm text-muted-foreground leading-relaxed max-w-xs mb-6">
+          Sign in to save reflections, search your history, and return to the wisdom that speaks to you.
+        </p>
+        <button
+          onClick={() => onSignIn?.()}
+          className="font-body text-xs tracking-[0.15em] uppercase text-parchment bg-gold hover:bg-gold/90 transition-colors px-6 py-3 rounded-sm"
+        >
+          Sign In
+        </button>
+      </div>
+    );
+  }
+
   const [activeTab, setActiveTab] = useState<JournalTab>(stirPrompt ? "reflections" : "voice");
   const [searchInput, setSearchInput] = useState<string>(() => {
     if (typeof window === "undefined") return "";

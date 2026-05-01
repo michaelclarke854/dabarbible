@@ -764,6 +764,7 @@ const Index = () => {
               onStirConsumed={() => setStirPrompt(null)}
               isFreePlan={plan === "free"}
               onUpgrade={handleUpgrade}
+              onSignIn={() => openAuthModal("journal_gate", "Sign in to access your journal")}
             />
           </Suspense>
         )}
