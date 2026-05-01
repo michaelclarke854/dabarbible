@@ -709,7 +709,7 @@ const Index = () => {
                 scriptures={currentResponse.scriptures}
                 isStreaming={isStreaming}
                 agentStage={agentStage}
-                onAskAgain={() => { setScreen("ask"); setCurrentResponse(null); setShowSoftGate(false); }}
+                onAskAgain={() => { setScreen("ask"); setCurrentResponse(null); setShowSoftGate(false); setCrisisActive(false); }}
                 
                 onReflect={reflectOnThis}
                 onStir={(thresholdQ) => {
