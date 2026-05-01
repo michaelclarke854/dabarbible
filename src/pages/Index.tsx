@@ -699,7 +699,12 @@ const Index = () => {
                 }
               />
             ) : (
-              <AskScreen onSeekWisdom={seekWisdom} isLoading={isLoading} />
+              <AskScreen
+                onSeekWisdom={seekWisdom}
+                isLoading={isLoading}
+                guestQuestionsUsed={!user ? getGuestQuestionsUsed() : undefined}
+                guestLimit={!user ? GUEST_LIMIT : undefined}
+              />
             )
           ) : currentResponse ? (
             <>
