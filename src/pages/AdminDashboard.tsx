@@ -861,7 +861,7 @@ function TrueEngagementCard() {
             True Engagement Rate
           </h3>
           <p className="text-muted-foreground text-xs mt-1 font-body">
-            Last 7 days · Anonymous sessions only
+            Last 7 days · Anonymous visitors who reached the Ask flow
           </p>
         </div>
         <button
@@ -901,8 +901,14 @@ function TrueEngagementCard() {
           <p className="text-foreground text-sm font-body">
             <span className="font-serif text-foreground">{engaged}</span> engaged sessions
             {" out of "}
-            <span className="font-serif text-foreground">{total}</span> total anonymous sessions
+            <span className="font-serif text-foreground">{total}</span> Ask-flow sessions
           </p>
+
+          {total < 20 && (
+            <p className="text-muted-foreground text-xs font-body italic">
+              Sample size is small — percentages are noisy below ~20 sessions/week.
+            </p>
+          )}
 
           <p className="text-muted-foreground text-xs font-body leading-relaxed pt-2 border-t border-border">
             <span className="text-red-500">●</span> &lt;15% — Hook or load speed issue.{"  "}
