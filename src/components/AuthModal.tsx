@@ -444,6 +444,32 @@ const AuthModal = forwardRef<HTMLDivElement, AuthModalProps>(({ isOpen, onClose,
           <p className="text-xs text-destructive font-body mt-2 text-center">{oauthError}</p>
         )}
 
+        {showReviewer && (
+          <form onSubmit={handleReviewerSubmit} className="mt-5 pt-5 border-t border-border space-y-3">
+            <p className="text-xs font-body text-muted-foreground text-center">
+              Reviewer access
+            </p>
+            <input
+              type="password"
+              value={reviewerCode}
+              onChange={(e) => setReviewerCode(e.target.value)}
+              placeholder="Reviewer code"
+              autoComplete="off"
+              style={inputStyle}
+            />
+            {reviewerError && (
+              <p className="text-xs text-destructive font-body text-center">{reviewerError}</p>
+            )}
+            <button
+              type="submit"
+              disabled={reviewerLoading}
+              className="w-full font-serif text-xs tracking-widest uppercase py-2 border border-gold/40 text-gold rounded-sm hover:bg-gold/10 transition-colors disabled:opacity-50"
+            >
+              {reviewerLoading ? "…" : "Enter as reviewer"}
+            </button>
+          </form>
+        )}
+
         <p className="text-center mt-6 text-xs font-body text-muted-foreground">
           {mode === "signup" ? (
             <>
