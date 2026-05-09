@@ -37,3 +37,5 @@ project_id = "crkkimoblnrxpszehmkg"
     verify_jwt = false
   [functions.upload-video]
     verify_jwt = false
+  [functions.reviewer-signin]
+    verify_jwt = false

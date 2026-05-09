@@ -32,6 +32,12 @@ const AuthModal = forwardRef<HTMLDivElement, AuthModalProps>(({ isOpen, onClose,
   const [oauthError, setOauthError] = useState<string | null>(null);
   const [forgotSent, setForgotSent] = useState(false);
   const [forgotError, setForgotError] = useState("");
+  // Reviewer bypass (hidden — revealed by tapping the title 5 times)
+  const [titleTaps, setTitleTaps] = useState(0);
+  const [showReviewer, setShowReviewer] = useState(false);
+  const [reviewerCode, setReviewerCode] = useState("");
+  const [reviewerError, setReviewerError] = useState("");
+  const [reviewerLoading, setReviewerLoading] = useState(false);
 
   // Re-evaluate initial mode whenever the modal re-opens
   useEffect(() => {
@@ -39,6 +45,10 @@ const AuthModal = forwardRef<HTMLDivElement, AuthModalProps>(({ isOpen, onClose,
       setMode(defaultMode ?? (localStorage.getItem(RETURNING_USER_KEY) ? "signin" : "signup"));
       setOauthError(null);
       setOauthLoading(false);
+      setTitleTaps(0);
+      setShowReviewer(false);
+      setReviewerCode("");
+      setReviewerError("");
     }
   }, [isOpen, defaultMode]);
 
@@ -179,6 +189,49 @@ const AuthModal = forwardRef<HTMLDivElement, AuthModalProps>(({ isOpen, onClose,
       return;
     }
     // Redirect in progress — overlay persists until return
+  };
+
+  const handleTitleTap = () => {
+    setTitleTaps((n) => {
+      const next = n + 1;
+      if (next >= 5) {
+        setShowReviewer(true);
+        return 0;
+      }
+      return next;
+    });
+  };
+
+  const handleReviewerSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setReviewerError("");
+    if (!reviewerCode.trim()) {
+      setReviewerError("Enter a code.");
+      return;
+    }
+    setReviewerLoading(true);
+    try {
+      const { data, error } = await supabase.functions.invoke("reviewer-signin", {
+        body: { code: reviewerCode.trim() },
+      });
+      if (error) throw error;
+      const tokens = data as { access_token?: string; refresh_token?: string };
+      if (!tokens?.access_token || !tokens?.refresh_token) {
+        throw new Error("Invalid code");
+      }
+      const { error: setErr } = await supabase.auth.setSession({
+        access_token: tokens.access_token,
+        refresh_token: tokens.refresh_token,
+      });
+      if (setErr) throw setErr;
+      localStorage.setItem(RETURNING_USER_KEY, "1");
+      toast.success("Reviewer access granted.");
+      onClose();
+    } catch (err: any) {
+      setReviewerError(err?.message || "Invalid code.");
+    } finally {
+      setReviewerLoading(false);
+    }
   };
 
   const inputStyle: React.CSSProperties = {
@@ -327,7 +380,7 @@ const AuthModal = forwardRef<HTMLDivElement, AuthModalProps>(({ isOpen, onClose,
         <p style={{ fontFamily: "'DM Sans', sans-serif", fontSize: 12, fontWeight: 300, color: "rgba(240,234,216,0.4)", textAlign: "center", marginBottom: 4, letterSpacing: "0.03em", lineHeight: 1.5 }}>
           Your spiritual discernment companion — 30 days free, no card needed.
         </p>
-        <h3 style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: 22, fontWeight: 400, color: "#f0ead8", textAlign: "center", marginBottom: 20, letterSpacing: "0.04em" }}>
+        <h3 onClick={handleTitleTap} style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: 22, fontWeight: 400, color: "#f0ead8", textAlign: "center", marginBottom: 20, letterSpacing: "0.04em", cursor: "default", userSelect: "none" }}>
           {mode === "signup" ? "Create Account" : "Sign In"}
         </h3>
 
@@ -389,6 +442,32 @@ const AuthModal = forwardRef<HTMLDivElement, AuthModalProps>(({ isOpen, onClose,
 
         {oauthError && (
           <p className="text-xs text-destructive font-body mt-2 text-center">{oauthError}</p>
+        )}
+
+        {showReviewer && (
+          <form onSubmit={handleReviewerSubmit} className="mt-5 pt-5 border-t border-border space-y-3">
+            <p className="text-xs font-body text-muted-foreground text-center">
+              Reviewer access
+            </p>
+            <input
+              type="password"
+              value={reviewerCode}
+              onChange={(e) => setReviewerCode(e.target.value)}
+              placeholder="Reviewer code"
+              autoComplete="off"
+              style={inputStyle}
+            />
+            {reviewerError && (
+              <p className="text-xs text-destructive font-body text-center">{reviewerError}</p>
+            )}
+            <button
+              type="submit"
+              disabled={reviewerLoading}
+              className="w-full font-serif text-xs tracking-widest uppercase py-2 border border-gold/40 text-gold rounded-sm hover:bg-gold/10 transition-colors disabled:opacity-50"
+            >
+              {reviewerLoading ? "…" : "Enter as reviewer"}
+            </button>
+          </form>
         )}
 
         <p className="text-center mt-6 text-xs font-body text-muted-foreground">
