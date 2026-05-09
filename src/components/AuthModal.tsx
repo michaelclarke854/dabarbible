@@ -380,7 +380,6 @@ const AuthModal = forwardRef<HTMLDivElement, AuthModalProps>(({ isOpen, onClose,
         <p style={{ fontFamily: "'DM Sans', sans-serif", fontSize: 12, fontWeight: 300, color: "rgba(240,234,216,0.4)", textAlign: "center", marginBottom: 4, letterSpacing: "0.03em", lineHeight: 1.5 }}>
           Your spiritual discernment companion — 30 days free, no card needed.
         </p>
-        <h3 style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: 22, fontWeight: 400, color: "#f0ead8", textAlign: "center", marginBottom: 20, letterSpacing: "0.04em" }}>
         <h3 onClick={handleTitleTap} style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: 22, fontWeight: 400, color: "#f0ead8", textAlign: "center", marginBottom: 20, letterSpacing: "0.04em", cursor: "default", userSelect: "none" }}>
           {mode === "signup" ? "Create Account" : "Sign In"}
         </h3>
