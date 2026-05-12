@@ -1218,16 +1218,19 @@ export type Database = {
           event_id: string
           event_type: string | null
           processed_at: string | null
+          provider: string | null
         }
         Insert: {
           event_id: string
           event_type?: string | null
           processed_at?: string | null
+          provider?: string | null
         }
         Update: {
           event_id?: string
           event_type?: string | null
           processed_at?: string | null
+          provider?: string | null
         }
         Relationships: []
       }
@@ -1580,37 +1583,106 @@ export type Database = {
       }
       subscriptions: {
         Row: {
+          apple_product_id: string | null
           billing_cycle: string | null
+          cancel_at_period_end: boolean
           created_at: string
+          current_period_end: string | null
+          environment: string | null
           id: string
+          last_webhook_event_id: string | null
           plan_type: string
           presentment_amount: number | null
           presentment_currency: string | null
+          provider: string
+          revenuecat_entitlement: string | null
+          revenuecat_user_id: string | null
           status: string
+          stripe_customer_id: string | null
           stripe_subscription_id: string | null
+          tier: string
+          updated_at: string
           user_id: string
         }
         Insert: {
+          apple_product_id?: string | null
           billing_cycle?: string | null
+          cancel_at_period_end?: boolean
           created_at?: string
+          current_period_end?: string | null
+          environment?: string | null
           id?: string
+          last_webhook_event_id?: string | null
           plan_type?: string
           presentment_amount?: number | null
           presentment_currency?: string | null
+          provider?: string
+          revenuecat_entitlement?: string | null
+          revenuecat_user_id?: string | null
           status?: string
+          stripe_customer_id?: string | null
           stripe_subscription_id?: string | null
+          tier?: string
+          updated_at?: string
           user_id: string
         }
         Update: {
+          apple_product_id?: string | null
           billing_cycle?: string | null
+          cancel_at_period_end?: boolean
           created_at?: string
+          current_period_end?: string | null
+          environment?: string | null
           id?: string
+          last_webhook_event_id?: string | null
           plan_type?: string
           presentment_amount?: number | null
           presentment_currency?: string | null
+          provider?: string
+          revenuecat_entitlement?: string | null
+          revenuecat_user_id?: string | null
           status?: string
+          stripe_customer_id?: string | null
           stripe_subscription_id?: string | null
+          tier?: string
+          updated_at?: string
           user_id?: string
+        }
+        Relationships: []
+      }
+      support_requests: {
+        Row: {
+          category: string
+          created_at: string
+          email: string
+          id: string
+          message: string
+          resolved_at: string | null
+          status: string
+          subject: string
+          user_id: string | null
+        }
+        Insert: {
+          category: string
+          created_at?: string
+          email: string
+          id?: string
+          message: string
+          resolved_at?: string | null
+          status?: string
+          subject: string
+          user_id?: string | null
+        }
+        Update: {
+          category?: string
+          created_at?: string
+          email?: string
+          id?: string
+          message?: string
+          resolved_at?: string | null
+          status?: string
+          subject?: string
+          user_id?: string | null
         }
         Relationships: []
       }
