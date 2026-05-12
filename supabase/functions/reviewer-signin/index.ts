@@ -69,6 +69,35 @@ Deno.serve(async (req) => {
       if (updErr) throw updErr;
     }
 
+    // Ensure the reviewer profile has full premium-equivalent access (Apple
+    // resubmission 2.3.8 — reviewer must be able to evaluate paid features).
+    try {
+      await admin
+        .from("profiles")
+        .update({
+          role: "personal",
+          plan: "personal",
+          trial_ends_at: new Date(Date.now() + 365 * 24 * 60 * 60 * 1000).toISOString(),
+          trial_converted: true,
+        })
+        .eq("user_id", reviewerId);
+      await admin.from("subscriptions").upsert(
+        {
+          user_id: reviewerId,
+          provider: "stripe",
+          status: "active",
+          plan_type: "personal",
+          tier: "personal",
+          current_period_end: new Date(Date.now() + 365 * 24 * 60 * 60 * 1000).toISOString(),
+          environment: "production",
+          updated_at: new Date().toISOString(),
+        },
+        { onConflict: "user_id,provider" },
+      );
+    } catch (entitleErr) {
+      console.warn("reviewer-signin: entitlement upsert failed (non-fatal):", entitleErr);
+    }
+
     // Sign in with the password to mint a session for the client
     const anonClient = createClient(
       supabaseUrl,
