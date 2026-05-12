@@ -227,9 +227,9 @@ const OnboardingScreen = ({ onBegin }: OnboardingScreenProps) => {
       {/* Footer */}
       <footer className="w-full py-10 px-6 bg-nav mt-10">
         <div className="max-w-md mx-auto text-center space-y-6">
-          {/* Mobile apps disclaimer (subtle, not button-styled) */}
+          {/* Platform note */}
           <p className="font-body text-xs text-gold/60 tracking-wide">
-            iOS &amp; Android apps coming soon
+            Available on iOS
           </p>
 
           {/* Links */}

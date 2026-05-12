@@ -2,6 +2,7 @@ import { createContext, useContext, useState, useEffect, useCallback, useRef, Re
 import { supabase } from "@/integrations/supabase/client";
 import type { User } from "@supabase/supabase-js";
 import { trackEvent } from "@/lib/trackEvent";
+import { initRevenueCat, identifyRevenueCatUser, logoutRevenueCatUser } from "@/lib/revenuecat";
 
 export type UserRole =
   | "super_admin" | "admin" | "beta" | "free" | "personal"
@@ -153,6 +154,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setUserEmail(u?.email ?? null);
 
         if (u) {
+          // Identify user with RevenueCat (no-op outside native iOS).
+          void identifyRevenueCatUser(u.id);
           // Identity linking: multiple identities (email + google) sharing
           // the same email are the same account — just use the existing user ID.
           // Supabase already merges them if "Allow linking" is on, but even
@@ -231,6 +234,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             }
           });
         } else {
+          void logoutRevenueCatUser();
           setRole("free");
           setPlan("free");
           setIsSuspended(false);
@@ -246,6 +250,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         }
       }
     );
+
+    // Initialise RevenueCat with whichever session we already have (anonymous if none).
+    void initRevenueCat(null);
 
     return () => subscription.unsubscribe();
   }, [fetchProfile]);

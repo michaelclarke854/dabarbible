@@ -191,6 +191,29 @@ const AuthModal = forwardRef<HTMLDivElement, AuthModalProps>(({ isOpen, onClose,
     // Redirect in progress — overlay persists until return
   };
 
+  const handleApple = async () => {
+    setOauthLoading(true);
+    setOauthError(null);
+    localStorage.setItem(RETURNING_USER_KEY, "1");
+
+    const result = await lovable.auth.signInWithOAuth("apple", {
+      redirect_uri: window.location.origin,
+    });
+
+    if (result.error) {
+      setOauthLoading(false);
+      setOauthError(`Apple sign-in failed: ${result.error.message || "Unknown error"}. Please try email instead.`);
+      return;
+    }
+
+    if (!result.redirected) {
+      setOauthLoading(false);
+      setOauthError("Apple sign-in could not complete. Please try again or use email.");
+      return;
+    }
+    // Redirect in progress
+  };
+
   const handleTitleTap = () => {
     setTitleTaps((n) => {
       const next = n + 1;
@@ -431,6 +454,19 @@ const AuthModal = forwardRef<HTMLDivElement, AuthModalProps>(({ isOpen, onClose,
           <span className="text-xs text-muted-foreground font-body">or</span>
           <div className="flex-1 h-px bg-border" />
         </div>
+
+        {/* Apple Sign In — placed above Google per Apple HIG (App Store 4.8.0) */}
+        <button
+          onClick={handleApple}
+          disabled={oauthLoading || loading}
+          aria-label="Continue with Apple"
+          className="w-full font-body text-sm py-3 mb-3 rounded-sm bg-[#0a0907] text-[#f0ead8] border border-[#0a0907] hover:bg-[#1a1410] transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
+        >
+          <svg width="14" height="16" viewBox="0 0 14 16" fill="currentColor" aria-hidden="true">
+            <path d="M11.6 8.49c-.02-2.07 1.69-3.06 1.77-3.11-.96-1.41-2.46-1.6-2.99-1.62-1.27-.13-2.48.75-3.13.75-.65 0-1.65-.73-2.71-.71-1.4.02-2.69.81-3.41 2.06-1.45 2.52-.37 6.25 1.05 8.3.7 1 1.51 2.13 2.58 2.09 1.04-.04 1.43-.67 2.69-.67 1.25 0 1.61.67 2.71.65 1.12-.02 1.83-1.02 2.51-2.03.79-1.16 1.12-2.29 1.14-2.35-.02-.01-2.18-.84-2.21-3.36ZM9.6 2.41c.57-.7.96-1.66.85-2.62-.83.04-1.83.55-2.42 1.24-.53.61-.99 1.59-.87 2.53.93.07 1.87-.47 2.44-1.15Z" />
+          </svg>
+          {oauthLoading ? "Connecting…" : "Continue with Apple"}
+        </button>
 
         <button
           onClick={handleGoogle}
