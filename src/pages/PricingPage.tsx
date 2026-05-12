@@ -7,6 +7,8 @@ import { useLocalizedPrice } from "@/hooks/useLocalizedPrice";
 import { useAuth } from "@/contexts/AuthContext";
 import { Skeleton } from "@/components/ui/skeleton";
 import { trackEvent } from "@/lib/trackEvent";
+import { isIOSNative } from "@/lib/platform";
+import { purchasePackageById, restorePurchases } from "@/lib/revenuecat";
 
 const ALLOWED_CURRENCIES = [
   "usd", "gbp", "eur", "aud", "cad", "nzd", "ngn", "ghs", "kes", "zar", "tzs",
@@ -109,6 +111,16 @@ const PricingPage = () => {
 
     setLoadingPlan(planKey);
     try {
+      // iOS native: route through Apple IAP via RevenueCat (App Store 3.1.1).
+      if (isIOSNative()) {
+        const pkgId = `${planKey}_${cycle}`; // e.g. "personal_monthly"
+        const ok = await purchasePackageById(pkgId);
+        if (ok) {
+          toast.success("Subscription active.");
+          navigate("/payment-success");
+        }
+        return;
+      }
       const { data, error } = await supabase.functions.invoke("create-checkout", {
         body: { planKey, cycle },
       });
