@@ -113,8 +113,9 @@ export default function SupportPage() {
           ) : (
             <form onSubmit={handleSubmit} className="space-y-4">
               <div>
-                <label className="block font-body text-xs text-foreground/70 mb-1 uppercase tracking-wider">Email</label>
+                <label htmlFor="support-email" className="block font-body text-xs text-foreground/70 mb-1 uppercase tracking-wider">Email</label>
                 <input
+                  id="support-email"
                   type="email"
                   required
                   value={form.email}
@@ -123,8 +124,9 @@ export default function SupportPage() {
                 />
               </div>
               <div>
-                <label className="block font-body text-xs text-foreground/70 mb-1 uppercase tracking-wider">Category</label>
+                <label htmlFor="support-category" className="block font-body text-xs text-foreground/70 mb-1 uppercase tracking-wider">Category</label>
                 <select
+                  id="support-category"
                   value={form.category}
                   onChange={(e) => setForm({ ...form, category: e.target.value as Category })}
                   className="w-full bg-card border border-border rounded-sm px-3 py-2 font-body text-sm text-foreground focus:border-gold outline-none"
@@ -137,8 +139,9 @@ export default function SupportPage() {
                 </select>
               </div>
               <div>
-                <label className="block font-body text-xs text-foreground/70 mb-1 uppercase tracking-wider">Subject</label>
+                <label htmlFor="support-subject" className="block font-body text-xs text-foreground/70 mb-1 uppercase tracking-wider">Subject</label>
                 <input
+                  id="support-subject"
                   type="text"
                   required
                   maxLength={200}
@@ -148,8 +151,9 @@ export default function SupportPage() {
                 />
               </div>
               <div>
-                <label className="block font-body text-xs text-foreground/70 mb-1 uppercase tracking-wider">Message</label>
+                <label htmlFor="support-message" className="block font-body text-xs text-foreground/70 mb-1 uppercase tracking-wider">Message</label>
                 <textarea
+                  id="support-message"
                   required
                   rows={6}
                   maxLength={4000}

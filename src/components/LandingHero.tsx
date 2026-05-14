@@ -125,7 +125,7 @@ export function LandingHero({ onSeekWisdom, isLoading, onSignIn }: LandingHeroPr
           AI-powered spiritual discernment
         </p>
         <h1 className="font-serif text-4xl sm:text-5xl text-foreground tracking-widest">
-          DABAR
+          DABAR<span className="sr-only"> — AI-powered spiritual discernment</span>
         </h1>
         <p className="text-gold scripture-italic text-sm tracking-wider mt-1">
           דָּבָר · The Word

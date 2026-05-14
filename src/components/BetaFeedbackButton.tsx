@@ -36,6 +36,7 @@ const BetaFeedbackButton = forwardRef<HTMLElement>((_props, ref) => {
       <button
         ref={ref as React.Ref<HTMLButtonElement>}
         onClick={() => setOpen(true)}
+        aria-label="Beta Feedback"
         className="fixed bottom-24 right-4 z-40 w-12 h-12 rounded-full bg-gold text-primary-foreground flex items-center justify-center shadow-lg hover:bg-gold-light transition-colors"
         title="Beta Feedback"
       >
@@ -48,7 +49,7 @@ const BetaFeedbackButton = forwardRef<HTMLElement>((_props, ref) => {
     <div ref={ref as React.Ref<HTMLDivElement>} className="fixed bottom-24 right-4 z-40 w-80 bg-card border border-border rounded-sm shadow-xl">
       <div className="flex items-center justify-between px-4 py-3 border-b border-border">
         <p className="font-serif text-gold text-sm tracking-widest uppercase">Beta Feedback</p>
-        <button onClick={() => setOpen(false)} className="text-muted-foreground hover:text-foreground">
+        <button onClick={() => setOpen(false)} aria-label="Close feedback form" className="text-muted-foreground hover:text-foreground">
           <X size={16} />
         </button>
       </div>

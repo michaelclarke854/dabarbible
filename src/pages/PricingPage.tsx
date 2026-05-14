@@ -189,7 +189,10 @@ const PricingPage = () => {
         ← Back
       </button>
 
-      <p className="font-serif text-2xl text-foreground tracking-wide text-center mb-2">
+      <h1 className="font-serif text-2xl text-foreground tracking-wide text-center mb-2">
+        Plans &amp; Pricing
+      </h1>
+      <p className="font-serif text-lg text-foreground/80 tracking-wide text-center mb-2">
         What are you carrying today?
       </p>
       <p className="font-body text-sm text-muted-foreground text-center mb-6">
@@ -250,7 +253,7 @@ const PricingPage = () => {
                 </span>
               )}
               <div className="flex items-baseline justify-between mb-2">
-                <h3 className="font-serif text-lg tracking-wide">{tier.name}</h3>
+                <h2 className="font-serif text-lg tracking-wide">{tier.name}</h2>
                 <div className="text-right">
                   {priceLoading && tier.key !== "free" ? (
                     <Skeleton className="h-6 w-20 bg-gold/10" />
