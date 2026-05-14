@@ -99,10 +99,11 @@ export default function DailyVerseOptIn({ userId }: { userId: string | null }) {
           </DialogDescription>
         </DialogHeader>
         <div className="space-y-2 py-2">
-          <label className="text-sm font-body text-muted-foreground">
+          <label htmlFor="daily-verse-hour" className="text-sm font-body text-muted-foreground">
             Send hour (UTC, 24-hour)
           </label>
           <select
+            id="daily-verse-hour"
             value={hour}
             onChange={(e) => setHour(Number(e.target.value))}
             className="w-full bg-background border border-input rounded-md px-3 py-2 text-sm"
