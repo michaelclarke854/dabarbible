@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { isNativeIos } from "@/lib/nativePlatform";
 
 interface OnboardingScreenProps {
   onBegin: () => void;
@@ -40,6 +41,7 @@ const ContinueLink = ({ text, onClick }: { text: string; onClick: () => void }) 
 
 const OnboardingScreen = ({ onBegin }: OnboardingScreenProps) => {
   const [visible, setVisible] = useState(false);
+  const nativeIos = isNativeIos();
 
   useEffect(() => {
     const t = setTimeout(() => setVisible(true), 200);
@@ -228,9 +230,9 @@ const OnboardingScreen = ({ onBegin }: OnboardingScreenProps) => {
       <footer className="w-full py-10 px-6 bg-nav mt-10">
         <div className="max-w-md mx-auto text-center space-y-6">
           {/* Mobile apps disclaimer (subtle, not button-styled) */}
-          <p className="font-body text-xs text-gold/60 tracking-wide">
+          {!nativeIos && <p className="font-body text-xs text-gold/60 tracking-wide">
             iOS &amp; Android apps coming soon
-          </p>
+          </p>}
 
           {/* Links */}
           <div className="flex items-center justify-center gap-4 text-xs font-body text-gold/70">

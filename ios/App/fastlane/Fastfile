@@ -3,6 +3,24 @@ default_platform(:ios)
 PROJECT = "App.xcodeproj"
 SCHEME  = "App"
 
+def app_store_api_key
+  key_options = {
+    key_id: ENV["ASC_KEY_ID"],
+    issuer_id: ENV["ASC_ISSUER_ID"],
+    in_house: false
+  }
+
+  if ENV["ASC_KEY_FILEPATH"] && File.exist?(ENV["ASC_KEY_FILEPATH"])
+    key_options[:key_filepath] = ENV["ASC_KEY_FILEPATH"]
+  elsif ENV["ASC_KEY_CONTENT"] && !ENV["ASC_KEY_CONTENT"].empty?
+    key_options[:key_content] = ENV["ASC_KEY_CONTENT"].gsub("\\n", "\n")
+  else
+    UI.user_error!("Set ASC_KEY_FILEPATH or ASC_KEY_CONTENT for App Store Connect authentication")
+  end
+
+  app_store_connect_api_key(**key_options)
+end
+
 platform :ios do
   desc "Fetch App Store signing certs/profiles via match (read-only on CI)"
   lane :certificates do
@@ -33,13 +51,7 @@ platform :ios do
   lane :beta do
     build
 
-    api_key = app_store_connect_api_key(
-      key_id:      ENV["ASC_KEY_ID"],
-      issuer_id:   ENV["ASC_ISSUER_ID"],
-      key_filepath: ENV["ASC_KEY_FILEPATH"],
-      
-      in_house: false
-    )
+    api_key = app_store_api_key
 
     upload_to_testflight(
       api_key: api_key,
@@ -51,20 +63,36 @@ platform :ios do
 
   desc "Push current metadata to App Store Connect (no binary)"
   lane :metadata do
-    api_key = app_store_connect_api_key(
-      key_id:      ENV["ASC_KEY_ID"],
-      issuer_id:   ENV["ASC_ISSUER_ID"],
-      key_filepath: ENV["ASC_KEY_FILEPATH"],
-      
-      in_house: false
-    )
+    api_key = app_store_api_key
 
     upload_to_app_store(
       api_key: api_key,
       skip_binary_upload: true,
-      skip_screenshots: true,
+      skip_screenshots: false,
       force: true,
       precheck_include_in_app_purchases: false
+    )
+  end
+
+  desc "Build, upload, and submit the current App Store version for manual release"
+  lane :release do
+    build
+
+    api_key = app_store_api_key
+
+    upload_to_app_store(
+      api_key: api_key,
+      ipa: "./build/DABAR.ipa",
+      submit_for_review: true,
+      automatic_release: false,
+      force: true,
+      precheck_include_in_app_purchases: false,
+      submission_information: {
+        add_id_info_uses_idfa: false,
+        export_compliance_uses_encryption: false,
+        content_rights_contains_third_party_content: true,
+        content_rights_has_rights: true
+      }
     )
   end
 end

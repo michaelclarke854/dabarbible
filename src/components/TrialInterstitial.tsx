@@ -1,5 +1,6 @@
 import { useEffect } from "react";
 import { trackEvent } from "@/lib/trackEvent";
+import { isNativeIos } from "@/lib/nativePlatform";
 
 interface TrialInterstitialProps {
   daysLeft: number;
@@ -10,6 +11,8 @@ interface TrialInterstitialProps {
 }
 
 const TrialInterstitial = ({ daysLeft, questionCount, topTheme, onUpgrade, onDismiss }: TrialInterstitialProps) => {
+  const nativeIos = isNativeIos();
+
   useEffect(() => {
     trackEvent("trial_interstitial_view", {
       screen: "trial_interstitial",
@@ -42,12 +45,20 @@ const TrialInterstitial = ({ daysLeft, questionCount, topTheme, onUpgrade, onDis
 
       <button
         onClick={() => {
-          trackEvent("upgrade_click", { screen: "trial_interstitial", metadata: { days_left: daysLeft } });
-          onUpgrade();
+          if (nativeIos) {
+            trackEvent("trial_interstitial_dismiss", {
+              screen: "trial_interstitial",
+              metadata: { days_left: daysLeft, native_ios: true },
+            });
+            onDismiss();
+          } else {
+            trackEvent("upgrade_click", { screen: "trial_interstitial", metadata: { days_left: daysLeft } });
+            onUpgrade();
+          }
         }}
         className="w-full font-serif tracking-widest text-sm uppercase py-3 bg-gold text-primary-foreground rounded-sm transition-all hover:bg-gold-dark mb-3"
       >
-        Continue my practice — $6.99/mo
+        {nativeIos ? "Continue free" : "Continue my practice — $6.99/mo"}
       </button>
       <button
         onClick={onDismiss}

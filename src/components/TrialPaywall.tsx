@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useLocalizedPrice } from "@/hooks/useLocalizedPrice";
 import { trackEvent } from "@/lib/trackEvent";
+import { isNativeIos } from "@/lib/nativePlatform";
 
 interface TrialPaywallProps {
   questionCount: number;
@@ -11,6 +12,7 @@ interface TrialPaywallProps {
 const TrialPaywall = ({ questionCount, onUpgrade, onFreePlan }: TrialPaywallProps) => {
   const [downgrading, setDowngrading] = useState(false);
   const { formatPrice, loading: priceLoading } = useLocalizedPrice();
+  const nativeIos = isNativeIos();
 
   const handleFree = async () => {
     setDowngrading(true);
@@ -33,11 +35,11 @@ const TrialPaywall = ({ questionCount, onUpgrade, onFreePlan }: TrialPaywallProp
         </p>
       )}
       <p className="font-body text-sm text-foreground/70 mb-8">
-        Your history and journal are waiting.
+        {nativeIos ? "You can keep studying on the free plan." : "Your history and journal are waiting."}
       </p>
 
       {/* Comparison */}
-      <div className="w-full max-w-md grid grid-cols-2 gap-4 mb-8 text-left">
+      <div className={`w-full max-w-md grid ${nativeIos ? "grid-cols-1" : "grid-cols-2"} gap-4 mb-8 text-left`}>
         <div>
           <p className="font-serif text-xs text-muted-foreground uppercase tracking-widest mb-3">Free plan</p>
           <ul className="space-y-2 font-body text-xs text-foreground/70">
@@ -48,7 +50,7 @@ const TrialPaywall = ({ questionCount, onUpgrade, onFreePlan }: TrialPaywallProp
             <li className="flex items-start gap-1.5"><span className="text-muted-foreground">✗</span> History</li>
           </ul>
         </div>
-        <div>
+        {!nativeIos && <div>
           <p className="font-serif text-xs text-gold uppercase tracking-widest mb-3">Personal plan</p>
           <ul className="space-y-2 font-body text-xs text-foreground/70">
             <li className="flex items-start gap-1.5"><span className="text-gold">✓</span> Unlimited questions</li>
@@ -57,23 +59,28 @@ const TrialPaywall = ({ questionCount, onUpgrade, onFreePlan }: TrialPaywallProp
             <li className="flex items-start gap-1.5"><span className="text-gold">✓</span> History & patterns</li>
             <li className="flex items-start gap-1.5"><span className="text-gold">✓</span> All Bible versions</li>
           </ul>
-        </div>
+        </div>}
       </div>
 
-      <p className="font-serif text-lg text-gold mb-6">
+      {!nativeIos && <p className="font-serif text-lg text-gold mb-6">
         {priceLoading ? "…" : `${formatPrice("personal")}/month`}
-      </p>
+      </p>}
 
       <button
         onClick={() => {
-          trackEvent("upgrade_click", { screen: "trial_paywall", metadata: { question_count: questionCount } });
-          onUpgrade();
+          if (nativeIos) {
+            trackEvent("downgrade_to_free_click", { screen: "trial_paywall", metadata: { native_ios: true } });
+            handleFree();
+          } else {
+            trackEvent("upgrade_click", { screen: "trial_paywall", metadata: { question_count: questionCount } });
+            onUpgrade();
+          }
         }}
         className="w-full max-w-xs font-serif tracking-widest text-sm uppercase py-4 bg-gold text-primary-foreground rounded-sm transition-all hover:bg-gold-dark animate-golden-pulse mb-3"
       >
-        Continue my practice
+        {nativeIos ? "Continue on free plan" : "Continue my practice"}
       </button>
-      <button
+      {!nativeIos && <button
         onClick={() => {
           trackEvent("downgrade_to_free_click", { screen: "trial_paywall" });
           handleFree();
@@ -82,7 +89,7 @@ const TrialPaywall = ({ questionCount, onUpgrade, onFreePlan }: TrialPaywallProp
         className="font-body text-xs text-muted-foreground hover:text-foreground transition-colors py-2 disabled:opacity-50"
       >
         {downgrading ? "Switching…" : "Continue on free plan →"}
-      </button>
+      </button>}
     </div>
   );
 };

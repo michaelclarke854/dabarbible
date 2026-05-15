@@ -1,7 +1,11 @@
 import { Link } from "react-router-dom";
 import { Flame } from "lucide-react";
+import { isNativeIos } from "@/lib/nativePlatform";
 
-const TermsPage = () => (
+const TermsPage = () => {
+  const nativeIos = isNativeIos();
+
+  return (
   <div className="min-h-screen px-6 py-12 max-w-2xl mx-auto">
     <Link to="/" className="flex items-center gap-2 text-gold hover:text-gold-dark transition-colors mb-10">
       <Flame size={16} strokeWidth={1.5} />
@@ -47,9 +51,15 @@ const TermsPage = () => (
         <h2 className="font-serif text-lg text-foreground tracking-wide mb-3">Subscriptions and billing</h2>
         <ul className="space-y-2 list-none">
           <li className="flex items-start gap-2"><span className="text-gold mt-0.5">·</span>Free tier: 3 questions per day, no journal persistence.</li>
-          <li className="flex items-start gap-2"><span className="text-gold mt-0.5">·</span>Paid plans renew automatically at the interval you chose (monthly or annual).</li>
-          <li className="flex items-start gap-2"><span className="text-gold mt-0.5">·</span>You may cancel at any time. Access continues until the end of the current billing period.</li>
-          <li className="flex items-start gap-2"><span className="text-gold mt-0.5">·</span>Refunds are handled on a case-by-case basis within 14 days of purchase.</li>
+          {nativeIos ? (
+            <li className="flex items-start gap-2"><span className="text-gold mt-0.5">·</span>Paid plans are not available in this iOS version.</li>
+          ) : (
+            <>
+              <li className="flex items-start gap-2"><span className="text-gold mt-0.5">·</span>Paid plans renew automatically at the interval you chose (monthly or annual).</li>
+              <li className="flex items-start gap-2"><span className="text-gold mt-0.5">·</span>You may cancel at any time. Access continues until the end of the current billing period.</li>
+              <li className="flex items-start gap-2"><span className="text-gold mt-0.5">·</span>Refunds are handled on a case-by-case basis within 14 days of purchase.</li>
+            </>
+          )}
         </ul>
       </section>
 
@@ -111,6 +121,7 @@ const TermsPage = () => (
       </Link>
     </div>
   </div>
-);
+  );
+};
 
 export default TermsPage;

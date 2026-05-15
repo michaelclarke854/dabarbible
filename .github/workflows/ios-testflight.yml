@@ -4,6 +4,11 @@ on:
   push:
     branches: [main]
   workflow_dispatch:
+    inputs:
+      submit_for_review:
+        description: "Submit the build to App Store review for manual release"
+        required: false
+        default: "false"
 
 jobs:
   build:
@@ -41,7 +46,16 @@ jobs:
         env:
           MATCH_PASSWORD: ${{ secrets.MATCH_PASSWORD }}
           MATCH_GIT_BASIC_AUTHORIZATION: ${{ secrets.MATCH_GIT_BASIC_AUTHORIZATION }}
+          ASC_KEY_ID: ${{ secrets.ASC_KEY_ID }}
+          ASC_ISSUER_ID: ${{ secrets.ASC_ISSUER_ID }}
+          ASC_KEY_CONTENT: ${{ secrets.ASC_KEY_CONTENT }}
           FASTLANE_APPLE_APPLICATION_SPECIFIC_PASSWORD: ${{ secrets.APP_SPECIFIC_PASSWORD }}
           FASTLANE_USER: michaelclarke854@gmail.com
           BUILD_NUMBER: ${{ github.run_number }}
-        run: cd ios/App && fastlane beta
+        run: |
+          cd ios/App
+          if [ "${{ github.event.inputs.submit_for_review }}" = "true" ]; then
+            fastlane release
+          else
+            fastlane beta
+          fi

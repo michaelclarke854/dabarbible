@@ -1,4 +1,5 @@
 import { X } from "lucide-react";
+import { isNativeIos } from "@/lib/nativePlatform";
 
 interface TrialNudgeBannerProps {
   daysLeft: number;
@@ -9,16 +10,19 @@ interface TrialNudgeBannerProps {
 
 const TrialNudgeBanner = ({ daysLeft, variant, onDismiss, onUpgrade }: TrialNudgeBannerProps) => {
   const isPersistent = variant === "day28";
+  const nativeIos = isNativeIos();
 
   return (
     <div className="w-full bg-gold/10 border-b border-gold/20 px-4 py-3 flex items-center justify-between gap-3">
       <p className="font-body text-xs text-foreground/90 leading-relaxed flex-1">
-        {variant === "day14"
-          ? `Your trial continues for ${daysLeft} more days. After that, $6.99/month keeps everything you are building here.`
-          : `Your trial ends in ${daysLeft} days. Continue for $6.99/month.`}
+        {nativeIos
+          ? `Your trial continues for ${daysLeft} more days. After that, you can continue on the free plan.`
+          : variant === "day14"
+            ? `Your trial continues for ${daysLeft} more days. After that, $6.99/month keeps everything you are building here.`
+            : `Your trial ends in ${daysLeft} days. Continue for $6.99/month.`}
       </p>
       <div className="flex items-center gap-2 shrink-0">
-        {variant === "day28" && (
+        {variant === "day28" && !nativeIos && (
           <button
             onClick={onUpgrade}
             className="text-[10px] font-serif tracking-widest uppercase px-3 py-1.5 bg-gold text-primary-foreground rounded-sm hover:bg-gold-dark transition-all"

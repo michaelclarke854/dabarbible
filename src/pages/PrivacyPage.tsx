@@ -1,7 +1,11 @@
 import { Link } from "react-router-dom";
 import { Flame } from "lucide-react";
+import { isNativeIos } from "@/lib/nativePlatform";
 
-const PrivacyPage = () => (
+const PrivacyPage = () => {
+  const nativeIos = isNativeIos();
+
+  return (
   <div className="min-h-screen px-6 py-12 max-w-2xl mx-auto">
     <Link to="/" className="flex items-center gap-2 text-gold hover:text-gold-dark transition-colors mb-10">
       <Flame size={16} strokeWidth={1.5} />
@@ -60,7 +64,7 @@ const PrivacyPage = () => (
         </p>
       </section>
 
-      <section>
+      {!nativeIos && <section>
         <h2 className="font-serif text-lg text-foreground tracking-wide mb-3">Third-party services</h2>
         <p>
           We use Stripe to process payments. Stripe handles your payment information directly —
@@ -69,7 +73,7 @@ const PrivacyPage = () => (
             Stripe's privacy policy
           </a>.
         </p>
-      </section>
+      </section>}
 
       <section>
         <h2 className="font-serif text-lg text-foreground tracking-wide mb-3">Contact</h2>
@@ -89,6 +93,7 @@ const PrivacyPage = () => (
       </Link>
     </div>
   </div>
-);
+  );
+};
 
 export default PrivacyPage;

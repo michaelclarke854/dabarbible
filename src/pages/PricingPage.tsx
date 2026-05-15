@@ -7,6 +7,7 @@ import { useLocalizedPrice } from "@/hooks/useLocalizedPrice";
 import { useAuth } from "@/contexts/AuthContext";
 import { Skeleton } from "@/components/ui/skeleton";
 import { trackEvent } from "@/lib/trackEvent";
+import { isNativeIos } from "@/lib/nativePlatform";
 
 const ALLOWED_CURRENCIES = [
   "usd", "gbp", "eur", "aud", "cad", "nzd", "ngn", "ghs", "kes", "zar", "tzs",
@@ -78,7 +79,9 @@ const PricingPage = () => {
   const [showCurrencyPicker, setShowCurrencyPicker] = useState(false);
   const [portalLoading, setPortalLoading] = useState(false);
 
+  const nativeIos = isNativeIos();
   const isPaid = plan !== "free" && plan !== "trial";
+  const visibleTiers = nativeIos ? tiers.filter((tier) => tier.key === "free") : tiers;
 
   useEffect(() => {
     trackEvent("pricing_view", {
@@ -89,6 +92,10 @@ const PricingPage = () => {
   }, [plan, trial.isOnTrial, user?.id]);
 
   const handleCheckout = async (planKey: string) => {
+    if (nativeIos) {
+      toast("Paid plans are not available in this iOS version.");
+      return;
+    }
     if (planKey === "free") {
       navigate("/");
       return;
@@ -125,6 +132,10 @@ const PricingPage = () => {
   };
 
   const openPortal = async () => {
+    if (nativeIos) {
+      toast("Billing management is not available in this iOS version.");
+      return;
+    }
     setPortalLoading(true);
     try {
       const { data, error } = await supabase.functions.invoke("customer-portal");
@@ -156,6 +167,10 @@ const PricingPage = () => {
       navigate("/");
       return;
     }
+    if (nativeIos) {
+      toast("Paid plans are not available in this iOS version.");
+      return;
+    }
     setConfirmPlan({ key: planKey, displayPrice });
   };
 
@@ -183,13 +198,18 @@ const PricingPage = () => {
       <p className="font-body text-sm text-muted-foreground text-center mb-6">
         Choose the path that meets you where you are.
       </p>
+      {nativeIos && (
+        <p className="font-body text-xs text-muted-foreground text-center mb-8">
+          DABAR for iOS is available on the free plan. Paid plans are not available in this version.
+        </p>
+      )}
 
       {trial.isOnTrial && trial.trialEndsAt && (
         <p className="font-body text-xs text-gold text-center mb-10">
           Your trial continues until {formatTrialDate(trial.trialEndsAt)}. No charge until then.
         </p>
       )}
-      {isPaid && (
+      {isPaid && !nativeIos && (
         <div className="text-center mb-10">
           <p className="font-body text-xs text-muted-foreground mb-2">
             You're on the <span className="text-gold capitalize">{plan}</span> plan.
@@ -206,11 +226,13 @@ const PricingPage = () => {
 
       {/* Trust bar */}
       <div className="flex flex-col sm:flex-row items-center justify-center gap-3 sm:gap-6 mb-10 pb-6 border-b border-border/60">
-        {[
-          "30-day free trial — no card required",
-          "Cancel any time from Settings",
-          "Secure payments via Stripe",
-        ].map((item) => (
+        {(nativeIos
+          ? ["30-day free trial — no card required", "Continue on the free plan any time"]
+          : [
+              "30-day free trial — no card required",
+              "Cancel any time from Settings",
+              "Secure payments via Stripe",
+            ]).map((item) => (
           <div key={item} className="flex items-center gap-2">
             <span className="text-gold text-xs">✦</span>
             <span className="font-body text-xs text-muted-foreground tracking-wide">
@@ -221,7 +243,7 @@ const PricingPage = () => {
       </div>
 
       <div className="space-y-6">
-        {tiers.map((tier) => {
+        {visibleTiers.map((tier) => {
           const displayPrice = getDisplayPrice(tier);
           return (
             <div
@@ -259,7 +281,7 @@ const PricingPage = () => {
                 ))}
               </ul>
 
-              {tier.hasAnnual && (
+              {tier.hasAnnual && !nativeIos && (
                 <label className="flex items-center gap-2 mb-4 cursor-pointer">
                   <input
                     type="checkbox"
@@ -291,7 +313,7 @@ const PricingPage = () => {
         })}
       </div>
 
-      {canOverride && !priceLoading && (
+      {canOverride && !priceLoading && !nativeIos && (
         <div className="text-center mt-6">
           <span className="font-body text-xs text-muted-foreground">
             Showing prices in {currency.toUpperCase()} ·{" "}
@@ -323,9 +345,9 @@ const PricingPage = () => {
       )}
 
       <div className="text-center mt-12 pt-8 border-t border-border">
-        <p className="font-body text-xs text-muted-foreground">
+        {!nativeIos && <p className="font-body text-xs text-muted-foreground">
           Gift a year of wisdom — <span className="text-muted-foreground/70 italic">coming soon</span>
-        </p>
+        </p>}
         <p className="font-body text-xs text-muted-foreground mt-4">
           <button
             onClick={() => navigate("/doctrine")}
@@ -336,7 +358,7 @@ const PricingPage = () => {
         </p>
       </div>
 
-      {confirmPlan && (
+      {confirmPlan && !nativeIos && (
         <BillingConfirmModal
           price={confirmPlan.displayPrice}
           trialEndsAt={trial.isOnTrial ? trial.trialEndsAt : null}

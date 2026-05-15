@@ -15,6 +15,7 @@ const BlogIndex = lazy(() => import("./pages/BlogIndex.tsx"));
 const BlogArticle = lazy(() => import("./pages/BlogArticle.tsx"));
 const PrivacyPage = lazy(() => import("./pages/PrivacyPage.tsx"));
 const TermsPage = lazy(() => import("./pages/TermsPage.tsx"));
+const SupportPage = lazy(() => import("./pages/SupportPage.tsx"));
 const AdminDashboard = lazy(() => import("./pages/AdminDashboard.tsx"));
 const SuspendedPage = lazy(() => import("./pages/SuspendedPage.tsx"));
 const ResetPasswordPage = lazy(() => import("./pages/ResetPasswordPage.tsx"));
@@ -105,6 +106,7 @@ const App = () => (
               <Route path="/blog/:slug" element={<BlogArticle />} />
               <Route path="/privacy" element={<PrivacyPage />} />
               <Route path="/terms" element={<TermsPage />} />
+              <Route path="/support" element={<SupportPage />} />
               <Route path="/admin" element={<AdminDashboard />} />
               <Route path="/suspended" element={<SuspendedPage />} />
               <Route path="/reset-password" element={<ResetPasswordPage />} />

@@ -17,6 +17,13 @@ const OUT_DIR = 'ios/App/fastlane/screenshots/en-US';
     viewport: { width: 430, height: 932 },
     deviceScaleFactor: 3,
   });
+  await ctx.addInitScript(() => {
+    window.CapacitorCustomPlatform = { name: 'ios' };
+    window.Capacitor = {
+      getPlatform: () => 'ios',
+      isNativePlatform: () => true,
+    };
+  });
   const page = await ctx.newPage();
 
   // Screen 1 — Landing hero

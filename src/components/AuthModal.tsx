@@ -29,6 +29,7 @@ const AuthModal = forwardRef<HTMLDivElement, AuthModalProps>(({ isOpen, onClose,
   const [loading, setLoading] = useState(false);
   const [dobError, setDobError] = useState("");
   const [oauthLoading, setOauthLoading] = useState(false);
+  const [oauthProvider, setOauthProvider] = useState<"Apple" | "Google" | null>(null);
   const [oauthError, setOauthError] = useState<string | null>(null);
   const [forgotSent, setForgotSent] = useState(false);
   const [forgotError, setForgotError] = useState("");
@@ -39,6 +40,7 @@ const AuthModal = forwardRef<HTMLDivElement, AuthModalProps>(({ isOpen, onClose,
       setMode(defaultMode ?? (localStorage.getItem(RETURNING_USER_KEY) ? "signin" : "signup"));
       setOauthError(null);
       setOauthLoading(false);
+      setOauthProvider(null);
     }
   }, [isOpen, defaultMode]);
 
@@ -156,30 +158,37 @@ const AuthModal = forwardRef<HTMLDivElement, AuthModalProps>(({ isOpen, onClose,
     }
   };
 
-  const handleGoogle = async () => {
+  const handleOAuth = async (provider: "apple" | "google") => {
+    const providerName = provider === "apple" ? "Apple" : "Google";
     setOauthLoading(true);
+    setOauthProvider(providerName);
     setOauthError(null);
 
     // Mark as returning so the next visit defaults to Sign In
     localStorage.setItem(RETURNING_USER_KEY, "1");
 
-    const result = await lovable.auth.signInWithOAuth("google", {
+    const result = await lovable.auth.signInWithOAuth(provider, {
       redirect_uri: window.location.origin,
     });
 
     if (result.error) {
       setOauthLoading(false);
-      setOauthError(`Google sign-in failed: ${result.error.message || "Unknown error"}. Please try email instead.`);
+      setOauthProvider(null);
+      setOauthError(`${providerName} sign-in failed: ${result.error.message || "Unknown error"}. Please try email instead.`);
       return;
     }
 
     if (!result.redirected) {
       setOauthLoading(false);
-      setOauthError("Google sign-in could not complete. Please try again or use email.");
+      setOauthProvider(null);
+      setOauthError(`${providerName} sign-in could not complete. Please try again or use email.`);
       return;
     }
     // Redirect in progress — overlay persists until return
   };
+
+  const handleApple = () => handleOAuth("apple");
+  const handleGoogle = () => handleOAuth("google");
 
   const inputStyle: React.CSSProperties = {
     background: "rgba(255,255,255,0.04)",
@@ -305,7 +314,7 @@ const AuthModal = forwardRef<HTMLDivElement, AuthModalProps>(({ isOpen, onClose,
         {oauthLoading && (
           <div className="absolute inset-0 z-10 flex flex-col items-center justify-center bg-card/95 backdrop-blur-sm rounded-sm">
             <div className="w-6 h-6 border-2 border-gold/30 border-t-gold rounded-full animate-spin mb-4" />
-            <p className="font-body text-sm text-foreground/80">Connecting to Google…</p>
+            <p className="font-body text-sm text-foreground/80">Connecting to {oauthProvider ?? "sign-in"}…</p>
           </div>
         )}
 
@@ -379,13 +388,22 @@ const AuthModal = forwardRef<HTMLDivElement, AuthModalProps>(({ isOpen, onClose,
           <div className="flex-1 h-px bg-border" />
         </div>
 
-        <button
-          onClick={handleGoogle}
-          disabled={oauthLoading || loading}
-          className="w-full font-body text-sm py-3 border border-border rounded-sm hover:border-gold transition-colors disabled:opacity-50"
-        >
-          {oauthLoading ? "Connecting…" : "Continue with Google"}
-        </button>
+        <div className="space-y-3">
+          <button
+            onClick={handleApple}
+            disabled={oauthLoading || loading}
+            className="w-full font-body text-sm py-3 border border-border rounded-sm hover:border-gold transition-colors disabled:opacity-50 bg-foreground text-background hover:bg-foreground/90"
+          >
+            {oauthLoading && oauthProvider === "Apple" ? "Connecting…" : "Continue with Apple"}
+          </button>
+          <button
+            onClick={handleGoogle}
+            disabled={oauthLoading || loading}
+            className="w-full font-body text-sm py-3 border border-border rounded-sm hover:border-gold transition-colors disabled:opacity-50"
+          >
+            {oauthLoading && oauthProvider === "Google" ? "Connecting…" : "Continue with Google"}
+          </button>
+        </div>
 
         {oauthError && (
           <p className="text-xs text-destructive font-body mt-2 text-center">{oauthError}</p>
