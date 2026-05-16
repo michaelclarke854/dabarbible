@@ -91,6 +91,17 @@ const Index = () => {
   // Cancel in-flight request on unmount
   useEffect(() => () => abortRef.current?.abort(), []);
 
+  // Track initial Ask page_view for anonymous visitors so the engagement-rate
+  // denominator captures all landers (not just those who already engaged).
+  // Fires once per mount when an unauthenticated visitor lands on the ask tab.
+  useEffect(() => {
+    if (isHydrating || authLoading) return;
+    if (user) return;
+    if (tab !== "ask") return;
+    trackEvent("page_view", { screen: "ask", userId: null });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isHydrating, authLoading, user]);
+
   // Trial nudge state — derived from profile, not React state
   const [showInterstitial, setShowInterstitial] = useState(false);
   const [trialQuestionCount, setTrialQuestionCount] = useState(0);
