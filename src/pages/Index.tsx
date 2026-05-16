@@ -87,6 +87,8 @@ const Index = () => {
   const [scriptureDeepLink, setScriptureDeepLink] = useState<{ book: string; chapter: number; verse: number; version?: string } | null>(null);
   const [currentSessionId, setCurrentSessionId] = useState<string | null>(null);
   const abortRef = useRef<AbortController | null>(null);
+  // Guard so page_view{screen:"ask"} fires at most once per mount for anon visitors.
+  const askPageViewFiredRef = useRef(false);
 
   // Cancel in-flight request on unmount
   useEffect(() => () => abortRef.current?.abort(), []);
@@ -98,6 +100,8 @@ const Index = () => {
     if (isHydrating || authLoading) return;
     if (user) return;
     if (tab !== "ask") return;
+    if (askPageViewFiredRef.current) return;
+    askPageViewFiredRef.current = true;
     trackEvent("page_view", { screen: "ask", userId: null });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isHydrating, authLoading, user]);
@@ -500,6 +504,10 @@ const Index = () => {
     }
     setTab(newTab);
     if (newTab === "ask") setScreen("ask");
+    // Avoid double-firing page_view{screen:"ask"} for anon visitors —
+    // the mount effect already covers that case via askPageViewFiredRef.
+    if (newTab === "ask" && !user && askPageViewFiredRef.current) return;
+    if (newTab === "ask" && !user) askPageViewFiredRef.current = true;
     trackEvent("page_view", { screen: newTab, userId: user?.id ?? null });
   };
 
