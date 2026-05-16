@@ -504,6 +504,10 @@ const Index = () => {
     }
     setTab(newTab);
     if (newTab === "ask") setScreen("ask");
+    // Avoid double-firing page_view{screen:"ask"} for anon visitors —
+    // the mount effect already covers that case via askPageViewFiredRef.
+    if (newTab === "ask" && !user && askPageViewFiredRef.current) return;
+    if (newTab === "ask" && !user) askPageViewFiredRef.current = true;
     trackEvent("page_view", { screen: newTab, userId: user?.id ?? null });
   };
 
