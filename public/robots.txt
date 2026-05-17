@@ -12,5 +12,12 @@ Allow: /
 
 User-agent: *
 Allow: /
+Disallow: /admin
+Disallow: /admin/
+Disallow: /pastor
+Disallow: /pastor/
+Disallow: /reset-password
+Disallow: /payment-success
+Disallow: /__visual/
 
 Sitemap: https://dabarbible.com/sitemap.xml
