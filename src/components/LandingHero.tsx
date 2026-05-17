@@ -4,6 +4,7 @@ import { motion, useReducedMotion } from "framer-motion";
 import { fadeUp } from "@/lib/motionVariants";
 import { trackEvent } from "@/lib/trackEvent";
 import { TrustStrip } from "@/components/ask/TrustStrip";
+import { SEO } from "@/components/SEO";
 
 interface LandingHeroProps {
   /** Submit a question directly from the landing screen. */
@@ -96,8 +97,56 @@ export function LandingHero({ onSeekWisdom, isLoading, onSignIn }: LandingHeroPr
       ? { initial: false, animate: { opacity: 1, y: 0 } }
       : fadeUp(delay);
 
+  const faqs = [
+    {
+      q: "Is Dabar Bible free?",
+      a: "Yes. Dabar is free for 30 days with no card required, then $4.99/month for unlimited spiritual questions, daily devotionals, and scripture search.",
+    },
+    {
+      q: "Which Bible translation does Dabar use?",
+      a: "Dabar uses the King James Version (KJV) as its primary scripture source for every answer and devotional.",
+    },
+    {
+      q: "How is Dabar different from YouVersion or Bible Gateway?",
+      a: "Dabar is the only Bible app with a built-in AI companion — ask any spiritual question and receive a scripture-grounded answer, not just a verse list.",
+    },
+    {
+      q: "Does Dabar offer a daily devotional?",
+      a: "Yes. Dabar delivers a fresh daily devotional shaped by your questions, spiritual season, and KJV scripture journey.",
+    },
+    {
+      q: "Can I use Dabar for a Bible reading plan?",
+      a: "Yes. Dabar supports structured KJV Bible reading plans to guide you systematically through scripture.",
+    },
+  ];
+
   return (
     <section className="relative px-6 pt-10 pb-16 sm:pt-14 sm:pb-20 max-w-2xl mx-auto flex flex-col items-center text-center">
+      <SEO
+        title="Dabar Bible — Ask the Bible Anything | AI Devotionals & Scripture Search"
+        description="The first AI Bible companion. Ask any spiritual question, get scripture-backed answers, explore daily devotionals, KJV Bible reading plans, and personalized wisdom — powered by AI."
+        keywords="bible app, free bible, ask the bible, AI bible study, daily devotional, bible reading plan, KJV bible, online bible, bible verses, scripture search, Christian devotional app"
+        canonical="https://dabarbible.com"
+        structuredData={{
+          "@context": "https://schema.org",
+          "@type": "MobileApplication",
+          name: "Dabar Bible",
+          url: "https://dabarbible.com",
+          description:
+            "AI-powered Bible study, devotionals, and scripture search for Christians.",
+          applicationCategory: "LifestyleApplication",
+          operatingSystem: "iOS, Android, Web",
+          offers: { "@type": "Offer", price: "0", priceCurrency: "USD" },
+          mainEntity: {
+            "@type": "FAQPage",
+            mainEntity: faqs.map((f) => ({
+              "@type": "Question",
+              name: f.q,
+              acceptedAnswer: { "@type": "Answer", text: f.a },
+            })),
+          },
+        }}
+      />
       {/* Sign-in link for returning users */}
       <div className="absolute right-4 top-3 sm:right-6 sm:top-4">
         <button
@@ -124,18 +173,27 @@ export function LandingHero({ onSeekWisdom, isLoading, onSignIn }: LandingHeroPr
         >
           AI-powered spiritual discernment
         </p>
-        <h1 className="font-serif text-4xl sm:text-5xl text-foreground tracking-widest">
-          DABAR<span className="sr-only"> — AI-powered spiritual discernment</span>
-        </h1>
+        <div
+          aria-label="Dabar"
+          className="font-serif text-4xl sm:text-5xl text-foreground tracking-widest"
+        >
+          DABAR
+        </div>
         <p className="text-gold scripture-italic text-sm tracking-wider mt-1">
           דָּבָר · The Word
         </p>
       </motion.div>
 
-      {/* Positioning headline */}
-      <motion.p
+      {/* Positioning headline — primary SEO H1 */}
+      <motion.h1
         {...reveal(0.15)}
-        className="font-serif text-lg sm:text-xl text-foreground/90 leading-relaxed max-w-md mt-6"
+        className="font-serif text-2xl sm:text-3xl text-foreground leading-tight max-w-md mt-6"
+      >
+        Ask the Bible Anything
+      </motion.h1>
+      <motion.p
+        {...reveal(0.18)}
+        className="font-serif text-base sm:text-lg text-foreground/85 leading-relaxed max-w-md mt-3"
       >
         {tagline}
       </motion.p>
@@ -254,6 +312,21 @@ export function LandingHero({ onSeekWisdom, isLoading, onSignIn }: LandingHeroPr
         </p>
       </motion.div>
 
+      {/* FAQ — long-tail search targeting */}
+      <motion.div {...reveal(0.55)} className="w-full mt-16 text-left">
+        <h2 className="font-serif text-xl sm:text-2xl text-foreground text-center mb-6">
+          Frequently Asked Questions
+        </h2>
+        <div className="space-y-5">
+          {faqs.map((f) => (
+            <div key={f.q} className="border-t border-gold/20 pt-4">
+              <h3 className="font-serif text-base text-foreground mb-1.5">{f.q}</h3>
+              <p className="font-body text-sm text-foreground/80 leading-relaxed">{f.a}</p>
+            </div>
+          ))}
+        </div>
+      </motion.div>
+
       {/* Footer trust links */}
       <motion.div {...reveal(0.6)} className="mt-12 flex flex-wrap items-center justify-center gap-x-5 gap-y-2 text-[11px] font-body tracking-wider uppercase">
         <Link to="/privacy" className="text-muted-foreground hover:text-gold transition-colors">
@@ -268,6 +341,13 @@ export function LandingHero({ onSeekWisdom, isLoading, onSignIn }: LandingHeroPr
           Terms
         </Link>
       </motion.div>
+
+      {/* Keyword-rich footer summary (low-emphasis, screen-reader friendly) */}
+      <p className="font-body text-[11px] text-muted-foreground/70 leading-relaxed text-center max-w-xl mt-8">
+        Dabar Bible is an AI-powered Bible study app offering daily devotionals, KJV scripture search,
+        and personalized spiritual wisdom. Ask any question and receive scripture-backed answers rooted
+        in the Word of God — a free Bible app for Christians seeking deeper devotional study.
+      </p>
     </section>
   );
 }
