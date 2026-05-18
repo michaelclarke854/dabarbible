@@ -23,7 +23,7 @@ platform :ios do
       scheme: SCHEME,
       configuration: "Release",
       export_method: "app-store",
-      xcargs: "DEVELOPMENT_TEAM=8QL74KS75Z CODE_SIGN_STYLE=Manual CODE_SIGN_IDENTITY='Apple Distribution' PROVISIONING_PROFILE_SPECIFIER='match AppStore com.dabarbible.app'",
+      xcargs: "DEVELOPMENT_TEAM=8QL74KS75Z CODE_SIGN_IDENTITY='Apple Distribution'",
       export_options: {
         provisioningProfiles: {
           "com.dabarbible.app" => "match AppStore com.dabarbible.app"
