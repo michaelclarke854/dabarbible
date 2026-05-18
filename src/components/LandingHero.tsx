@@ -135,7 +135,7 @@ export function LandingHero({ onSeekWisdom, isLoading, onSignIn }: LandingHeroPr
           description:
             "AI-powered Bible study, devotionals, and scripture search for Christians.",
           applicationCategory: "LifestyleApplication",
-          operatingSystem: "iOS, Android, Web",
+          operatingSystem: "iOS, Web",
           offers: { "@type": "Offer", price: "0", priceCurrency: "USD" },
           mainEntity: {
             "@type": "FAQPage",

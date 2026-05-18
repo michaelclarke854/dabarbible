@@ -3,7 +3,6 @@ import { supabase } from "@/integrations/supabase/client";
 import { lovable } from "@/integrations/lovable/index";
 import { toast } from "sonner";
 import { useAuth } from "@/contexts/AuthContext";
-import { isIOSNative } from "@/lib/platform";
 
 interface AuthModalProps {
   isOpen: boolean;
@@ -196,34 +195,6 @@ const AuthModal = forwardRef<HTMLDivElement, AuthModalProps>(({ isOpen, onClose,
     setOauthLoading(true);
     setOauthError(null);
     localStorage.setItem(RETURNING_USER_KEY, "1");
-
-    // Native iOS: use the Apple Sign In plugin (App Store HIG / 4.8.0)
-    if (isIOSNative()) {
-      try {
-        const { SignInWithApple } = await import("@capacitor-community/apple-sign-in");
-        const state = crypto.randomUUID();
-        const res = await SignInWithApple.authorize({
-          clientId: "com.dabarbible.app",
-          redirectURI: "https://crkkimoblnrxpszehmkg.supabase.co/auth/v1/callback",
-          scopes: "email name",
-          state,
-        });
-        const idToken = res?.response?.identityToken;
-        if (!idToken) throw new Error("No identity token returned by Apple.");
-        const { error } = await supabase.auth.signInWithIdToken({
-          provider: "apple",
-          token: idToken,
-        });
-        if (error) throw error;
-        toast.success("Welcome.");
-        onClose();
-      } catch (err: any) {
-        setOauthError(`Apple sign-in failed: ${err?.message || "Unknown error"}.`);
-      } finally {
-        setOauthLoading(false);
-      }
-      return;
-    }
 
     const result = await lovable.auth.signInWithOAuth("apple", {
       redirect_uri: window.location.origin,
