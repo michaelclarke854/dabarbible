@@ -61,9 +61,10 @@ Deno.serve(async (req) => {
       if (createErr) throw createErr;
       reviewerId = created.user!.id;
     } else {
-      // Keep password in sync with current bypass code
+      // Ensure email is confirmed. Avoid re-setting the password here because
+      // Supabase rejects known-weak passwords via updateUserById even though
+      // they were accepted at create time.
       const { error: updErr } = await admin.auth.admin.updateUserById(reviewerId, {
-        password: code,
         email_confirm: true,
       });
       if (updErr) throw updErr;
