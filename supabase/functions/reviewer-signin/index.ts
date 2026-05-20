@@ -61,41 +61,45 @@ Deno.serve(async (req) => {
       if (createErr) throw createErr;
       reviewerId = created.user!.id;
     } else {
-      // Keep password in sync with current bypass code
+      // Ensure email is confirmed. Avoid re-setting the password here because
+      // Supabase rejects known-weak passwords via updateUserById even though
+      // they were accepted at create time.
       const { error: updErr } = await admin.auth.admin.updateUserById(reviewerId, {
-        password: code,
         email_confirm: true,
       });
       if (updErr) throw updErr;
     }
 
-    // Ensure the reviewer profile has full premium-equivalent access (Apple
-    // resubmission 2.3.8 — reviewer must be able to evaluate paid features).
+    // Apple App Review: reviewer must see the expired-trial paywall so the
+    // native iOS RevenueCat/StoreKit purchase flow can be evaluated.
     try {
+      const trialStartedAt = new Date(Date.now() - 31 * 24 * 60 * 60 * 1000).toISOString();
+      const trialEndsAt = new Date(Date.now() - 1 * 24 * 60 * 60 * 1000).toISOString();
       await admin
         .from("profiles")
         .update({
-          role: "personal",
-          plan: "personal",
-          trial_ends_at: new Date(Date.now() + 365 * 24 * 60 * 60 * 1000).toISOString(),
-          trial_converted: true,
+          role: "trial",
+          plan: "trial",
+          trial_started_at: trialStartedAt,
+          trial_ends_at: trialEndsAt,
+          trial_converted: false,
         })
         .eq("user_id", reviewerId);
       await admin.from("subscriptions").upsert(
         {
           user_id: reviewerId,
-          provider: "stripe",
-          status: "active",
-          plan_type: "personal",
-          tier: "personal",
-          current_period_end: new Date(Date.now() + 365 * 24 * 60 * 60 * 1000).toISOString(),
+          provider: "reviewer",
+          status: "expired",
+          plan_type: "trial",
+          tier: "trial",
+          current_period_end: trialEndsAt,
           environment: "production",
           updated_at: new Date().toISOString(),
         },
         { onConflict: "user_id,provider" },
       );
     } catch (entitleErr) {
-      console.warn("reviewer-signin: entitlement upsert failed (non-fatal):", entitleErr);
+      console.warn("reviewer-signin: expired-trial setup failed (non-fatal):", entitleErr);
     }
 
     // Sign in with the password to mint a session for the client
