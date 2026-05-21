@@ -70,11 +70,12 @@ Deno.serve(async (req) => {
       if (updErr) throw updErr;
     }
 
-    // Apple App Review: reviewer must see the expired-trial paywall so the
-    // native iOS RevenueCat/StoreKit purchase flow can be evaluated.
+    // Apple App Review (iOS build 81): no IAP sold in-app yet.
+    // Reviewer should land in an ACTIVE 30-day trial so the full app
+    // experience is reachable without a paywall.
     try {
-      const trialStartedAt = new Date(Date.now() - 31 * 24 * 60 * 60 * 1000).toISOString();
-      const trialEndsAt = new Date(Date.now() - 1 * 24 * 60 * 60 * 1000).toISOString();
+      const trialStartedAt = new Date().toISOString();
+      const trialEndsAt = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString();
       await admin
         .from("profiles")
         .update({
@@ -89,7 +90,7 @@ Deno.serve(async (req) => {
         {
           user_id: reviewerId,
           provider: "reviewer",
-          status: "expired",
+          status: "active",
           plan_type: "trial",
           tier: "trial",
           current_period_end: trialEndsAt,
@@ -99,7 +100,7 @@ Deno.serve(async (req) => {
         { onConflict: "user_id,provider" },
       );
     } catch (entitleErr) {
-      console.warn("reviewer-signin: expired-trial setup failed (non-fatal):", entitleErr);
+      console.warn("reviewer-signin: active-trial setup failed (non-fatal):", entitleErr);
     }
 
     // Sign in with the password to mint a session for the client
