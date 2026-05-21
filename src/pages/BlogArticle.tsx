@@ -1,8 +1,9 @@
 import { useParams, Link, Navigate } from "react-router-dom";
-import { useEffect } from "react";
-import { blogArticles } from "@/data/blogArticles";
+import { useEffect, useState } from "react";
+import { Helmet } from "react-helmet-async";
 import { Flame, ChevronLeft } from "lucide-react";
 import ReactMarkdown from "react-markdown";
+import { supabase } from "@/integrations/supabase/client";
 
 const AUTHOR = {
   name: "The Dabar Editorial Team",
@@ -10,64 +11,111 @@ const AUTHOR = {
     "Written by pastors, theologians, and writers who believe scripture speaks with living authority into every human moment. All articles use the King James Version exclusively.",
 };
 
-function ArticleJsonLd({ article }: { article: (typeof blogArticles)[0] }) {
-  const jsonLd = {
-    "@context": "https://schema.org",
-    "@type": "Article",
-    headline: article.title,
-    description: article.metaDescription,
-    keywords: article.keywords,
-    author: {
-      "@type": "Organization",
-      name: AUTHOR.name,
-      url: "https://dabar.app",
-    },
-    publisher: {
-      "@type": "Organization",
-      name: "Dabar",
-      url: "https://dabar.app",
-    },
-    mainEntityOfPage: {
-      "@type": "WebPage",
-      "@id": `https://dabar.app/blog/${article.slug}`,
-    },
-    inLanguage: "en",
-  };
-
-  return (
-    <script
-      type="application/ld+json"
-      dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
-    />
-  );
+interface Post {
+  slug: string;
+  title: string;
+  meta_title: string | null;
+  meta_description: string | null;
+  og_title: string | null;
+  content: string;
+  excerpt: string | null;
+  published_at: string | null;
+  reading_time_minutes: number | null;
+  author_name: string;
+  primary_keyword: string | null;
+  schema_faq: Array<{ question: string; answer: string }> | null;
 }
 
 const BlogArticle = () => {
   const { slug } = useParams<{ slug: string }>();
-  const article = blogArticles.find((a) => a.slug === slug);
-  const articleIndex = blogArticles.findIndex((a) => a.slug === slug);
-  const nextArticle = articleIndex >= 0 && articleIndex < blogArticles.length - 1 ? blogArticles[articleIndex + 1] : null;
-  const prevArticle = articleIndex > 0 ? blogArticles[articleIndex - 1] : null;
+  const [article, setArticle] = useState<Post | null>(null);
+  const [neighbors, setNeighbors] = useState<{ prev: { slug: string; title: string } | null; next: { slug: string; title: string } | null }>({ prev: null, next: null });
+  const [loading, setLoading] = useState(true);
+  const [notFound, setNotFound] = useState(false);
 
   useEffect(() => {
-    if (article) {
-      document.title = `${article.title} | Dabar — Biblical Wisdom & Prayer`;
-      const metaDesc = document.querySelector('meta[name="description"]');
-      if (metaDesc) metaDesc.setAttribute("content", article.metaDescription);
-      const metaKw = document.querySelector('meta[name="keywords"]');
-      if (metaKw) metaKw.setAttribute("content", article.keywords);
-    }
+    if (!slug) return;
+    setLoading(true);
     window.scrollTo(0, 0);
-    return () => {
-      document.title = "Dabar — Biblical Wisdom & Prayer";
-    };
-  }, [article, slug]);
+    (async () => {
+      const { data, error } = await supabase
+        .from("dabar_blog_posts")
+        .select("slug,title,meta_title,meta_description,og_title,content,excerpt,published_at,reading_time_minutes,author_name,primary_keyword,schema_faq")
+        .eq("slug", slug)
+        .eq("published", true)
+        .maybeSingle();
+      if (error || !data) {
+        setNotFound(true);
+        setLoading(false);
+        return;
+      }
+      setArticle(data as Post);
+      // fetch neighbors by published_at order
+      const { data: list } = await supabase
+        .from("dabar_blog_posts")
+        .select("slug,title,published_at")
+        .eq("published", true)
+        .order("published_at", { ascending: false });
+      if (list) {
+        const idx = list.findIndex((p) => p.slug === slug);
+        setNeighbors({
+          prev: idx > 0 ? { slug: list[idx - 1].slug, title: list[idx - 1].title } : null,
+          next: idx >= 0 && idx < list.length - 1 ? { slug: list[idx + 1].slug, title: list[idx + 1].title } : null,
+        });
+      }
+      setLoading(false);
+    })();
+  }, [slug]);
 
-  if (!article) return <Navigate to="/blog" replace />;
+  if (notFound) return <Navigate to="/blog" replace />;
+  if (loading || !article) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="w-6 h-6 border-2 border-gold/30 border-t-gold rounded-full animate-spin" />
+      </div>
+    );
+  }
+
+  const canonical = `https://dabarbible.com/blog/${article.slug}`;
+  const articleJsonLd = {
+    "@context": "https://schema.org",
+    "@type": "Article",
+    headline: article.meta_title || article.title,
+    description: article.meta_description || article.excerpt,
+    keywords: article.primary_keyword,
+    author: { "@type": "Organization", name: AUTHOR.name, url: "https://dabarbible.com" },
+    publisher: { "@type": "Organization", name: "Dabar Bible", url: "https://dabarbible.com" },
+    mainEntityOfPage: { "@type": "WebPage", "@id": canonical },
+    datePublished: article.published_at,
+    inLanguage: "en",
+  };
+  const faqJsonLd =
+    article.schema_faq && article.schema_faq.length > 0
+      ? {
+          "@context": "https://schema.org",
+          "@type": "FAQPage",
+          mainEntity: article.schema_faq.map((q) => ({
+            "@type": "Question",
+            name: q.question,
+            acceptedAnswer: { "@type": "Answer", text: q.answer },
+          })),
+        }
+      : null;
 
   return (
     <div className="min-h-screen px-6 py-12 max-w-2xl mx-auto">
-      <ArticleJsonLd article={article} />
+      <Helmet>
+        <title>{article.meta_title || `${article.title} | Dabar Bible`}</title>
+        <meta name="description" content={article.meta_description || article.excerpt || ""} />
+        {article.primary_keyword ? <meta name="keywords" content={article.primary_keyword} /> : null}
+        <link rel="canonical" href={canonical} />
+        <meta property="og:title" content={article.og_title || article.meta_title || article.title} />
+        <meta property="og:description" content={article.meta_description || article.excerpt || ""} />
+        <meta property="og:type" content="article" />
+        <meta property="og:url" content={canonical} />
+        <script type="application/ld+json">{JSON.stringify(articleJsonLd)}</script>
+        {faqJsonLd ? <script type="application/ld+json">{JSON.stringify(faqJsonLd)}</script> : null}
+      </Helmet>
 
       <div className="flex items-center justify-between mb-10">
         <Link
@@ -92,7 +140,11 @@ const BlogArticle = () => {
         </h1>
 
         <p className="font-body text-xs text-muted-foreground/60 uppercase tracking-wider mb-8">
-          By {AUTHOR.name}
+          By {article.author_name || AUTHOR.name}
+          {article.published_at
+            ? ` · ${new Date(article.published_at).toLocaleDateString("en-US", { year: "numeric", month: "long", day: "numeric" })}`
+            : ""}
+          {article.reading_time_minutes ? ` · ${article.reading_time_minutes} min read` : ""}
         </p>
 
         <div className="w-12 h-px bg-gold mb-8" />
@@ -141,7 +193,7 @@ const BlogArticle = () => {
           </div>
           <div>
             <p className="font-serif text-sm text-foreground tracking-wide">
-              {AUTHOR.name}
+              {article.author_name || AUTHOR.name}
             </p>
             <p className="font-body text-xs text-muted-foreground leading-relaxed mt-1">
               {AUTHOR.description}
@@ -151,26 +203,26 @@ const BlogArticle = () => {
       </div>
 
       {/* Related Articles */}
-      {(prevArticle || nextArticle) && (
+      {(neighbors.prev || neighbors.next) && (
         <div className="mt-10 pt-8 border-t border-border">
           <p className="font-body text-xs uppercase tracking-widest text-muted-foreground mb-4">
             Continue reading
           </p>
           <div className="space-y-3">
-            {nextArticle && (
+            {neighbors.next && (
               <Link
-                to={`/blog/${nextArticle.slug}`}
+                to={`/blog/${neighbors.next.slug}`}
                 className="block font-serif text-base text-foreground hover:text-gold transition-colors"
               >
-                {nextArticle.title} →
+                {neighbors.next.title} →
               </Link>
             )}
-            {prevArticle && (
+            {neighbors.prev && (
               <Link
-                to={`/blog/${prevArticle.slug}`}
+                to={`/blog/${neighbors.prev.slug}`}
                 className="block font-serif text-base text-foreground hover:text-gold transition-colors"
               >
-                ← {prevArticle.title}
+                ← {neighbors.prev.title}
               </Link>
             )}
           </div>
