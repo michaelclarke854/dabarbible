@@ -1,10 +1,41 @@
+import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
-import { blogArticles } from "@/data/blogArticles";
+import { Helmet } from "react-helmet-async";
 import { Flame } from "lucide-react";
+import { supabase } from "@/integrations/supabase/client";
+
+interface PostRow {
+  slug: string;
+  title: string;
+  excerpt: string | null;
+  meta_description: string | null;
+  published_at: string | null;
+  reading_time_minutes: number | null;
+}
 
 const BlogIndex = () => {
+  const [posts, setPosts] = useState<PostRow[]>([]);
+
+  useEffect(() => {
+    supabase
+      .from("dabar_blog_posts")
+      .select("slug,title,excerpt,meta_description,published_at,reading_time_minutes")
+      .eq("published", true)
+      .order("published_at", { ascending: false })
+      .then(({ data }) => setPosts((data as PostRow[] | null) || []));
+  }, []);
+
   return (
     <div className="min-h-screen px-6 py-12 max-w-2xl mx-auto">
+      <Helmet>
+        <title>The Dabar Bible Blog — KJV Wisdom for Every Season</title>
+        <meta
+          name="description"
+          content="Scripture that meets you where you are. KJV-grounded reflections on anxiety, grief, purpose, prayer, and the practice of daily Bible reading."
+        />
+        <link rel="canonical" href="https://dabarbible.com/blog" />
+      </Helmet>
+
       <Link to="/" className="flex items-center gap-2 text-gold hover:text-gold-dark transition-colors mb-10">
         <Flame size={16} strokeWidth={1.5} />
         <span className="font-serif text-sm tracking-widest uppercase">Dabar</span>
@@ -20,7 +51,7 @@ const BlogIndex = () => {
       <div className="w-12 h-px bg-gold mb-10" />
 
       <div className="space-y-8">
-        {blogArticles.map((article) => (
+        {posts.map((article) => (
           <Link
             key={article.slug}
             to={`/blog/${article.slug}`}
@@ -30,8 +61,13 @@ const BlogIndex = () => {
               {article.title}
             </h2>
             <p className="font-body text-sm text-muted-foreground mt-1 leading-relaxed">
-              {article.metaDescription}
+              {article.excerpt || article.meta_description}
             </p>
+            {article.reading_time_minutes ? (
+              <p className="font-body text-xs text-muted-foreground/60 mt-2 uppercase tracking-widest">
+                {article.reading_time_minutes} min read
+              </p>
+            ) : null}
             <div className="w-8 h-px bg-border mt-6" />
           </Link>
         ))}

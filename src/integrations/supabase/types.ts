@@ -198,6 +198,78 @@ export type Database = {
         }
         Relationships: []
       }
+      dabar_blog_posts: {
+        Row: {
+          article_type: string
+          author_name: string
+          awareness_level: number | null
+          bible_books: string[] | null
+          content: string
+          created_at: string
+          denomination: string | null
+          excerpt: string | null
+          id: string
+          meta_description: string | null
+          meta_title: string | null
+          og_title: string | null
+          pillar_slug: string | null
+          primary_keyword: string | null
+          published: boolean
+          published_at: string | null
+          reading_time_minutes: number | null
+          schema_faq: Json | null
+          slug: string
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          article_type?: string
+          author_name?: string
+          awareness_level?: number | null
+          bible_books?: string[] | null
+          content: string
+          created_at?: string
+          denomination?: string | null
+          excerpt?: string | null
+          id?: string
+          meta_description?: string | null
+          meta_title?: string | null
+          og_title?: string | null
+          pillar_slug?: string | null
+          primary_keyword?: string | null
+          published?: boolean
+          published_at?: string | null
+          reading_time_minutes?: number | null
+          schema_faq?: Json | null
+          slug: string
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          article_type?: string
+          author_name?: string
+          awareness_level?: number | null
+          bible_books?: string[] | null
+          content?: string
+          created_at?: string
+          denomination?: string | null
+          excerpt?: string | null
+          id?: string
+          meta_description?: string | null
+          meta_title?: string | null
+          og_title?: string | null
+          pillar_slug?: string | null
+          primary_keyword?: string | null
+          published?: boolean
+          published_at?: string | null
+          reading_time_minutes?: number | null
+          schema_faq?: Json | null
+          slug?: string
+          title?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       email_send_log: {
         Row: {
           created_at: string
