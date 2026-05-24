@@ -2,7 +2,7 @@ import { createContext, useContext, useState, useEffect, useCallback, useRef, Re
 import { supabase } from "@/integrations/supabase/client";
 import type { User } from "@supabase/supabase-js";
 import { trackEvent } from "@/lib/trackEvent";
-import { initRevenueCat, identifyRevenueCatUser, logoutRevenueCatUser } from "@/lib/revenuecat";
+import { isIOSNative } from "@/lib/platform";
 
 export type UserRole =
   | "super_admin" | "admin" | "beta" | "free" | "personal"
@@ -116,15 +116,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         .single();
 
       if (profile) {
+        const nativeIOS = isIOSNative();
         const profileRole = (profile.role || "free") as UserRole;
-        const profilePlan = (profile.plan || "free") as UserPlan;
+        const profilePlan = (nativeIOS ? "free" : (profile.plan || "free")) as UserPlan;
         setRole(profileRole);
         setPlan(profilePlan);
         setIsSuspended(profile.is_suspended || false);
         setAgeGroup(profile.age_group || null);
         setLanguagePreference(profile.language_preference || "en");
         setPreferredBibleVersion((profile as any).preferred_bible_version || "KJV");
-        setTrial(computeTrialState(profile));
+        setTrial(computeTrialState(nativeIOS ? { ...profile, plan: "free" } : profile));
         setPendingCheckin((profile as any).pending_checkin || false);
         setIsPastor((profile as any).is_pastor || false);
         setPastoralCommunityId((profile as any).pastoral_community_id || null);
@@ -154,8 +155,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setUserEmail(u?.email ?? null);
 
         if (u) {
-          // Identify user with RevenueCat (no-op outside native iOS).
-          void identifyRevenueCatUser(u.id);
           // Identity linking: multiple identities (email + google) sharing
           // the same email are the same account — just use the existing user ID.
           // Supabase already merges them if "Allow linking" is on, but even
@@ -234,7 +233,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             }
           });
         } else {
-          void logoutRevenueCatUser();
           setRole("free");
           setPlan("free");
           setIsSuspended(false);
@@ -251,13 +249,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
     );
 
-    // Initialise RevenueCat with whichever session we already have (anonymous if none).
-    void initRevenueCat(null);
-
     return () => subscription.unsubscribe();
   }, [fetchProfile]);
 
-  const hasFullAccess = FULL_ACCESS_ROLES.includes(role) || (plan === "trial" && !trial.trialExpired);
+  const hasFullAccess = isIOSNative()
+    ? !!user
+    : FULL_ACCESS_ROLES.includes(role) || (plan === "trial" && !trial.trialExpired);
 
   const setPendingConfirmation = useCallback((email: string | null) => {
     if (email) {

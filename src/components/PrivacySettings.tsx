@@ -4,6 +4,7 @@ import { toast } from "sonner";
 import { X, AlertTriangle, Download, Users } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useNavigate } from "react-router-dom";
+import { isIOSNative } from "@/lib/platform";
 
 interface PrivacySettingsProps {
   userId: string;
@@ -13,6 +14,7 @@ interface PrivacySettingsProps {
 const PrivacySettings = ({ userId, onClose }: PrivacySettingsProps) => {
   const { isPastor, refreshProfile } = useAuth();
   const navigate = useNavigate();
+  const nativeIOS = isIOSNative();
   const [activating, setActivating] = useState(false);
   const [reflectionCount, setReflectionCount] = useState(0);
   const [accountEmail, setAccountEmail] = useState("");
@@ -216,7 +218,9 @@ const PrivacySettings = ({ userId, onClose }: PrivacySettingsProps) => {
             <h3 className="font-serif text-sm text-gold uppercase tracking-widest">Export my data</h3>
           </div>
           <p className="font-body text-sm text-muted-foreground leading-relaxed">
-            Download all your data — questions, journal entries, saved verses, patterns, subscriptions, and more — as a JSON file.
+            {nativeIOS
+              ? "Download all your data — questions, journal entries, saved verses, patterns, and more — as a JSON file."
+              : "Download all your data — questions, journal entries, saved verses, patterns, subscriptions, and more — as a JSON file."}
           </p>
           <button
             onClick={handleExportData}
@@ -266,7 +270,9 @@ const PrivacySettings = ({ userId, onClose }: PrivacySettingsProps) => {
             <h3 className="font-serif text-sm text-destructive uppercase tracking-widest">Delete my account and all data</h3>
           </div>
           <p className="font-body text-sm text-muted-foreground leading-relaxed">
-            This will permanently delete your account, cancel any subscription, and remove all associated data.
+            {nativeIOS
+              ? "This will permanently delete your account and remove all associated data."
+              : "This will permanently delete your account, cancel any subscription, and remove all associated data."}
             <span className="text-destructive font-medium"> This cannot be undone.</span>
           </p>
           <div className="space-y-3">

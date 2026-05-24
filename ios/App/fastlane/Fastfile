@@ -12,6 +12,12 @@ platform :ios do
 
   desc "Build a signed .ipa for App Store distribution"
   lane :build do
+    Dir.chdir(File.expand_path("../../..", __dir__)) do
+      sh("node scripts/verify-ios-release-env.mjs")
+      sh("npm run build")
+      sh("npx cap sync ios")
+    end
+
     certificates
 
     increment_build_number(
@@ -25,6 +31,7 @@ platform :ios do
       configuration: "Release",
       export_method: "app-store",
       export_options: {
+        signingCertificate: "8F7820C401F350FCEEA994A1395E46FA05AAFE4A",
         provisioningProfiles: {
           "com.dabarbible.app" => "match AppStore com.dabarbible.app"
         }

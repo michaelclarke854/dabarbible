@@ -8,7 +8,6 @@ import { useAuth } from "@/contexts/AuthContext";
 import { Skeleton } from "@/components/ui/skeleton";
 import { trackEvent } from "@/lib/trackEvent";
 import { isIOSNative } from "@/lib/platform";
-import { purchasePackageById, restorePurchases } from "@/lib/revenuecat";
 
 const ALLOWED_CURRENCIES = [
   "usd", "gbp", "eur", "aud", "cad", "nzd", "ngn", "ghs", "kes", "zar", "tzs",
@@ -81,14 +80,34 @@ const PricingPage = () => {
   const [portalLoading, setPortalLoading] = useState(false);
 
   const isPaid = plan !== "free" && plan !== "trial";
+  const isNativeIOS = isIOSNative();
+  const visibleTiers = isNativeIOS
+    ? tiers
+        .filter((tier) => tier.key === "free")
+        .map((tier) => ({
+          ...tier,
+          name: "iOS Free",
+          description: "Continue with DABAR's core reflection practice in this iOS version.",
+          features: ["Ask daily scripture questions", "Use the native daily practice card", "Save your most recent reflection on this device"],
+          cta: "Continue",
+        }))
+    : tiers;
 
   useEffect(() => {
+    if (isNativeIOS) {
+      navigate("/", { replace: true });
+      return;
+    }
     trackEvent("pricing_view", {
       screen: "pricing",
       metadata: { plan, on_trial: trial.isOnTrial },
       userId: user?.id ?? null,
     });
-  }, [plan, trial.isOnTrial, user?.id]);
+  }, [isNativeIOS, navigate, plan, trial.isOnTrial, user?.id]);
+
+  if (isNativeIOS) {
+    return null;
+  }
 
   const handleCheckout = async (planKey: string) => {
     if (planKey === "free") {
@@ -111,14 +130,8 @@ const PricingPage = () => {
 
     setLoadingPlan(planKey);
     try {
-      // iOS native: route through Apple IAP via RevenueCat (App Store 3.1.1).
       if (isIOSNative()) {
-        const pkgId = `${planKey}_${cycle}`; // e.g. "personal_monthly"
-        const ok = await purchasePackageById(pkgId);
-        if (ok) {
-          toast.success("Subscription active.");
-          navigate("/payment-success");
-        }
+        toast.info("This iOS version uses the free access path.");
         return;
       }
       const { data, error } = await supabase.functions.invoke("create-checkout", {
@@ -137,6 +150,11 @@ const PricingPage = () => {
   };
 
   const openPortal = async () => {
+    if (isNativeIOS) {
+      toast.info("This iOS version uses the free access path.");
+      return;
+    }
+
     setPortalLoading(true);
     try {
       const { data, error } = await supabase.functions.invoke("customer-portal");
@@ -168,6 +186,10 @@ const PricingPage = () => {
       navigate("/");
       return;
     }
+    if (isNativeIOS) {
+      toast.info("This iOS version uses the free access path.");
+      return;
+    }
     setConfirmPlan({ key: planKey, displayPrice });
   };
 
@@ -196,7 +218,9 @@ const PricingPage = () => {
         What are you carrying today?
       </p>
       <p className="font-body text-sm text-muted-foreground text-center mb-6">
-        Choose the path that meets you where you are.
+        {isNativeIOS
+          ? "Continue with the reflection tools available in this iOS version."
+          : "Choose the path that meets you where you are."}
       </p>
 
       {trial.isOnTrial && trial.trialEndsAt && (
@@ -204,7 +228,7 @@ const PricingPage = () => {
           Your trial continues until {formatTrialDate(trial.trialEndsAt)}. No charge until then.
         </p>
       )}
-      {isPaid && (
+      {isPaid && !isNativeIOS && (
         <div className="text-center mb-10">
           <p className="font-body text-xs text-muted-foreground mb-2">
             You're on the <span className="text-gold capitalize">{plan}</span> plan.
@@ -222,9 +246,9 @@ const PricingPage = () => {
       {/* Trust bar */}
       <div className="flex flex-col sm:flex-row items-center justify-center gap-3 sm:gap-6 mb-10 pb-6 border-b border-border/60">
         {[
-          "30-day free trial — no card required",
-          "Cancel any time from Settings",
-          "Secure payments via Stripe",
+          isNativeIOS ? "No card required" : "30-day free trial — no card required",
+          isNativeIOS ? "Free iOS access" : "Cancel any time from Settings",
+          isNativeIOS ? "Core reflection tools included" : "Secure payments via Stripe",
         ].map((item) => (
           <div key={item} className="flex items-center gap-2">
             <span className="text-gold text-xs">✦</span>
@@ -236,7 +260,7 @@ const PricingPage = () => {
       </div>
 
       <div className="space-y-6">
-        {tiers.map((tier) => {
+        {visibleTiers.map((tier) => {
           const displayPrice = getDisplayPrice(tier);
           return (
             <div

@@ -180,6 +180,8 @@ serve(async (req) => {
     const body = await req.json();
     const question = typeof body.question === "string" ? body.question.trim() : "";
     const ageGroup = typeof body.ageGroup === "string" ? body.ageGroup : null;
+    const nativeIOS =
+      body.nativeIOS === true || req.headers.get("X-Dabar-Native-Ios") === "1";
 
     // SECURITY: derive userId from JWT, never trust body. Anonymous if no auth header
     // OR if the bearer is the publishable anon key (role === "anon").
@@ -236,10 +238,10 @@ serve(async (req) => {
         .eq("user_id", userId).single();
 
       if (profile?.age_group) validatedAgeGroup = profile.age_group;
-      if (profile?.role) userRole = profile.role;
+      if (profile?.role && !nativeIOS) userRole = profile.role;
       onboardingIntentKey = (profile as any)?.onboarding_intent_key || null;
 
-      if (profile?.plan === "trial" && profile?.trial_ends_at) {
+      if (!nativeIOS && profile?.plan === "trial" && profile?.trial_ends_at) {
         if (new Date(profile.trial_ends_at) < new Date()) {
           return new Response(JSON.stringify({ error: "trial_expired", message: "Your trial has ended." }),
             { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } });

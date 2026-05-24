@@ -3,6 +3,7 @@ import { motion, useReducedMotion } from "framer-motion";
 import { parseResponse, extractThresholdQuestion, ScriptureCard, type ContentBlock } from "./WisdomResponseBlocks";
 import { Share2 } from "lucide-react";
 import { toast } from "sonner";
+import { nativeSuccess, saveLastReflection, shareReflection } from "@/lib/nativePractice";
 
 const INTENT_LABELS: Record<string, string> = {
   grief:     'Responding with grief in mind',
@@ -277,12 +278,9 @@ const ResponseScreen = ({
 
               const shareText = parts.join("\n\n");
               try {
-                if (navigator.share) {
-                  await navigator.share({ title: "A reflection from DabarBible", text: shareText });
-                } else {
-                  await navigator.clipboard.writeText(shareText);
-                  toast.success("Copied to clipboard");
-                }
+                await saveLastReflection(shareText);
+                await shareReflection("A reflection from DabarBible", shareText);
+                await nativeSuccess();
               } catch {
                 // user cancelled share sheet
               }

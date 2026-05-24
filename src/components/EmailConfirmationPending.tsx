@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
+import { isIOSNative } from "@/lib/platform";
 
 interface EmailConfirmationPendingProps {
   email: string;
@@ -8,6 +9,7 @@ interface EmailConfirmationPendingProps {
 const COOLDOWN_SECONDS = 60;
 
 const EmailConfirmationPending = ({ email }: EmailConfirmationPendingProps) => {
+  const nativeIOS = isIOSNative();
   const [secondsLeft, setSecondsLeft] = useState(0);
   const [sending, setSending] = useState(false);
   const [justSent, setJustSent] = useState(false);
@@ -60,7 +62,9 @@ const EmailConfirmationPending = ({ email }: EmailConfirmationPendingProps) => {
       <p className="font-serif text-base text-gold mb-8">{email}</p>
 
       <p className="font-body text-xs text-muted-foreground mb-6 max-w-xs leading-relaxed">
-        Click the link in your email to activate your account and start your 30-day free trial.
+        {nativeIOS
+          ? "Click the link in your email to activate your account and continue in the iOS experience."
+          : "Click the link in your email to activate your account and start your 30-day free trial."}
       </p>
 
       <button

@@ -354,6 +354,8 @@ serve(async (req) => {
     const body = await req.json();
     const question = typeof body.question === "string" ? body.question.trim() : "";
     const ageGroup = typeof body.ageGroup === "string" ? body.ageGroup : null;
+    const nativeIOS =
+      body.nativeIOS === true || req.headers.get("X-Dabar-Native-Ios") === "1";
 
     // SECURITY: derive userId from JWT, never trust body. Anonymous if no auth header
     // OR if the bearer is the publishable anon key (role === "anon").
@@ -421,11 +423,11 @@ serve(async (req) => {
         supabase.from("user_patterns").select("theme, occurrence, first_seen").eq("user_id", userId),
       ]);
       if (profileResult.data?.age_group) validatedAgeGroup = profileResult.data.age_group;
-      if (profileResult.data?.role) userRole = profileResult.data.role;
+      if (profileResult.data?.role && !nativeIOS) userRole = profileResult.data.role;
       if (patternsResult.data) userPatterns = patternsResult.data;
       onboardingIntentKey = (profileResult.data as any)?.onboarding_intent_key || null;
 
-      if (profileResult.data?.plan === "trial" && profileResult.data?.trial_ends_at) {
+      if (!nativeIOS && profileResult.data?.plan === "trial" && profileResult.data?.trial_ends_at) {
         const trialEnd = new Date(profileResult.data.trial_ends_at);
         if (trialEnd < new Date()) {
           return new Response(

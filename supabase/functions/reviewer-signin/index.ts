@@ -70,37 +70,22 @@ Deno.serve(async (req) => {
       if (updErr) throw updErr;
     }
 
-    // Apple App Review (iOS build 81): no IAP sold in-app yet.
-    // Reviewer should land in an ACTIVE 30-day trial so the full app
-    // experience is reachable without a paywall.
+    // Keep App Review out of paid flows. The native iOS build provides a
+    // free-access review path and should not create a trial/subscription record.
     try {
-      const trialStartedAt = new Date().toISOString();
-      const trialEndsAt = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString();
       await admin
         .from("profiles")
         .update({
-          role: "trial",
-          plan: "trial",
-          trial_started_at: trialStartedAt,
-          trial_ends_at: trialEndsAt,
+          role: "free",
+          plan: "free",
+          trial_started_at: null,
+          trial_ends_at: null,
           trial_converted: false,
         })
         .eq("user_id", reviewerId);
-      await admin.from("subscriptions").upsert(
-        {
-          user_id: reviewerId,
-          provider: "reviewer",
-          status: "active",
-          plan_type: "trial",
-          tier: "trial",
-          current_period_end: trialEndsAt,
-          environment: "production",
-          updated_at: new Date().toISOString(),
-        },
-        { onConflict: "user_id,provider" },
-      );
+      await admin.from("subscriptions").delete().eq("user_id", reviewerId);
     } catch (entitleErr) {
-      console.warn("reviewer-signin: active-trial setup failed (non-fatal):", entitleErr);
+      console.warn("reviewer-signin: free access reset failed (non-fatal):", entitleErr);
     }
 
     // Sign in with the password to mint a session for the client

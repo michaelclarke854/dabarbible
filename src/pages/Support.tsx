@@ -2,6 +2,7 @@ import { useState } from "react";
 import { Link } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
+import { isIOSNative } from "@/lib/platform";
 
 const SUPPORT_EMAIL = "support@dabarbible.com";
 
@@ -9,6 +10,7 @@ type Category = "billing" | "technical" | "content" | "account" | "other";
 
 export default function SupportPage() {
   const { user, userEmail } = useAuth();
+  const nativeIOS = isIOSNative();
   const [form, setForm] = useState({
     email: userEmail ?? "",
     subject: "",
@@ -66,10 +68,18 @@ export default function SupportPage() {
           <h2 className="font-serif text-xl tracking-wide mb-4">Frequently Asked Questions</h2>
           <dl className="space-y-6">
             <div>
-              <dt className="font-serif text-base text-foreground mb-1">How do I cancel my subscription?</dt>
+              <dt className="font-serif text-base text-foreground mb-1">
+                {nativeIOS ? "Is payment required in the iOS app?" : "How do I cancel my subscription?"}
+              </dt>
               <dd className="font-body text-sm text-foreground/70 leading-relaxed">
-                On iPhone: open <span className="text-foreground">Settings → your name → Subscriptions → DABAR</span> and tap Cancel.
-                If you subscribed on the web: sign in and open Settings → Manage Subscription.
+                {nativeIOS ? (
+                  "No. This iOS version provides the available reflection experience without collecting payment information in the app."
+                ) : (
+                  <>
+                    On iPhone: open <span className="text-foreground">Settings → your name → Subscriptions → DABAR</span> and tap Cancel.
+                    If you subscribed on the web: sign in and open Settings → Manage Subscription.
+                  </>
+                )}
               </dd>
             </div>
             <div>
@@ -131,7 +141,7 @@ export default function SupportPage() {
                   onChange={(e) => setForm({ ...form, category: e.target.value as Category })}
                   className="w-full bg-card border border-border rounded-sm px-3 py-2 font-body text-sm text-foreground focus:border-gold outline-none"
                 >
-                  <option value="billing">Billing</option>
+                  <option value="billing">{nativeIOS ? "Account Access" : "Billing"}</option>
                   <option value="technical">Technical Issue</option>
                   <option value="content">Content / Theology</option>
                   <option value="account">Account</option>

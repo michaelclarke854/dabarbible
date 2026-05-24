@@ -1,8 +1,12 @@
 import { Link } from "react-router-dom";
 import { Flame } from "lucide-react";
+import { isIOSNative } from "@/lib/platform";
 
-const TermsPage = () => (
-  <div className="min-h-screen px-6 py-12 max-w-2xl mx-auto">
+const TermsPage = () => {
+  const nativeIOS = isIOSNative();
+
+  return (
+    <div className="min-h-screen px-6 py-12 max-w-2xl mx-auto">
     <Link to="/" className="flex items-center gap-2 text-gold hover:text-gold-dark transition-colors mb-10">
       <Flame size={16} strokeWidth={1.5} />
       <span className="font-serif text-sm tracking-widest uppercase">Dabar</span>
@@ -34,23 +38,33 @@ const TermsPage = () => (
       </section>
 
       <section>
-        <h2 className="font-serif text-lg text-foreground tracking-wide mb-3">Accounts and trials</h2>
+        <h2 className="font-serif text-lg text-foreground tracking-wide mb-3">
+          {nativeIOS ? "Accounts" : "Accounts and trials"}
+        </h2>
         <p>
-          New accounts receive a 30-day free trial with full access. No credit card
-          is required to start a trial. After 30 days, accounts continue on
-          the free plan unless upgraded. You are responsible for keeping your login
-          credentials secure. One person per account — do not share access.
+          {nativeIOS
+            ? "Accounts in this iOS version provide access to the available reflection experience without payment. You are responsible for keeping your login credentials secure. One person per account — do not share access."
+            : "New accounts receive a 30-day free trial with full access. No credit card is required to start a trial. After 30 days, accounts continue with the free access available to them unless changed. You are responsible for keeping your login credentials secure. One person per account — do not share access."}
         </p>
       </section>
 
       <section>
-        <h2 className="font-serif text-lg text-foreground tracking-wide mb-3">Subscriptions and billing</h2>
-        <ul className="space-y-2 list-none">
-          <li className="flex items-start gap-2"><span className="text-gold mt-0.5">·</span>Free tier: 3 questions per day, no journal persistence.</li>
-          <li className="flex items-start gap-2"><span className="text-gold mt-0.5">·</span>Paid plans renew automatically at the interval you chose (monthly or annual).</li>
-          <li className="flex items-start gap-2"><span className="text-gold mt-0.5">·</span>You may cancel at any time. Access continues until the end of the current billing period.</li>
-          <li className="flex items-start gap-2"><span className="text-gold mt-0.5">·</span>Refunds are handled on a case-by-case basis within 14 days of purchase.</li>
-        </ul>
+        <h2 className="font-serif text-lg text-foreground tracking-wide mb-3">
+          {nativeIOS ? "iOS access" : "Subscriptions and billing"}
+        </h2>
+        {nativeIOS ? (
+          <ul className="space-y-2 list-none">
+            <li className="flex items-start gap-2"><span className="text-gold mt-0.5">·</span>This iOS version provides free access to the available reflection experience.</li>
+            <li className="flex items-start gap-2"><span className="text-gold mt-0.5">·</span>You can delete your account and associated data from Account &amp; Privacy settings.</li>
+          </ul>
+        ) : (
+          <ul className="space-y-2 list-none">
+            <li className="flex items-start gap-2"><span className="text-gold mt-0.5">·</span>Free tier: 3 questions per day, no journal persistence.</li>
+            <li className="flex items-start gap-2"><span className="text-gold mt-0.5">·</span>Paid plans renew automatically at the interval you chose (monthly or annual).</li>
+            <li className="flex items-start gap-2"><span className="text-gold mt-0.5">·</span>You may cancel at any time. Access continues until the end of the current billing period.</li>
+            <li className="flex items-start gap-2"><span className="text-gold mt-0.5">·</span>Refunds are handled on a case-by-case basis within 14 days of purchase.</li>
+          </ul>
+        )}
       </section>
 
       <section>
@@ -110,7 +124,8 @@ const TermsPage = () => (
         Return to Dabar
       </Link>
     </div>
-  </div>
-);
+    </div>
+  );
+};
 
 export default TermsPage;

@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
+import { isIOSNative } from "@/lib/platform";
 
 const MAX_ATTEMPTS = 12;
 const POLL_MS = 2000;
@@ -11,8 +12,13 @@ const PaymentSuccessPage = () => {
   const { refreshProfile, user } = useAuth();
   const [activated, setActivated] = useState(false);
   const [timedOut, setTimedOut] = useState(false);
+  const nativeIOS = isIOSNative();
 
   useEffect(() => {
+    if (nativeIOS) {
+      navigate("/", { replace: true });
+      return;
+    }
     if (!user) return;
     let cancelled = false;
     let attempts = 0;
@@ -45,7 +51,11 @@ const PaymentSuccessPage = () => {
 
     poll();
     return () => { cancelled = true; };
-  }, [user, refreshProfile, navigate]);
+  }, [nativeIOS, user, refreshProfile, navigate]);
+
+  if (nativeIOS) {
+    return null;
+  }
 
   return (
     <div className="min-h-screen flex flex-col items-center justify-center px-6 text-center">

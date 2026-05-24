@@ -6,6 +6,7 @@
   "scripts": {
     "dev": "vite",
     "build": "vite build",
+    "build:ios": "node scripts/verify-ios-release-env.mjs && vite build && npx cap sync ios",
     "build:dev": "vite build --mode development",
     "lint": "eslint .",
     "preview": "vite preview",
@@ -21,7 +22,11 @@
   "dependencies": {
     "@capacitor/cli": "^8.3.1",
     "@capacitor/core": "^8.3.1",
+    "@capacitor/haptics": "^8.0.2",
     "@capacitor/ios": "^8.3.1",
+    "@capacitor/local-notifications": "^8.2.0",
+    "@capacitor/preferences": "^8.0.1",
+    "@capacitor/share": "^8.0.1",
     "@capacitor/splash-screen": "^8.0.1",
     "@hookform/resolvers": "^3.10.0",
     "@lovable.dev/cloud-auth-js": "^1.1.2",
@@ -52,7 +57,6 @@
     "@radix-ui/react-toggle": "^1.1.9",
     "@radix-ui/react-toggle-group": "^1.1.10",
     "@radix-ui/react-tooltip": "^1.2.7",
-    "@revenuecat/purchases-capacitor": "^13.1.0",
     "@supabase/supabase-js": "^2.103.0",
     "@tanstack/query-core": "^5.100.5",
     "@tanstack/react-query": "^5.83.0",

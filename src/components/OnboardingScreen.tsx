@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { isIOSNative } from "@/lib/platform";
 
 interface OnboardingScreenProps {
   onBegin: () => void;
@@ -40,6 +41,7 @@ const ContinueLink = ({ text, onClick }: { text: string; onClick: () => void }) 
 
 const OnboardingScreen = ({ onBegin }: OnboardingScreenProps) => {
   const [visible, setVisible] = useState(false);
+  const nativeIOS = isIOSNative();
 
   useEffect(() => {
     const t = setTimeout(() => setVisible(true), 200);
@@ -70,7 +72,7 @@ const OnboardingScreen = ({ onBegin }: OnboardingScreenProps) => {
       {/* 1. Hero CTA — primary */}
       <PrimaryCta
         text="Ask your first question — free"
-        subtext="Try free for 30 days — no card needed."
+        subtext={nativeIOS ? "No payment required in this iOS version." : "Try free for 30 days — no card needed."}
         onClick={onBegin}
       />
 
@@ -217,7 +219,7 @@ const OnboardingScreen = ({ onBegin }: OnboardingScreenProps) => {
           {/* 2. Final primary CTA */}
           <PrimaryCta
             text="Begin seeking"
-            subtext="30 days free. No credit card. Cancel anytime."
+            subtext={nativeIOS ? "No card required." : "30 days free. No credit card. Cancel anytime."}
             onClick={onBegin}
           />
         </div>
@@ -234,8 +236,12 @@ const OnboardingScreen = ({ onBegin }: OnboardingScreenProps) => {
 
           {/* Links */}
           <div className="flex items-center justify-center gap-4 text-xs font-body text-gold/70">
-            <a href="/pricing" className="hover:text-gold transition-colors">Pricing</a>
-            <span>·</span>
+            {!nativeIOS && (
+              <>
+                <a href="/pricing" className="hover:text-gold transition-colors">Pricing</a>
+                <span>·</span>
+              </>
+            )}
             <a href="/privacy" className="hover:text-gold transition-colors">Privacy Policy</a>
             <span>·</span>
             <a href="/terms" className="hover:text-gold transition-colors">Terms</a>

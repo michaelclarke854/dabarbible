@@ -23,12 +23,14 @@ import DailyVerseOptIn from "@/components/DailyVerseOptIn";
 import { parseScriptureRef } from "@/data/kjvBooks";
 import { useAuth } from "@/contexts/AuthContext";
 import { trackEvent } from "@/lib/trackEvent";
+import { isIOSNative } from "@/lib/platform";
 
 const JournalScreen = lazy(() => import("@/components/JournalScreen"));
 const ScriptureScreen = lazy(() => import("@/components/ScriptureScreen"));
 const HistoryScreen = lazy(() => import("@/components/HistoryScreen"));
 const LanguageSettings = lazy(() => import("@/components/LanguageSettings"));
 const PrivacySettings = lazy(() => import("@/components/PrivacySettings"));
+const NativeDailyPractice = lazy(() => import("@/components/NativeDailyPractice"));
 
 type Tab = "ask" | "scripture" | "history" | "journal";
 type Screen = "ask" | "response";
@@ -61,6 +63,8 @@ const Index = () => {
     refreshProfile, loading: authLoading, isHydrating, emailUnconfirmed, userEmail, trial, needsOnboardingIntent,
     needsAgeGate, pendingCheckin,
   } = useAuth();
+  const nativeIOS = isIOSNative();
+  const effectiveHasFullAccess = nativeIOS ? !!user : hasFullAccess;
 
   
   
@@ -187,7 +191,7 @@ const Index = () => {
 
   const checkDailyLimit = useCallback(async (): Promise<boolean> => {
     if (!user) return true;
-    if (hasFullAccess) return true;
+    if (effectiveHasFullAccess) return true;
 
     const today = new Date().toISOString().split("T")[0];
     const { data } = await supabase
@@ -206,7 +210,7 @@ const Index = () => {
       return false;
     }
     return true;
-  }, [user, hasFullAccess, navigate]);
+  }, [user, effectiveHasFullAccess, navigate]);
 
   const incrementDailyUsage = useCallback(async () => {
     if (!user) return;
@@ -301,6 +305,7 @@ const Index = () => {
             "Content-Type": "application/json",
             Authorization: `Bearer ${bearer}`,
             apikey: import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
+            "X-Dabar-Native-Ios": nativeIOS ? "1" : "0",
           },
           body: JSON.stringify({
             question,
@@ -308,6 +313,7 @@ const Index = () => {
             ageGroup: ageGroup || null,
             language: languagePreference,
             scriptureVersion: preferredBibleVersion,
+            nativeIOS,
           }),
         });
 
@@ -319,7 +325,12 @@ const Index = () => {
           }
           if (err.error === "rate_limited" || response.status === 429) {
             if (!user) {
-              openAuthModal('rate_limited', "You've reached the free limit. Sign up for a 30-day free trial with unlimited questions.");
+              openAuthModal(
+                'rate_limited',
+                nativeIOS
+                  ? "You've reached the guest limit. Sign in to continue with the iOS reflection experience."
+                  : "You've reached the free limit. Sign up for a 30-day free trial with unlimited questions."
+              );
             } else {
               toast.error(err.error || "You've asked many questions recently. Please wait a while.");
             }
@@ -416,18 +427,27 @@ const Index = () => {
         setIsStreaming(false);
       }
     },
-    [user, ageGroup, needsAgeGate, checkDailyLimit, incrementDailyUsage, refreshProfile, languagePreference, preferredBibleVersion, crisisActive]
+    [user, ageGroup, needsAgeGate, checkDailyLimit, incrementDailyUsage, refreshProfile, languagePreference, preferredBibleVersion, crisisActive, nativeIOS]
   );
 
   const reflectOnThis = useCallback(async () => {
     if (!user) {
-      openAuthModal('reflect_save', "Create a free account to save this reflection — 30 days free, no card needed.");
+      openAuthModal(
+        'reflect_save',
+        nativeIOS
+          ? "Sign in to save this reflection in the iOS experience."
+          : "Create a free account to save this reflection — 30 days free, no card needed."
+      );
       return;
     }
-    if (!hasFullAccess) {
-      toast("Journal requires a Personal plan or above.", {
-        action: { label: "View Plans", onClick: () => navigate("/pricing") },
-      });
+    if (!effectiveHasFullAccess) {
+      if (nativeIOS) {
+        toast("Journal is available after signing in.");
+      } else {
+        toast("Journal requires a Personal plan or above.", {
+          action: { label: "View Plans", onClick: () => navigate("/pricing") },
+        });
+      }
       return;
     }
     if (!currentResponse) return;
@@ -461,7 +481,7 @@ const Index = () => {
     } finally {
       setIsSaving(false);
     }
-  }, [user, currentResponse, currentSessionId, hasFullAccess, navigate]);
+  }, [user, currentResponse, currentSessionId, effectiveHasFullAccess, navigate]);
 
   const handleScriptureDeepLink = useCallback((ref: string, version?: string) => {
     const parsed = parseScriptureRef(ref);
@@ -472,34 +492,43 @@ const Index = () => {
   }, [preferredBibleVersion]);
 
   const handleTabChange = (newTab: Tab) => {
-    if (newTab === "scripture" && !hasFullAccess && user) {
-      toast("Scripture tab requires a paid plan.", {
-        action: { label: "View Plans", onClick: () => navigate("/pricing") },
-      });
+    if (newTab === "scripture" && !effectiveHasFullAccess && user) {
+      toast("Scripture is available after signing in.");
       return;
     }
     if (newTab === "scripture" && !user) {
-      openAuthModal('nav_scripture', "Create a free account to access the full Scripture companion — 30 days free, no card needed.");
+      openAuthModal(
+        'nav_scripture',
+        nativeIOS
+          ? "Sign in to access the Scripture companion in the iOS experience."
+          : "Create a free account to access the full Scripture companion — 30 days free, no card needed."
+      );
       return;
     }
     if (newTab === "history" && !user) {
-      openAuthModal('nav_history', "Create a free account to view your history — 30 days free, no card needed.");
+      openAuthModal(
+        'nav_history',
+        nativeIOS
+          ? "Sign in to view your history in the iOS experience."
+          : "Create a free account to view your history — 30 days free, no card needed."
+      );
       return;
     }
-    if (newTab === "history" && !hasFullAccess) {
-      toast("History requires a Personal plan or above.", {
-        action: { label: "View Plans", onClick: () => navigate("/pricing") },
-      });
+    if (newTab === "history" && !effectiveHasFullAccess) {
+      toast("History is available after signing in.");
       return;
     }
     if (newTab === "journal" && !user) {
-      openAuthModal('nav_journal', "Create a free account to keep your journal — 30 days free, no card needed.");
+      openAuthModal(
+        'nav_journal',
+        nativeIOS
+          ? "Sign in to keep your journal in the iOS experience."
+          : "Create a free account to keep your journal — 30 days free, no card needed."
+      );
       return;
     }
-    if (newTab === "journal" && !hasFullAccess) {
-      toast("Journal requires a Personal plan or above.", {
-        action: { label: "View Plans", onClick: () => navigate("/pricing") },
-      });
+    if (newTab === "journal" && !effectiveHasFullAccess) {
+      toast("Journal is available after signing in.");
       return;
     }
     setTab(newTab);
@@ -517,6 +546,10 @@ const Index = () => {
       metadata: { plan: plan, on_trial: trial.isOnTrial, days_left: trial.daysLeft },
       userId: user?.id ?? null,
     });
+    if (isIOSNative()) {
+      toast.info("This iOS version uses the free access path.");
+      return;
+    }
     navigate("/pricing");
   };
 
@@ -556,9 +589,8 @@ const Index = () => {
   }
 
   const showAuthModal = authModal.open;
-
   // Trial paywall: show if trial expired and still on trial plan
-  if (user && trial.trialExpired) {
+  if (user && trial.trialExpired && !nativeIOS) {
     trackEvent("paywall_view", { screen: "trial_paywall", userId: user.id });
     return (
       <TrialPaywall
@@ -570,8 +602,8 @@ const Index = () => {
   }
 
   // Nudge display — derived from profile, not React state
-  const showDay14Banner = trial.isOnTrial && trial.daysLeft <= 16 && trial.daysLeft > 9 && !trial.trialNudgeSent.day14 && !trial.trialConverted;
-  const showDay28Banner = trial.isOnTrial && trial.daysLeft <= 2 && !trial.trialConverted;
+  const showDay14Banner = !nativeIOS && trial.isOnTrial && trial.daysLeft <= 16 && trial.daysLeft > 9 && !trial.trialNudgeSent.day14 && !trial.trialConverted;
+  const showDay28Banner = !nativeIOS && trial.isOnTrial && trial.daysLeft <= 2 && !trial.trialConverted;
 
   // Soft gate overlay for guest limit
   const renderSoftGate = () => {
@@ -620,20 +652,23 @@ const Index = () => {
                   Unlock your full answer
                 </p>
                 <p className="font-body text-xs text-muted-foreground mb-4 leading-relaxed">
-                  Start your 30-day free trial — unlimited questions, full
-                  responses, journal access. No card required.
+                  {nativeIOS
+                    ? "Sign in to continue with scripture reflection, history, and journal access in this iOS experience."
+                    : "Start your 30-day free trial — unlimited questions, full responses, journal access. No card required."}
                 </p>
                 <button
                   onClick={() => {
                     trackEvent("soft_gate_signup_clicked", { screen: "response" });
                     openAuthModal(
                       "soft_gate_cta",
-                      "Start your 30-day free trial — unlimited questions, full responses, journal access."
+                      nativeIOS
+                        ? "Sign in to continue with the iOS reflection experience."
+                        : "Start your 30-day free trial — unlimited questions, full responses, journal access."
                     );
                   }}
                   className="w-full font-serif text-sm tracking-widest uppercase py-3 bg-gold text-primary-foreground rounded-sm hover:bg-gold-dark transition-all mb-3"
                 >
-                  Start free trial
+                  {nativeIOS ? "Sign in" : "Start free trial"}
                 </button>
                 <p className="text-xs font-body text-muted-foreground">
                   Already have an account?{" "}
@@ -672,7 +707,7 @@ const Index = () => {
       )}
 
       {/* Day 21 interstitial */}
-      {showInterstitial && (
+      {showInterstitial && !nativeIOS && (
         <TrialInterstitial
           daysLeft={trial.daysLeft}
           questionCount={trialQuestionCount}
@@ -714,20 +749,30 @@ const Index = () => {
                 onDismissWithCrisisState={(stillStruggling) => setCrisisActive(stillStruggling)}
               />
             ) : !user && getGuestQuestionsUsed() === 0 ? (
-              <LandingHero
-                onSeekWisdom={seekWisdom}
-                isLoading={isLoading}
-                onSignIn={() =>
-                  openAuthModal("landing_signin", "Welcome back. Sign in to continue.")
-                }
-              />
+              <>
+                <Suspense fallback={null}>
+                  <NativeDailyPractice />
+                </Suspense>
+                <LandingHero
+                  onSeekWisdom={seekWisdom}
+                  isLoading={isLoading}
+                  onSignIn={() =>
+                    openAuthModal("landing_signin", "Welcome back. Sign in to continue.")
+                  }
+                />
+              </>
             ) : (
-              <AskScreen
-                onSeekWisdom={seekWisdom}
-                isLoading={isLoading}
-                guestQuestionsUsed={!user ? getGuestQuestionsUsed() : undefined}
-                guestLimit={!user ? GUEST_LIMIT : undefined}
-              />
+              <>
+                <Suspense fallback={null}>
+                  <NativeDailyPractice />
+                </Suspense>
+                <AskScreen
+                  onSeekWisdom={seekWisdom}
+                  isLoading={isLoading}
+                  guestQuestionsUsed={!user ? getGuestQuestionsUsed() : undefined}
+                  guestLimit={!user ? GUEST_LIMIT : undefined}
+                />
+              </>
             )
           ) : currentResponse ? (
             <>
@@ -742,7 +787,7 @@ const Index = () => {
                 onStir={(thresholdQ) => {
                   reflectOnThis().then(() => {
                     if (!user) return;
-                    if (!hasFullAccess) return;
+                    if (!effectiveHasFullAccess) return;
                     setStirPrompt(thresholdQ);
                     setTab("journal");
                   });
@@ -790,7 +835,7 @@ const Index = () => {
             <JournalScreen
               stirPrompt={stirPrompt}
               onStirConsumed={() => setStirPrompt(null)}
-              isFreePlan={plan === "free"}
+              isFreePlan={!nativeIOS && plan === "free"}
               onUpgrade={handleUpgrade}
               onSignIn={() => openAuthModal("journal_gate", "Sign in to access your journal")}
             />
@@ -822,7 +867,7 @@ const Index = () => {
               tab === "scripture" ? "text-gold" : "text-muted-foreground"
             }`}
           >
-            {!hasFullAccess && user ? <Lock size={18} strokeWidth={1.5} aria-hidden="true" /> : <BookText size={18} strokeWidth={1.5} aria-hidden="true" />}
+            {!effectiveHasFullAccess && user ? <Lock size={18} strokeWidth={1.5} aria-hidden="true" /> : <BookText size={18} strokeWidth={1.5} aria-hidden="true" />}
             <span className="font-serif text-[10px] tracking-widest uppercase">Scripture</span>
           </button>
           <button
@@ -834,7 +879,7 @@ const Index = () => {
               tab === "history" ? "text-gold" : "text-muted-foreground"
             }`}
           >
-            {!hasFullAccess && user ? <Lock size={18} strokeWidth={1.5} aria-hidden="true" /> : <Clock size={18} strokeWidth={1.5} aria-hidden="true" />}
+            {!effectiveHasFullAccess && user ? <Lock size={18} strokeWidth={1.5} aria-hidden="true" /> : <Clock size={18} strokeWidth={1.5} aria-hidden="true" />}
             <span className="font-serif text-[10px] tracking-widest uppercase">History</span>
           </button>
           <button
@@ -846,7 +891,7 @@ const Index = () => {
               tab === "journal" ? "text-gold" : "text-muted-foreground"
             }`}
           >
-            {!hasFullAccess && user ? <Lock size={18} strokeWidth={1.5} aria-hidden="true" /> : <BookOpen size={18} strokeWidth={1.5} aria-hidden="true" />}
+            {!effectiveHasFullAccess && user ? <Lock size={18} strokeWidth={1.5} aria-hidden="true" /> : <BookOpen size={18} strokeWidth={1.5} aria-hidden="true" />}
             <span className="font-serif text-[10px] tracking-widest uppercase">Journal</span>
           </button>
         </div>
@@ -855,7 +900,7 @@ const Index = () => {
       {/* Top bar */}
       {(hasOnboarded || user) && <div className={`fixed ${(showDay14Banner || showDay28Banner) ? "top-10" : "top-0"} left-0 right-0 z-20 flex justify-between items-center px-4 py-3`}>
         <div className="flex items-center gap-2">
-          {user && !hasFullAccess && (
+          {user && !hasFullAccess && !nativeIOS && (
             <button
               onClick={() => navigate("/pricing")}
               className="text-[10px] font-body tracking-wider uppercase text-gold hover:text-gold-dark transition-colors border border-gold/30 px-3 py-1 rounded-sm"
@@ -868,7 +913,7 @@ const Index = () => {
           )}
         </div>
         <div className="flex items-center gap-3">
-          {trial.isOnTrial && trial.trialEndsAt && (
+          {!nativeIOS && trial.isOnTrial && trial.trialEndsAt && (
             <TrialBadge trialEndsAt={trial.trialEndsAt} />
           )}
           {role === "super_admin" && (
@@ -890,10 +935,11 @@ const Index = () => {
           {user && (
             <button
               onClick={() => setShowPrivacySettings(true)}
-              className="text-muted-foreground hover:text-gold transition-colors"
-              aria-label="Settings"
+              className="inline-flex min-h-[44px] items-center gap-2 rounded-sm border border-border px-3 py-2 text-xs font-body text-muted-foreground transition-colors hover:border-gold/60 hover:text-gold"
+              aria-label="Account and privacy settings"
             >
               <Settings size={16} aria-hidden="true" />
+              <span className="hidden sm:inline">Account & Privacy</span>
             </button>
           )}
           {user && (

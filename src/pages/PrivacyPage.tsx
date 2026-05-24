@@ -1,8 +1,12 @@
 import { Link } from "react-router-dom";
 import { Flame } from "lucide-react";
+import { isIOSNative } from "@/lib/platform";
 
-const PrivacyPage = () => (
-  <div className="min-h-screen px-6 py-12 max-w-2xl mx-auto">
+const PrivacyPage = () => {
+  const nativeIOS = isIOSNative();
+
+  return (
+    <div className="min-h-screen px-6 py-12 max-w-2xl mx-auto">
     <Link to="/" className="flex items-center gap-2 text-gold hover:text-gold-dark transition-colors mb-10">
       <Flame size={16} strokeWidth={1.5} />
       <span className="font-serif text-sm tracking-widest uppercase">Dabar</span>
@@ -62,13 +66,21 @@ const PrivacyPage = () => (
 
       <section>
         <h2 className="font-serif text-lg text-foreground tracking-wide mb-3">Third-party services</h2>
-        <p>
-          We use Stripe to process payments. Stripe handles your payment information directly —
-          we never see or store your card details. You can review{" "}
-          <a href="https://stripe.com/privacy" target="_blank" rel="noopener noreferrer" className="text-gold hover:underline">
-            Stripe's privacy policy
-          </a>.
-        </p>
+        {nativeIOS ? (
+          <p>
+            This iOS version uses Supabase for account access and data storage, Lovable for
+            account authentication, and our AI provider to generate scripture reflections.
+            The iOS app does not collect payment card details.
+          </p>
+        ) : (
+          <p>
+            We use Stripe for web subscriptions. Stripe handles your payment information directly;
+            we never see or store your card details. You can review{" "}
+            <a href="https://stripe.com/privacy" target="_blank" rel="noopener noreferrer" className="text-gold hover:underline">
+              Stripe's privacy policy
+            </a>.
+          </p>
+        )}
       </section>
 
       <section>
@@ -88,7 +100,8 @@ const PrivacyPage = () => (
         Return to Dabar
       </Link>
     </div>
-  </div>
-);
+    </div>
+  );
+};
 
 export default PrivacyPage;
