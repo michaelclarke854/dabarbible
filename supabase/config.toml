@@ -39,3 +39,7 @@ project_id = "crkkimoblnrxpszehmkg"
     verify_jwt = false
   [functions.reviewer-signin]
     verify_jwt = false
+  [functions.public-health]
+    verify_jwt = false
+  [functions.public-stats]
+    verify_jwt = false
