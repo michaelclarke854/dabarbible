@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { isIOSNative } from "@/lib/platform";
 import { trackEvent } from "@/lib/trackEvent";
@@ -37,6 +37,7 @@ function pushAttempt(email: string): number[] {
 
 const EmailConfirmationPending = ({ email }: EmailConfirmationPendingProps) => {
   const nativeIOS = isIOSNative();
+  const navigate = useNavigate();
   const [secondsLeft, setSecondsLeft] = useState(0);
   const [sending, setSending] = useState(false);
   const [justSent, setJustSent] = useState(false);
@@ -85,12 +86,25 @@ const EmailConfirmationPending = ({ email }: EmailConfirmationPendingProps) => {
   const handleSignOut = async () => {
     trackEvent("confirmation_change_email_click");
     await supabase.auth.signOut();
+    navigate("/?auth_modal=signup", { replace: true });
+  };
+
+  const handleGuestBypass = () => {
+    trackEvent("confirmation_guest_bypass_click");
+    try {
+      localStorage.setItem("dabar_guest_bypass", "true");
+    } catch {
+      // ignore
+    }
+    navigate("/", { replace: true });
+    // Force a re-render of the gate condition in Index.tsx
+    window.location.reload();
   };
 
   const buttonLabel = sending
     ? "Sending…"
     : justSent
-      ? "Sent ✓"
+      ? "Sent — check your spam folder too"
       : secondsLeft > 0
         ? `Resend in ${secondsLeft}s`
         : "Resend confirmation email";
@@ -139,8 +153,25 @@ const EmailConfirmationPending = ({ email }: EmailConfirmationPendingProps) => {
         onClick={handleSignOut}
         className="font-body text-xs text-muted-foreground hover:text-foreground transition-colors py-2"
       >
-        Wrong email? Sign up again →
+        Wrong email address? Sign up again →
       </button>
+
+      <button
+        onClick={handleGuestBypass}
+        className="font-body text-xs text-muted-foreground hover:text-gold transition-colors py-2 mt-1"
+      >
+        Continue with limited access →
+      </button>
+
+      <p className="font-body text-[11px] text-muted-foreground/60 mt-6 max-w-xs">
+        Still not arriving? Contact us:{" "}
+        <a
+          href="mailto:support@dabarbible.com"
+          className="text-gold/80 hover:text-gold underline underline-offset-2"
+        >
+          support@dabarbible.com
+        </a>
+      </p>
     </div>
   );
 };
