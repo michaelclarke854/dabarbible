@@ -163,12 +163,24 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
           // Check for unconfirmed email
           if (!u.email_confirmed_at) {
-            setEmailUnconfirmed(true);
+            // Honor the guest-bypass escape hatch so the user can use the
+            // app in anonymous mode while their confirmation email is delayed.
+            const bypass =
+              typeof window !== "undefined" &&
+              localStorage.getItem("dabar_guest_bypass") === "true";
+            setEmailUnconfirmed(!bypass);
             setIsHydrating(false);
             setLoading(false);
             return;
           }
           setEmailUnconfirmed(false);
+          // Email confirmed — clear the guest bypass flag so future sign-ins
+          // behave normally.
+          try {
+            localStorage.removeItem("dabar_guest_bypass");
+          } catch {
+            // ignore
+          }
           setNeedsAgeGate(false);
           fetchProfile(u.id).then(() => {
             // If user signed in/up via an invite link, complete the join flow.
