@@ -82,6 +82,7 @@ const Index = () => {
   const [isStreaming, setIsStreaming] = useState(false);
   const [agentStage, setAgentStage] = useState<"thinking" | "scripture" | "reflecting" | null>(null);
   const [authModal, setAuthModal] = useState<{ open: boolean; message?: string }>({ open: false });
+  const [authModalMode, setAuthModalMode] = useState<"signin" | "signup" | undefined>(undefined);
   const [stirPrompt, setStirPrompt] = useState<string | null>(null);
   const [showLanguageSettings, setShowLanguageSettings] = useState(false);
   const [showPrivacySettings, setShowPrivacySettings] = useState(false);
@@ -96,6 +97,34 @@ const Index = () => {
 
   // Cancel in-flight request on unmount
   useEffect(() => () => abortRef.current?.abort(), []);
+
+  // Read recovery params from /auth/callback → "/" redirect.
+  // auth_error=link_expired  → reopen sign-in modal with inline message
+  // auth_modal=signup        → reopen modal in signup mode (from "wrong email" link)
+  useEffect(() => {
+    const err = searchParams.get("auth_error");
+    const modal = searchParams.get("auth_modal");
+    if (!err && !modal) return;
+
+    if (err === "link_expired") {
+      setAuthModalMode("signin");
+      setAuthModal({
+        open: true,
+        message: "That link has expired. Please sign in.",
+      });
+      trackEvent("auth_link_expired_recovered", { metadata: { source: "callback_redirect" } });
+    } else if (modal === "signup") {
+      setAuthModalMode("signup");
+      setAuthModal({ open: true });
+    }
+
+    // Strip the query params from the URL without adding history.
+    const url = new URL(window.location.href);
+    url.searchParams.delete("auth_error");
+    url.searchParams.delete("auth_modal");
+    window.history.replaceState({}, "", url.pathname + url.search + url.hash);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // Track initial Ask page_view for anonymous visitors so the engagement-rate
   // denominator captures all landers (not just those who already engaged).
@@ -970,9 +999,10 @@ const Index = () => {
 
       <AuthModal
         isOpen={showAuthModal}
-        onClose={() => setAuthModal({ open: false })}
+        onClose={() => { setAuthModal({ open: false }); setAuthModalMode(undefined); }}
         onSignedUp={() => {}}
         message={authModal.message}
+        defaultMode={authModalMode}
       />
 
       {user && <DailyVerseOptIn userId={user.id} />}
