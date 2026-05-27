@@ -1,10 +1,13 @@
-import { lazy, Suspense } from "react";
+import { lazy, Suspense, useEffect } from "react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Route, Routes } from "react-router-dom";
+import { BrowserRouter, Route, Routes, useNavigate } from "react-router-dom";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { AuthProvider } from "@/contexts/AuthContext";
+import { trackEvent } from "@/lib/trackEvent";
+import { isNative, isIOSNative } from "@/lib/platform";
+import { supabase } from "@/integrations/supabase/client";
 
 // Eager: landing/main app (critical path)
 import Index from "./pages/Index.tsx";
@@ -91,6 +94,74 @@ const PageLoader = () => (
   </div>
 );
 
+const AppBootstrap = () => {
+  const navigate = useNavigate();
+  useEffect(() => {
+    trackEvent("app_open", {
+      metadata: {
+        platform: isIOSNative() ? "ios" : isNative() ? "android" : "web",
+      },
+    });
+
+    if (!isNative()) return;
+
+    let cleanup: (() => void) | undefined;
+    (async () => {
+      try {
+        const { App: CapApp } = await import("@capacitor/app");
+        const handle = await CapApp.addListener("appUrlOpen", async (event) => {
+          try {
+            const url = new URL(event.url);
+            trackEvent("deep_link_received", {
+              metadata: { url: event.url, host: url.host, path: url.pathname },
+            });
+            // Handle Supabase auth deep links: dabar://auth/callback?code=... or with hash
+            const isAuthCallback =
+              url.pathname.includes("/auth/callback") ||
+              url.searchParams.has("code") ||
+              event.url.includes("access_token=");
+            if (isAuthCallback) {
+              trackEvent("auth_callback_attempt", {
+                metadata: { source: isIOSNative() ? "ios" : "android" },
+              });
+              if (url.searchParams.has("code")) {
+                const { error } = await supabase.auth.exchangeCodeForSession(event.url);
+                if (error) {
+                  trackEvent("auth_callback_failure", {
+                    metadata: { source: "native", reason: error.message },
+                  });
+                } else {
+                  const { data } = await supabase.auth.getSession();
+                  trackEvent("auth_callback_success", {
+                    metadata: { source: "native" },
+                    userId: data.session?.user?.id ?? null,
+                  });
+                }
+              }
+              navigate("/", { replace: true });
+            } else {
+              const target = url.pathname + url.search + url.hash;
+              if (target && target !== "/") navigate(target, { replace: true });
+            }
+          } catch (err) {
+            trackEvent("deep_link_error", {
+              metadata: { reason: err instanceof Error ? err.message : "unknown" },
+            });
+          }
+        });
+        cleanup = () => handle.remove();
+      } catch {
+        // capacitor app plugin unavailable
+      }
+    })();
+
+    return () => {
+      cleanup?.();
+    };
+  }, [navigate]);
+  return null;
+};
+
 const App = () => (
   <QueryClientProvider client={queryClient}>
     <TooltipProvider>
@@ -98,6 +169,7 @@ const App = () => (
       <Sonner />
       <BrowserRouter>
         <AuthProvider>
+          <AppBootstrap />
           <div className="dabar-grain min-h-screen">
           <Suspense fallback={<PageLoader />}>
             <Routes>
