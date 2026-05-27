@@ -4,6 +4,7 @@ import { lovable } from "@/integrations/lovable/index";
 import { toast } from "sonner";
 import { useAuth } from "@/contexts/AuthContext";
 import { isIOSNative } from "@/lib/platform";
+import { trackEvent } from "@/lib/trackEvent";
 
 interface AuthModalProps {
   isOpen: boolean;
@@ -125,7 +126,7 @@ const AuthModal = forwardRef<HTMLDivElement, AuthModalProps>(({ isOpen, onClose,
           email,
           password,
           options: {
-            emailRedirectTo: window.location.origin,
+            emailRedirectTo: `${window.location.origin}/auth/callback`,
             data: { age_group: result.ageGroup },
           },
         });
@@ -133,6 +134,8 @@ const AuthModal = forwardRef<HTMLDivElement, AuthModalProps>(({ isOpen, onClose,
 
         // Mark this device as having attempted signup so future opens default to Sign In
         localStorage.setItem(RETURNING_USER_KEY, "1");
+
+        trackEvent("signup_email_submitted", { metadata: { age_group: result.ageGroup } });
 
         toast.success("Check your email to confirm your account.");
         setPendingConfirmation(email);
@@ -146,6 +149,9 @@ const AuthModal = forwardRef<HTMLDivElement, AuthModalProps>(({ isOpen, onClose,
         if (error) throw error;
 
         localStorage.setItem(RETURNING_USER_KEY, "1");
+        trackEvent("signin_password_success", {
+          userId: signInData?.user?.id ?? null,
+        });
 
         // One-time hint if user also has a Google identity linked
         const identities = signInData?.user?.identities ?? [];
@@ -174,19 +180,26 @@ const AuthModal = forwardRef<HTMLDivElement, AuthModalProps>(({ isOpen, onClose,
 
     // Mark as returning so the next visit defaults to Sign In
     localStorage.setItem(RETURNING_USER_KEY, "1");
+    trackEvent("oauth_start", { metadata: { provider: "google" } });
 
     const result = await lovable.auth.signInWithOAuth("google", {
-      redirect_uri: window.location.origin,
+      redirect_uri: `${window.location.origin}/auth/callback`,
     });
 
     if (result.error) {
       setOauthLoading(false);
+      trackEvent("oauth_failure", {
+        metadata: { provider: "google", reason: result.error.message || "unknown" },
+      });
       setOauthError(`Google sign-in failed: ${result.error.message || "Unknown error"}. Please try email instead.`);
       return;
     }
 
     if (!result.redirected) {
       setOauthLoading(false);
+      trackEvent("oauth_failure", {
+        metadata: { provider: "google", reason: "no_redirect" },
+      });
       setOauthError("Google sign-in could not complete. Please try again or use email.");
       return;
     }
@@ -197,19 +210,26 @@ const AuthModal = forwardRef<HTMLDivElement, AuthModalProps>(({ isOpen, onClose,
     setOauthLoading(true);
     setOauthError(null);
     localStorage.setItem(RETURNING_USER_KEY, "1");
+    trackEvent("oauth_start", { metadata: { provider: "apple" } });
 
     const result = await lovable.auth.signInWithOAuth("apple", {
-      redirect_uri: window.location.origin,
+      redirect_uri: `${window.location.origin}/auth/callback`,
     });
 
     if (result.error) {
       setOauthLoading(false);
+      trackEvent("oauth_failure", {
+        metadata: { provider: "apple", reason: result.error.message || "unknown" },
+      });
       setOauthError(`Apple sign-in failed: ${result.error.message || "Unknown error"}. Please try email instead.`);
       return;
     }
 
     if (!result.redirected) {
       setOauthLoading(false);
+      trackEvent("oauth_failure", {
+        metadata: { provider: "apple", reason: "no_redirect" },
+      });
       setOauthError("Apple sign-in could not complete. Please try again or use email.");
       return;
     }
