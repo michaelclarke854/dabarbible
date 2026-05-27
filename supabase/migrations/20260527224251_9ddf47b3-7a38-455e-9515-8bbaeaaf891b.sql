@@ -1,0 +1,2 @@
+ALTER TABLE public.subscriptions DROP CONSTRAINT IF EXISTS subscriptions_provider_check;
+ALTER TABLE public.subscriptions ADD CONSTRAINT subscriptions_provider_check CHECK (provider = ANY (ARRAY['stripe'::text, 'revenuecat'::text, 'reviewer'::text, 'apple'::text]));
