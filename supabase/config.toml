@@ -43,3 +43,5 @@ project_id = "crkkimoblnrxpszehmkg"
     verify_jwt = false
   [functions.public-stats]
     verify_jwt = false
+  [functions.apple-iap-verify]
+    verify_jwt = true
