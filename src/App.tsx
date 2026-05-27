@@ -30,6 +30,7 @@ const NotFound = lazy(() => import("./pages/NotFound.tsx"));
 const PastoralAccessPage = lazy(() => import("./pages/PastoralAccessPage.tsx"));
 const OutreachDashboard = lazy(() => import("./pages/admin/OutreachDashboard.tsx"));
 const SupportPage = lazy(() => import("./pages/Support.tsx"));
+const AuthCallback = lazy(() => import("./pages/AuthCallback.tsx"));
 
 // Dev-only visual regression fixtures (tree-shaken in production builds).
 const VisualAskFixture = import.meta.env.DEV
@@ -120,6 +121,7 @@ const App = () => (
               <Route path="/pastor-access" element={<PastoralAccessPage />} />
               <Route path="/admin/outreach" element={<OutreachDashboard />} />
               <Route path="/support" element={<SupportPage />} />
+              <Route path="/auth/callback" element={<AuthCallback />} />
               {import.meta.env.DEV && VisualAskFixture && (
                 <Route path="/__visual/ask" element={<VisualAskFixture />} />
               )}
