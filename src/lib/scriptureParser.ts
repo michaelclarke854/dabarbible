@@ -215,7 +215,13 @@ function fuzzyClosest(name: string): string | undefined {
     const candidates = [b.name.toLowerCase(), ...b.aliases];
     for (const c of candidates) {
       const d = levenshtein(target, c);
-      if (d <= 2 && (!best || d < best.dist)) best = { name: b.name, dist: d };
+      if (d <= 2) {
+        const better =
+          !best ||
+          d < best.dist ||
+          (d === best.dist && b.name.length < best.name.length);
+        if (better) best = { name: b.name, dist: d };
+      }
     }
   }
   return best ? best.name : undefined;
@@ -251,6 +257,20 @@ export function parseScriptureReference(input: string): ScriptureParseResult {
 
     if (!bookKey) {
       return logged(rawInput, normalized, { state: "invalid", normalizedInput: normalized });
+    }
+
+    // Step 5/6: if the bare book key is in the ambiguous table AND no chapter
+    // was supplied, prefer disambiguation (e.g. "john" → Gospel + epistles)
+    // even when an exact match exists for one of them.
+    if (chapter == null) {
+      const ambig = ambiguousSuggestions(bookKey);
+      if (ambig.length > 0) {
+        return logged(rawInput, normalized, {
+          state: "ambiguous",
+          suggestions: ambig,
+          normalizedInput: normalized,
+        });
+      }
     }
 
     // Step 5: exact match (canonical + aliases)
