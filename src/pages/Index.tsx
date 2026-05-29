@@ -92,6 +92,7 @@ const Index = () => {
   const [scriptureDeepLink, setScriptureDeepLink] = useState<{ book: string; chapter: number; verse: number; version?: string } | null>(null);
   const [currentSessionId, setCurrentSessionId] = useState<string | null>(null);
   const abortRef = useRef<AbortController | null>(null);
+  const isSubmittingRef = useRef(false);
   // Guard so page_view{screen:"ask"} fires at most once per mount for anon visitors.
   const askPageViewFiredRef = useRef(false);
 
@@ -265,6 +266,13 @@ const Index = () => {
 
   const seekWisdom = useCallback(
     async (question: string) => {
+      if (isSubmittingRef.current) return;
+      if (!question.trim()) return;
+      isSubmittingRef.current = true;
+      console.time('[DABAR] seek-wisdom:request');
+      const slowWarn = setTimeout(() => {
+        console.warn('[DABAR] seek-wisdom: >5s elapsed — potential slow network or cold start');
+      }, 5000);
       const isGuestAtLimit = !user && getGuestQuestionsUsed() >= GUEST_LIMIT;
 
       if (!user) {
@@ -451,6 +459,9 @@ const Index = () => {
       } finally {
         clearTimeout(t1);
         clearTimeout(t2);
+        clearTimeout(slowWarn);
+        isSubmittingRef.current = false;
+        console.timeEnd('[DABAR] seek-wisdom:request');
         setAgentStage(null);
         setIsLoading(false);
         setIsStreaming(false);
