@@ -811,6 +811,7 @@ const Index = () => {
                   isLoading={isLoading}
                   guestQuestionsUsed={!user ? getGuestQuestionsUsed() : undefined}
                   guestLimit={!user ? GUEST_LIMIT : undefined}
+                  onScriptureRef={handleScriptureDeepLink}
                 />
               </>
             )
