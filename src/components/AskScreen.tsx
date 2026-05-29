@@ -2,12 +2,18 @@ import { useState, useEffect, useRef, forwardRef } from "react";
 import { Link } from "react-router-dom";
 import { HardQuestionMode } from "@/components/HardQuestionMode";
 import { trackEvent } from "@/lib/trackEvent";
+import {
+  parseScriptureReference,
+  looksLikeScriptureReference,
+  type ScriptureParseResult,
+} from "@/lib/scriptureParser";
 
 interface AskScreenProps {
   onSeekWisdom: (question: string) => void;
   isLoading: boolean;
   guestQuestionsUsed?: number;
   guestLimit?: number;
+  onScriptureRef?: (ref: string) => void;
 }
 
 const SOUL_PROMPTS = [
@@ -31,8 +37,14 @@ const QUESTION_PLACEHOLDERS = [
   "How do I find peace in this season?",
 ];
 
-const AskScreen = forwardRef<HTMLDivElement, AskScreenProps>(({ onSeekWisdom, isLoading, guestQuestionsUsed, guestLimit }, ref) => {
+const isCapacitor =
+  typeof window !== "undefined" &&
+  !!(window as any).Capacitor?.isNativePlatform?.();
+const isDev = (import.meta as any)?.env?.DEV || false;
+
+const AskScreen = forwardRef<HTMLDivElement, AskScreenProps>(({ onSeekWisdom, isLoading, guestQuestionsUsed, guestLimit, onScriptureRef }, ref) => {
   const [question, setQuestion] = useState("");
+  const [scriptureHint, setScriptureHint] = useState<ScriptureParseResult | null>(null);
   const [promptIndex, setPromptIndex] = useState(() =>
     Math.floor(Math.random() * SOUL_PROMPTS.length)
   );
@@ -69,9 +81,78 @@ const AskScreen = forwardRef<HTMLDivElement, AskScreenProps>(({ onSeekWisdom, is
     };
   }, [question]);
 
+  const routeScripture = (bookName: string, chapter: number, verse?: number) => {
+    if (!onScriptureRef) return false;
+    const ref = verse ? `${bookName} ${chapter}:${verse}` : `${bookName} ${chapter}`;
+    onScriptureRef(ref);
+    return true;
+  };
+
   const handleSubmit = () => {
-    if (question.trim() && !isLoading) {
-      onSeekWisdom(question.trim());
+    const text = question.trim();
+    if (!text || isLoading) return;
+
+    // Only treat input as a scripture reference if it looks like one.
+    // Long-form wisdom questions ("Why does God allow suffering?") fall through.
+    if (looksLikeScriptureReference(text)) {
+      const parsed = parseScriptureReference(text);
+      if (parsed.state === "valid" && parsed.bookName && parsed.chapter) {
+        setScriptureHint(null);
+        if (routeScripture(parsed.bookName, parsed.chapter, parsed.verse)) return;
+        // No handler wired — fall through to wisdom flow
+      } else if (
+        parsed.state === "ambiguous" ||
+        parsed.state === "missingChapter" ||
+        (parsed.state === "invalid" && parsed.fuzzyMatch)
+      ) {
+        setScriptureHint(parsed);
+        return;
+      }
+      // 'invalid' without fuzzyMatch but looked scripture-like — show gentle hint
+      if (parsed.state === "invalid" && !parsed.fuzzyMatch) {
+        setScriptureHint(parsed);
+        return;
+      }
+    }
+
+    setScriptureHint(null);
+    onSeekWisdom(text);
+  };
+
+  const handleSuggestionTap = (suggestion: string) => {
+    if (isDev) {
+      // TODO: Remove before production Play Store release
+      console.log("[DABAR] scripture:suggestion", {
+        originalInput: question,
+        selectedSuggestion: suggestion,
+        isCapacitor,
+      });
+    }
+    const parsed = parseScriptureReference(suggestion);
+    if (parsed.state === "valid" && parsed.bookName && parsed.chapter) {
+      setScriptureHint(null);
+      routeScripture(parsed.bookName, parsed.chapter, parsed.verse);
+    } else if (parsed.state === "missingChapter") {
+      setScriptureHint(parsed);
+    }
+  };
+
+  const handleChapterTap = (chapter: number) => {
+    if (!scriptureHint?.bookName) return;
+    setScriptureHint(null);
+    routeScripture(scriptureHint.bookName, chapter);
+  };
+
+  const handleFuzzyConfirm = () => {
+    if (!scriptureHint?.fuzzyMatch) return;
+    const next = scriptureHint.fuzzyMatch;
+    setQuestion(next);
+    const parsed = parseScriptureReference(next);
+    if (parsed.state === "valid" && parsed.bookName && parsed.chapter) {
+      setScriptureHint(null);
+      routeScripture(parsed.bookName, parsed.chapter, parsed.verse);
+    } else {
+      setScriptureHint(parsed);
     }
   };
 
@@ -96,7 +177,10 @@ const AskScreen = forwardRef<HTMLDivElement, AskScreenProps>(({ onSeekWisdom, is
         <textarea
           data-ask-input=""
           value={question}
-          onChange={(e) => setQuestion(e.target.value)}
+          onChange={(e) => {
+            setQuestion(e.target.value);
+            if (scriptureHint) setScriptureHint(null);
+          }}
           placeholder={QUESTION_PLACEHOLDERS[placeholderIndex]}
           className="w-full min-h-[160px] bg-input border-none outline-none resize-none text-lg font-body text-foreground placeholder:text-muted-foreground/60 leading-relaxed p-4 focus:ring-0 rounded-sm"
           disabled={isLoading}
@@ -108,6 +192,68 @@ const AskScreen = forwardRef<HTMLDivElement, AskScreenProps>(({ onSeekWisdom, is
           }}
         />
         <div className="w-full h-px bg-border mb-4" />
+
+        {scriptureHint && (
+          <div className="mb-4 text-center">
+            {scriptureHint.state === "ambiguous" && scriptureHint.suggestions && (
+              <>
+                <p className="font-body text-xs text-muted-foreground mb-2 tracking-wide">
+                  Did you mean:
+                </p>
+                <div className="flex flex-wrap justify-center gap-2">
+                  {scriptureHint.suggestions.map((s) => (
+                    <button
+                      key={s}
+                      type="button"
+                      onClick={() => handleSuggestionTap(s)}
+                      className="px-3 py-1.5 rounded-sm border border-gold/40 text-gold font-body text-xs tracking-wide hover:bg-gold/10 transition-colors"
+                    >
+                      {s}
+                    </button>
+                  ))}
+                </div>
+              </>
+            )}
+            {scriptureHint.state === "missingChapter" && scriptureHint.maxChapters && (
+              <>
+                <p className="font-body text-xs text-muted-foreground mb-2 tracking-wide">
+                  {scriptureHint.bookName} has {scriptureHint.maxChapters} chapters. Which chapter?
+                </p>
+                <div className="flex flex-wrap justify-center gap-1.5 max-h-32 overflow-y-auto">
+                  {Array.from({ length: scriptureHint.maxChapters }, (_, i) => i + 1).map((ch) => (
+                    <button
+                      key={ch}
+                      type="button"
+                      onClick={() => handleChapterTap(ch)}
+                      className="min-w-[2rem] px-2 py-1 rounded-sm border border-border text-foreground hover:border-gold hover:text-gold font-serif text-xs transition-colors"
+                    >
+                      {ch}
+                    </button>
+                  ))}
+                </div>
+              </>
+            )}
+            {scriptureHint.state === "invalid" && scriptureHint.fuzzyMatch && (
+              <>
+                <p className="font-body text-xs text-muted-foreground mb-2 tracking-wide">
+                  Did you mean <span className="text-gold">{scriptureHint.fuzzyMatch}</span>?
+                </p>
+                <button
+                  type="button"
+                  onClick={handleFuzzyConfirm}
+                  className="px-3 py-1.5 rounded-sm border border-gold/40 text-gold font-body text-xs tracking-wide hover:bg-gold/10 transition-colors"
+                >
+                  Yes, {scriptureHint.fuzzyMatch}
+                </button>
+              </>
+            )}
+            {scriptureHint.state === "invalid" && !scriptureHint.fuzzyMatch && (
+              <p className="font-body text-xs text-muted-foreground tracking-wide">
+                We couldn't find that scripture reference. Try a book name like "John 3" or "Psalm 23".
+              </p>
+            )}
+          </div>
+        )}
 
         <p className="text-[10px] font-body text-muted-foreground/70 text-center tracking-wide mb-4 leading-relaxed">
           AI-assisted reflection grounded in scripture —{" "}
