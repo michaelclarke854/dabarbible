@@ -83,7 +83,9 @@ const AskScreen = forwardRef<HTMLDivElement, AskScreenProps>(({ onSeekWisdom, is
 
   const routeScripture = (bookName: string, chapter: number, verse?: number) => {
     if (!onScriptureRef) return false;
-    const ref = verse ? `${bookName} ${chapter}:${verse}` : `${bookName} ${chapter}`;
+    // Existing deep-link parser requires `:verse`; default to verse 1 so the
+    // scripture screen opens at the top of the chapter.
+    const ref = `${bookName} ${chapter}:${verse ?? 1}`;
     onScriptureRef(ref);
     return true;
   };
