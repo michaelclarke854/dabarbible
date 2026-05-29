@@ -241,3 +241,8 @@
   pointer-events: none;
   transition: filter 0.3s ease;
 }
+
+/* Android WebView momentum scrolling — applied globally to scroll containers */
+html, body, [data-scrollable], .overflow-y-auto, .overflow-auto, .overflow-x-auto {
+  -webkit-overflow-scrolling: touch;
+}
