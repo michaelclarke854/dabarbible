@@ -1,4 +1,4 @@
-import { createContext, useContext, useState, useEffect, useCallback, useRef, ReactNode } from "react";
+import { createContext, useContext, useState, useEffect, useCallback, useMemo, useRef, ReactNode } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import type { User } from "@supabase/supabase-js";
 import { trackEvent } from "@/lib/trackEvent";
@@ -108,6 +108,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const fetchProfile = useCallback(async (userId: string) => {
     if (isFetchingRef.current) return;
     isFetchingRef.current = true;
+    console.time('[DABAR] profile:fetch');
     try {
       const { data: profile } = await supabase
         .from("profiles")
@@ -137,6 +138,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       isFetchingRef.current = false;
       setIsHydrating(false);
       setLoading(false);
+      console.timeEnd('[DABAR] profile:fetch');
     }
   }, []);
 
@@ -148,6 +150,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [user, fetchProfile]);
 
   useEffect(() => {
+    console.time('[DABAR] auth:hydration');
+    let hydrationLogged = false;
+    const markHydrated = () => {
+      if (!hydrationLogged) {
+        hydrationLogged = true;
+        console.timeEnd('[DABAR] auth:hydration');
+      }
+    };
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       (_event, session) => {
         const u = session?.user ?? null;
@@ -171,6 +181,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             setEmailUnconfirmed(!bypass);
             setIsHydrating(false);
             setLoading(false);
+            markHydrated();
             return;
           }
           setEmailUnconfirmed(false);
@@ -257,9 +268,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           setNeedsAgeGate(false);
           setIsHydrating(false);
           setLoading(false);
+            markHydrated();
         }
       }
     );
+
+    // Also mark hydration after the initial getSession resolves so the
+    // log fires even when there's no session at all.
+    supabase.auth.getSession().finally(markHydrated);
 
     return () => subscription.unsubscribe();
   }, [fetchProfile]);
@@ -286,7 +302,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   }, [user, fetchProfile]);
 
-  const value: AuthContextValue = {
+  const value: AuthContextValue = useMemo(() => ({
     user,
     role,
     plan,
@@ -312,7 +328,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setPreferredBibleVersion,
     setPendingConfirmation,
     clearAgeGate,
-  };
+  }), [
+    user, role, plan, isSuspended, ageGroup, languagePreference,
+    preferredBibleVersion, isPastor, pastoralCommunityId, hasFullAccess,
+    loading, isHydrating, emailUnconfirmed, userEmail, trial, needsAgeGate,
+    pendingCheckin, needsOnboardingIntent, refreshProfile,
+    setPendingConfirmation, clearAgeGate,
+  ]);
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }
