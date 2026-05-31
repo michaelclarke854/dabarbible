@@ -54,30 +54,47 @@ const AskScreen = forwardRef<HTMLDivElement, AskScreenProps>(({ onSeekWisdom, is
   const [placeholderIndex, setPlaceholderIndex] = useState(() =>
     Math.floor(Math.random() * QUESTION_PLACEHOLDERS.length)
   );
-  const placeholderTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const [hardModeOpen, setHardModeOpen] = useState(false);
 
+  // Combined ticker for both rotating prompts and placeholder.
+  // Pauses when the document is hidden (background tab / locked screen) and
+  // when the textarea has user input, so we don't burn battery/CPU on Android
+  // 8 WebView re-rendering invisible UI.
   useEffect(() => {
-    intervalRef.current = setInterval(() => {
-      setPromptVisible(false);
-      setTimeout(() => {
-        setPromptIndex((prev) => (prev + 1) % SOUL_PROMPTS.length);
-        setPromptVisible(true);
-      }, 600);
-    }, 4000);
-    return () => {
-      if (intervalRef.current) clearInterval(intervalRef.current);
+    const hasInput = !!question;
+    const start = () => {
+      if (intervalRef.current) return;
+      intervalRef.current = setInterval(() => {
+        if (typeof document !== "undefined" && document.hidden) return;
+        setPromptVisible(false);
+        setTimeout(() => {
+          setPromptIndex((prev) => (prev + 1) % SOUL_PROMPTS.length);
+          setPromptVisible(true);
+        }, 600);
+        if (!hasInput) {
+          setPlaceholderIndex((prev) => (prev + 1) % QUESTION_PLACEHOLDERS.length);
+        }
+      }, 4000);
     };
-  }, []);
-
-  // Rotate the textarea placeholder every 4s — only when the field is empty.
-  useEffect(() => {
-    if (question) return;
-    placeholderTimerRef.current = setInterval(() => {
-      setPlaceholderIndex((prev) => (prev + 1) % QUESTION_PLACEHOLDERS.length);
-    }, 4000);
+    const stop = () => {
+      if (intervalRef.current) {
+        clearInterval(intervalRef.current);
+        intervalRef.current = null;
+      }
+    };
+    start();
+    const onVis = () => {
+      if (typeof document !== "undefined" && document.hidden) stop();
+      else start();
+    };
+    if (typeof document !== "undefined") {
+      document.addEventListener("visibilitychange", onVis);
+    }
     return () => {
-      if (placeholderTimerRef.current) clearInterval(placeholderTimerRef.current);
+      stop();
+      if (typeof document !== "undefined") {
+        document.removeEventListener("visibilitychange", onVis);
+      }
     };
   }, [question]);
 
