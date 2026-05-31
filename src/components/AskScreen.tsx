@@ -54,7 +54,6 @@ const AskScreen = forwardRef<HTMLDivElement, AskScreenProps>(({ onSeekWisdom, is
   const [placeholderIndex, setPlaceholderIndex] = useState(() =>
     Math.floor(Math.random() * QUESTION_PLACEHOLDERS.length)
   );
-  const placeholderTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const [hardModeOpen, setHardModeOpen] = useState(false);
 
   // Combined ticker for both rotating prompts and placeholder.
