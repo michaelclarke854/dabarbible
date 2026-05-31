@@ -246,3 +246,29 @@
 html, body, [data-scrollable], .overflow-y-auto, .overflow-auto, .overflow-x-auto {
   -webkit-overflow-scrolling: touch;
 }
+
+/* ═══ LOW-END MODE (Android 8/9 WebView, ≤2GB RAM, reduced-motion) ═══════════
+   Disables the most expensive compositor work without altering layout/colors.
+   Activated by main.tsx adding `.low-end` to <html>. Visual delta is minimal
+   (the grain is 2.8% opacity; blurs are replaced with a near-identical solid
+   tint), runtime cost drops dramatically on old WebViews. */
+.low-end .dabar-grain::after {
+  animation: none;
+  /* Keep the texture as a static layer — repaint cost is zero once painted. */
+}
+.low-end .dabar-glass {
+  /* backdrop-filter triggers per-frame full-rect blur — drop on low-end and
+     fall back to a slightly more opaque solid that matches the blurred look. */
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+  background: hsl(var(--parchment-dark) / 0.92);
+}
+.low-end .animate-candle-glow,
+.low-end .animate-golden-pulse {
+  /* Slow infinite animations to reduce wake-ups; visually unchanged at rest. */
+  animation-duration: 6s;
+}
+.low-end [class*="backdrop-blur"] {
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+}
