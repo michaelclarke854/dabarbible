@@ -399,3 +399,74 @@ export function looksLikeScriptureReference(input: string): boolean {
 }
 
 export const __canonicalBooks = BOOKS;
+
+// ---- Citation extraction (fallback-safe) ----
+
+const SCRIPTURE_BLOCK_RE =
+  /\[SCRIPTURE\]\s*\n\s*reference:\s*(.+?)\n\s*text:\s*[\s\S]*?\n\s*\[\/SCRIPTURE\]/gi;
+
+// Loose block form: tolerates missing newlines, missing text:, or unterminated blocks.
+const LOOSE_BLOCK_RE =
+  /\[SCRIPTURE\][\s\S]*?reference:\s*([^\n\[]+)/gi;
+
+// Inline reference like "John 3:16", "1 Cor 13:4-7", "Psalm 23", "Psalm 23:1"
+const INLINE_REF_RE =
+  /\b((?:[1-3]\s*)?[A-Za-z]+(?:\s+of\s+[A-Za-z]+)?)\s+(\d+)(?::(\d+)(?:[-–]\d+)?)?\b/g;
+
+function cleanRef(raw: string): string {
+  return raw.replace(/[\s.,;:]+$/g, "").replace(/\s+/g, " ").trim();
+}
+
+/**
+ * Extract scripture references from model output.
+ * Order of attempts (each only runs if previous yields nothing):
+ *   1. Well-formed [SCRIPTURE] blocks
+ *   2. Malformed/loose [SCRIPTURE] blocks (missing text:, unterminated)
+ *   3. Inline references validated against the canonical book list
+ * Always returns a deduped array; never throws.
+ */
+export function extractScriptureRefs(text: string): string[] {
+  if (!text) return [];
+  const seen = new Set<string>();
+  const out: string[] = [];
+  const push = (ref: string) => {
+    const cleaned = cleanRef(ref);
+    if (!cleaned) return;
+    const key = cleaned.toLowerCase();
+    if (seen.has(key)) return;
+    seen.add(key);
+    out.push(cleaned);
+  };
+
+  try {
+    let m: RegExpExecArray | null;
+    SCRIPTURE_BLOCK_RE.lastIndex = 0;
+    while ((m = SCRIPTURE_BLOCK_RE.exec(text)) !== null) push(m[1]);
+    if (out.length > 0) return out;
+
+    LOOSE_BLOCK_RE.lastIndex = 0;
+    while ((m = LOOSE_BLOCK_RE.exec(text)) !== null) push(m[1]);
+    if (out.length > 0) return out;
+
+    // Strip any block scaffolding before inline scan to avoid double-counting
+    const stripped = text.replace(/\[\/?SCRIPTURE\]/gi, " ");
+    INLINE_REF_RE.lastIndex = 0;
+    while ((m = INLINE_REF_RE.exec(stripped)) !== null) {
+      const bookPart = m[1];
+      const chapter = m[2];
+      const verse = m[3];
+      const book = lookupBook(bookPart);
+      if (!book) continue;
+      // For single-chapter books, "Jude 5" means verse 5
+      const ref = book.singleChapter && !verse
+        ? `${book.name} ${chapter}`
+        : verse
+          ? `${book.name} ${chapter}:${verse}`
+          : `${book.name} ${chapter}`;
+      push(ref);
+    }
+  } catch {
+    // never throw — return whatever we collected
+  }
+  return out;
+}

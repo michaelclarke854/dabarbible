@@ -24,6 +24,7 @@ import { parseScriptureRef } from "@/data/kjvBooks";
 import { useAuth } from "@/contexts/AuthContext";
 import { trackEvent } from "@/lib/trackEvent";
 import { isIOSNative } from "@/lib/platform";
+import { extractScriptureRefs } from "@/lib/scriptureParser";
 
 const JournalScreen = lazy(() => import("@/components/JournalScreen"));
 const ScriptureScreen = lazy(() => import("@/components/ScriptureScreen"));
@@ -453,12 +454,7 @@ const Index = () => {
         }
 
         // Parse scriptures from final text
-        const scriptureRefs: string[] = [];
-        const regex = /\[SCRIPTURE\]\s*\nreference:\s*(.+)\ntext:\s*.+\n\[\/SCRIPTURE\]/g;
-        let match;
-        while ((match = regex.exec(fullText)) !== null) {
-          scriptureRefs.push(match[1].trim());
-        }
+        const scriptureRefs = extractScriptureRefs(fullText);
         setCurrentResponse({ question, response: fullText, scriptures: scriptureRefs });
 
         if (!user) {
