@@ -544,6 +544,60 @@ serve(async (req) => {
     }
     console.log(`Wisdom stream provider: ${streamResult.provider}`);
 
+    // ── iOS native: buffer full response, no streaming ──────────────────────────
+    if (nativeIOS) {
+      const iosReader = streamResult.stream.getReader();
+      const iosDecoder = new TextDecoder();
+      let iosBuf = "";
+      let iosText = "";
+      while (true) {
+        const { done, value } = await iosReader.read();
+        if (done) break;
+        iosBuf += iosDecoder.decode(value, { stream: true });
+        const lines = iosBuf.split("\n");
+        iosBuf = lines.pop() || "";
+        for (const line of lines) {
+          const t = line.trim();
+          if (!t.startsWith("data: ") || t.slice(6) === "[DONE]") continue;
+          try { iosText += JSON.parse(t.slice(6)).choices?.[0]?.delta?.content ?? ""; } catch { /* skip */ }
+        }
+      }
+
+      const responseText = iosText.trim();
+      const scriptureBlocks: { reference: string; text: string }[] = [];
+      const scriptureRegex = /\[SCRIPTURE\]\s*\nreference:\s*(.+)\ntext:\s*(.+)\n\[\/SCRIPTURE\]/g;
+      let m;
+      while ((m = scriptureRegex.exec(responseText)) !== null) {
+        scriptureBlocks.push({ reference: m[1].trim(), text: m[2].trim() });
+      }
+      const scriptures = scriptureBlocks.map((s) => s.reference);
+      const iosSessionId = await logSession(supabase, userId, question, responseText, scriptures);
+
+      if (crisisResult.detected && crisisResult.keyword && iosSessionId) {
+        await supabase.from("crisis_log")
+          .update({ session_id: iosSessionId })
+          .eq("keyword_matched", crisisResult.keyword)
+          .is("session_id", null)
+          .order("triggered_at", { ascending: false })
+          .limit(1);
+      }
+
+      classifyAndStoreCategory(supabase, iosSessionId, userId, question, crisisResult.detected);
+
+      return new Response(
+        JSON.stringify({ response: responseText, sessionId: iosSessionId ?? "" }),
+        {
+          headers: {
+            ...corsHeaders,
+            "Content-Type": "application/json",
+            "Access-Control-Expose-Headers": "X-Crisis-Severity, X-Intent-Key",
+            "X-Crisis-Severity": crisisResult.severity || "",
+            "X-Intent-Key": onboardingIntentKey || "",
+          },
+        }
+      );
+    }
+
     let fullText = "";
     const encoder = new TextEncoder();
     const decoder = new TextDecoder();
