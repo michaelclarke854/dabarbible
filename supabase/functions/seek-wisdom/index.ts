@@ -416,6 +416,7 @@ serve(async (req) => {
     let userPatterns: { theme: string; occurrence: number; first_seen: string }[] = [];
     let userRole = "free";
     let onboardingIntentKey: string | null = null;
+    let prefetchedSessionCount = 0;
 
     if (userId) {
       // Parallelize all per-user reads needed before the AI call.
@@ -429,8 +430,7 @@ serve(async (req) => {
       if (profileResult.data?.role && !nativeIOS) userRole = profileResult.data.role;
       if (patternsResult.data) userPatterns = patternsResult.data;
       onboardingIntentKey = (profileResult.data as any)?.onboarding_intent_key || null;
-      // Stash session count so the later "isFirstSession" branch doesn't re-query.
-      (globalThis as any).__sw_sessionCount = sessionCountResult.count ?? 0;
+      prefetchedSessionCount = sessionCountResult.count ?? 0;
 
       if (!nativeIOS && profileResult.data?.plan === "trial" && profileResult.data?.trial_ends_at) {
         const trialEnd = new Date(profileResult.data.trial_ends_at);
@@ -499,9 +499,7 @@ serve(async (req) => {
     // ── Intent personalisation ───────────────────────────────────────────────────
     // Determine if this is the user's first session — reuse the count from the
     // parallel pre-fetch above instead of issuing a fresh round-trip.
-    const sessionCount = userId ? ((globalThis as any).__sw_sessionCount ?? 0) : 0;
-    if (userId) delete (globalThis as any).__sw_sessionCount;
-    const isFirstSession = sessionCount === 0;
+    const isFirstSession = prefetchedSessionCount === 0;
 
     const intentEntry = onboardingIntentKey ? INTENT_CONTEXT[onboardingIntentKey] : null;
     const intentBlock = intentEntry
