@@ -453,12 +453,7 @@ const Index = () => {
         }
 
         // Parse scriptures from final text
-        const scriptureRefs: string[] = [];
-        const regex = /\[SCRIPTURE\]\s*\nreference:\s*(.+)\ntext:\s*.+\n\[\/SCRIPTURE\]/g;
-        let match;
-        while ((match = regex.exec(fullText)) !== null) {
-          scriptureRefs.push(match[1].trim());
-        }
+        const scriptureRefs = extractScriptureRefs(fullText);
         setCurrentResponse({ question, response: fullText, scriptures: scriptureRefs });
 
         if (!user) {
