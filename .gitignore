@@ -12,7 +12,7 @@ dist
 dist-ssr
 remotion/out/
 *.local
-.env
+# .env intentionally tracked so Vite can bundle VITE_SUPABASE_* at build time
 .env.*
 !.env.example
 
