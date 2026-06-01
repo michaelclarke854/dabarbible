@@ -550,6 +550,12 @@ serve(async (req) => {
 
     const readableStream = new ReadableStream({
       async start(controller) {
+        let streamClosed = false;
+        const closeStream = () => {
+          if (streamClosed) return;
+          streamClosed = true;
+          controller.close();
+        };
         try {
           const reader = streamResult.stream.getReader();
           let buffer = "";
@@ -585,7 +591,7 @@ serve(async (req) => {
             }
           }
 
-          controller.close();
+          closeStream();
 
           // ── Post-processing ──
           const responseText = fullText.trim();
@@ -646,7 +652,9 @@ serve(async (req) => {
           }
         } catch (err) {
           console.error("Stream processing error:", err);
-          controller.error(err);
+          if (!streamClosed) {
+            controller.error(err);
+          }
         }
       },
     });

@@ -403,6 +403,12 @@ serve(async (req) => {
 
     const readableStream = new ReadableStream({
       async start(controller) {
+        let streamClosed = false;
+        const closeStream = () => {
+          if (streamClosed) return;
+          streamClosed = true;
+          controller.close();
+        };
         try {
           const reader = call2Res.body!.getReader();
           let buffer = "";
@@ -442,7 +448,7 @@ serve(async (req) => {
             }
           }
 
-          controller.close();
+          closeStream();
 
           // ── Post-stream: persist response text ──
           if (sessionId) {
@@ -452,7 +458,9 @@ serve(async (req) => {
           }
         } catch (err) {
           console.error("Stream error:", err);
-          controller.error(err);
+          if (!streamClosed) {
+            controller.error(err);
+          }
         }
       },
     });
