@@ -416,16 +416,21 @@ serve(async (req) => {
     let userPatterns: { theme: string; occurrence: number; first_seen: string }[] = [];
     let userRole = "free";
     let onboardingIntentKey: string | null = null;
+    let prefetchedSessionCount = 0;
 
     if (userId) {
-      const [profileResult, patternsResult] = await Promise.all([
+      // Parallelize all per-user reads needed before the AI call.
+      // sessionCount used to be a 4th sequential round-trip — folded in here.
+      const [profileResult, patternsResult, sessionCountResult] = await Promise.all([
         supabase.from("profiles").select("age_group, language_preference, role, plan, trial_ends_at, onboarding_intent_key").eq("user_id", userId).single(),
         supabase.from("user_patterns").select("theme, occurrence, first_seen").eq("user_id", userId),
+        supabase.from("wisdom_sessions").select("id", { count: "exact", head: true }).eq("user_id", userId),
       ]);
       if (profileResult.data?.age_group) validatedAgeGroup = profileResult.data.age_group;
       if (profileResult.data?.role && !nativeIOS) userRole = profileResult.data.role;
       if (patternsResult.data) userPatterns = patternsResult.data;
       onboardingIntentKey = (profileResult.data as any)?.onboarding_intent_key || null;
+      prefetchedSessionCount = sessionCountResult.count ?? 0;
 
       if (!nativeIOS && profileResult.data?.plan === "trial" && profileResult.data?.trial_ends_at) {
         const trialEnd = new Date(profileResult.data.trial_ends_at);
@@ -459,47 +464,42 @@ serve(async (req) => {
           { status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" } }
         );
       }
-      await supabase
+      // Fire-and-forget — incrementing the counter must not delay TTFB.
+      // A dropped increment on cold-shutdown is acceptable; the next request reads fresh.
+      supabase
         .from("rate_limits_anonymous")
-        .upsert({ key: windowKey, count: currentCount + 1, created_at: new Date().toISOString() });
+        .upsert({ key: windowKey, count: currentCount + 1, created_at: new Date().toISOString() })
+        .then(() => {}, (err: unknown) => console.error("anon rate-limit upsert failed:", err));
     }
 
     // ── Crisis detection ──
     const crisisResult = detectCrisis(question, validatedAgeGroup);
 
     if (crisisResult.detected && crisisResult.keyword) {
-      // Log to crisis_log (no user identity, no message content)
-      const logPromise = supabase.from("crisis_log").insert({
+      // Log to crisis_log (no user identity, no message content) — fire-and-forget.
+      supabase.from("crisis_log").insert({
         keyword_matched: crisisResult.keyword,
         severity: crisisResult.severity,
         session_id: null, // will update after session is created
-      });
+      }).then(() => {}, (err: unknown) => console.error("crisis_log insert failed:", err));
 
       if (crisisResult.severity === "crisis") {
         // Set pending_checkin on user profile
         if (userId) {
-          await supabase.from("profiles").update({ pending_checkin: true } as any).eq("user_id", userId);
+          supabase.from("profiles").update({ pending_checkin: true } as any).eq("user_id", userId)
+            .then(() => {}, (err: unknown) => console.error("pending_checkin update failed:", err));
         }
         // Send admin email alert (fire and forget)
         sendCrisisAdminEmail(supabase, crisisResult.keyword);
       }
-
-      await logPromise;
     }
 
     const patternContext = buildPatternContext(userPatterns);
 
     // ── Intent personalisation ───────────────────────────────────────────────────
-    // Determine if this is the user's first session
-    let sessionCount = 0;
-    if (userId) {
-      const { count } = await supabase
-        .from("wisdom_sessions")
-        .select("id", { count: "exact", head: true })
-        .eq("user_id", userId);
-      sessionCount = count ?? 0;
-    }
-    const isFirstSession = sessionCount === 0;
+    // Determine if this is the user's first session — reuse the count from the
+    // parallel pre-fetch above instead of issuing a fresh round-trip.
+    const isFirstSession = prefetchedSessionCount === 0;
 
     const intentEntry = onboardingIntentKey ? INTENT_CONTEXT[onboardingIntentKey] : null;
     const intentBlock = intentEntry
