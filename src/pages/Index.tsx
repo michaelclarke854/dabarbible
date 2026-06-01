@@ -307,6 +307,39 @@ const Index = () => {
       const t1 = setTimeout(() => setAgentStage("scripture"), 800);
       const t2 = setTimeout(() => setAgentStage("reflecting"), 1800);
 
+      const performWisdomRequest = async (accessToken?: string | null) => {
+        const endpoint = user
+          ? `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/scripture-research-agent`
+          : `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/seek-wisdom`;
+
+        const headers: Record<string, string> = {
+          "Content-Type": "application/json",
+          apikey: import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
+          "X-Dabar-Native-Ios": nativeIOS ? "1" : "0",
+        };
+
+        if (user) {
+          if (!accessToken) {
+            throw new Error("Session expired");
+          }
+          headers.Authorization = `Bearer ${accessToken}`;
+        }
+
+        return fetch(endpoint, {
+          method: "POST",
+          signal: controller.signal,
+          headers,
+          body: JSON.stringify({
+            question,
+            userId: user?.id || null,
+            ageGroup: ageGroup || null,
+            language: languagePreference,
+            scriptureVersion: preferredBibleVersion,
+            nativeIOS,
+          }),
+        });
+      };
+
       try {
         let { data: { session: authSession } } = await supabase.auth.getSession();
 
@@ -328,34 +361,26 @@ const Index = () => {
           return;
         }
 
-        // Use scripture-research-agent for authenticated users, seek-wisdom for guests
-        const endpoint = user
-          ? `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/scripture-research-agent`
-          : `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/seek-wisdom`;
+        let response = await performWisdomRequest(authSession?.access_token);
 
-        const bearer = authSession?.access_token ?? import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
+        if (user && response.status === 401) {
+          const { data: refreshed, error: refreshError } = await supabase.auth.refreshSession();
+          const refreshedToken = refreshed.session?.access_token;
 
-        const response = await fetch(endpoint, {
-          method: "POST",
-          signal: controller.signal,
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${bearer}`,
-            apikey: import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
-            "X-Dabar-Native-Ios": nativeIOS ? "1" : "0",
-          },
-          body: JSON.stringify({
-            question,
-            userId: user?.id || null,
-            ageGroup: ageGroup || null,
-            language: languagePreference,
-            scriptureVersion: preferredBibleVersion,
-            nativeIOS,
-          }),
-        });
+          if (!refreshError && refreshedToken) {
+            response = await performWisdomRequest(refreshedToken);
+          }
+        }
 
         if (!response.ok) {
           const err = await response.json().catch(() => ({}));
+          if (response.status === 401 && user) {
+            toast.error("Session expired", {
+              description: "Please sign in again to continue.",
+            });
+            await supabase.auth.signOut();
+            return;
+          }
           if (err.error === "trial_expired") {
             await refreshProfile();
             return;
