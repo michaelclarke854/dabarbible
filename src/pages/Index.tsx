@@ -422,6 +422,44 @@ const Index = () => {
         setScreen("response");
         setIsStreaming(true);
 
+        // iOS native: server returns a single JSON payload, not a stream
+        if (nativeIOS) {
+          clearTimeout(t1);
+          clearTimeout(t2);
+          setAgentStage(null);
+          const json = await response.json();
+          const fullText: string = json?.response ?? "";
+          const scriptureRefs: string[] = [];
+          const regex = /\[SCRIPTURE\]\s*\nreference:\s*(.+)\ntext:\s*.+\n\[\/SCRIPTURE\]/g;
+          let m;
+          while ((m = regex.exec(fullText)) !== null) {
+            scriptureRefs.push(m[1].trim());
+          }
+          setCurrentResponse({ question, response: fullText, scriptures: scriptureRefs });
+
+          if (!user) {
+            incrementGuestQuestions();
+            const newCount = getGuestQuestionsUsed();
+            trackEvent('response_viewed', {
+              screen: 'response',
+              metadata: { is_guest: true, guest_question_number: newCount },
+              userId: null,
+            });
+            if (isGuestAtLimit || newCount >= GUEST_LIMIT) {
+              setShowSoftGate(true);
+              const eventName = newCount > GUEST_LIMIT ? 'blur_gate_shown' : 'soft_gate_shown';
+              trackEvent(eventName, {
+                screen: 'response',
+                metadata: { guest_question_number: newCount },
+                userId: null,
+              });
+            }
+          } else {
+            await incrementDailyUsage();
+          }
+          return;
+        }
+
         const reader = response.body!.getReader();
         const decoder = new TextDecoder();
         let fullText = "";
