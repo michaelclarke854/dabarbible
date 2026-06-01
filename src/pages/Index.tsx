@@ -436,6 +436,13 @@ const Index = () => {
           const reader = response.body!.getReader();
           const decoder = new TextDecoder();
           let firstChunk = true;
+          let rafPending = false;
+          const flush = () => {
+            rafPending = false;
+            setCurrentResponse((prev) =>
+              prev ? { ...prev, response: fullText } : { question, response: fullText, scriptures: [] }
+            );
+          };
           while (true) {
             const { done, value } = await reader.read();
             if (done) break;
@@ -447,10 +454,15 @@ const Index = () => {
               setAgentStage(null);
               firstChunk = false;
             }
-            setCurrentResponse((prev) =>
-              prev ? { ...prev, response: fullText } : { question, response: fullText, scriptures: [] }
-            );
+            if (!rafPending) {
+              rafPending = true;
+              requestAnimationFrame(flush);
+            }
           }
+          // Ensure the final text is committed even if the last rAF was coalesced.
+          setCurrentResponse((prev) =>
+            prev ? { ...prev, response: fullText } : { question, response: fullText, scriptures: [] }
+          );
         }
 
         // Parse scriptures from final text
