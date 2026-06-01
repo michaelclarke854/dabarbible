@@ -417,71 +417,39 @@ const Index = () => {
           }
         }
 
-        // Set up streaming response
+        // Set up response — iOS WKWebView cannot stream ReadableStream
         setCurrentResponse({ question, response: "", scriptures: [] });
         setScreen("response");
-        setIsStreaming(true);
+        let fullText = "";
 
-        // iOS native: server returns a single JSON payload, not a stream
         if (nativeIOS) {
+          // iOS: read complete buffered JSON response
+          const data = await response.json();
+          fullText = data.response || "";
           clearTimeout(t1);
           clearTimeout(t2);
           setAgentStage(null);
-          const json = await response.json();
-          const fullText: string = json?.response ?? "";
-          const scriptureRefs: string[] = [];
-          const regex = /\[SCRIPTURE\]\s*\nreference:\s*(.+)\ntext:\s*.+\n\[\/SCRIPTURE\]/g;
-          let m;
-          while ((m = regex.exec(fullText)) !== null) {
-            scriptureRefs.push(m[1].trim());
-          }
-          setCurrentResponse({ question, response: fullText, scriptures: scriptureRefs });
-
-          if (!user) {
-            incrementGuestQuestions();
-            const newCount = getGuestQuestionsUsed();
-            trackEvent('response_viewed', {
-              screen: 'response',
-              metadata: { is_guest: true, guest_question_number: newCount },
-              userId: null,
-            });
-            if (isGuestAtLimit || newCount >= GUEST_LIMIT) {
-              setShowSoftGate(true);
-              const eventName = newCount > GUEST_LIMIT ? 'blur_gate_shown' : 'soft_gate_shown';
-              trackEvent(eventName, {
-                screen: 'response',
-                metadata: { guest_question_number: newCount },
-                userId: null,
-              });
+        } else {
+          // Desktop/Android: stream the response
+          setIsStreaming(true);
+          const reader = response.body!.getReader();
+          const decoder = new TextDecoder();
+          let firstChunk = true;
+          while (true) {
+            const { done, value } = await reader.read();
+            if (done) break;
+            const chunk = decoder.decode(value, { stream: true });
+            fullText += chunk;
+            if (firstChunk) {
+              clearTimeout(t1);
+              clearTimeout(t2);
+              setAgentStage(null);
+              firstChunk = false;
             }
-          } else {
-            await incrementDailyUsage();
+            setCurrentResponse((prev) =>
+              prev ? { ...prev, response: fullText } : { question, response: fullText, scriptures: [] }
+            );
           }
-          return;
-        }
-
-        const reader = response.body!.getReader();
-        const decoder = new TextDecoder();
-        let fullText = "";
-        let firstChunk = true;
-
-        while (true) {
-          const { done, value } = await reader.read();
-          if (done) break;
-          const chunk = decoder.decode(value, { stream: true });
-          fullText += chunk;
-
-          // Clear stage label on first chunk
-          if (firstChunk) {
-            clearTimeout(t1);
-            clearTimeout(t2);
-            setAgentStage(null);
-            firstChunk = false;
-          }
-
-          setCurrentResponse((prev) =>
-            prev ? { ...prev, response: fullText } : { question, response: fullText, scriptures: [] }
-          );
         }
 
         // Parse scriptures from final text
