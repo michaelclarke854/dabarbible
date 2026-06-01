@@ -56,12 +56,18 @@ const AskScreen = forwardRef<HTMLDivElement, AskScreenProps>(({ onSeekWisdom, is
   );
   const [hardModeOpen, setHardModeOpen] = useState(false);
 
+  // Track latest "has input" without re-subscribing the interval on every
+  // keystroke (which caused input lag on Android WebView).
+  const hasInputRef = useRef(false);
+  useEffect(() => {
+    hasInputRef.current = !!question;
+  }, [question]);
+
   // Combined ticker for both rotating prompts and placeholder.
   // Pauses when the document is hidden (background tab / locked screen) and
   // when the textarea has user input, so we don't burn battery/CPU on Android
-  // 8 WebView re-rendering invisible UI.
+  // 8 WebView re-rendering invisible UI. Effect runs ONCE per mount.
   useEffect(() => {
-    const hasInput = !!question;
     const start = () => {
       if (intervalRef.current) return;
       intervalRef.current = setInterval(() => {
@@ -71,7 +77,7 @@ const AskScreen = forwardRef<HTMLDivElement, AskScreenProps>(({ onSeekWisdom, is
           setPromptIndex((prev) => (prev + 1) % SOUL_PROMPTS.length);
           setPromptVisible(true);
         }, 600);
-        if (!hasInput) {
+        if (!hasInputRef.current) {
           setPlaceholderIndex((prev) => (prev + 1) % QUESTION_PLACEHOLDERS.length);
         }
       }, 4000);
@@ -96,7 +102,7 @@ const AskScreen = forwardRef<HTMLDivElement, AskScreenProps>(({ onSeekWisdom, is
         document.removeEventListener("visibilitychange", onVis);
       }
     };
-  }, [question]);
+  }, []);
 
   const routeScripture = (bookName: string, chapter: number, verse?: number) => {
     if (!onScriptureRef) return false;
