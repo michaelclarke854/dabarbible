@@ -396,6 +396,43 @@ serve(async (req) => {
     const scriptureRefs = verses.map(v => v.ref);
     const sessionId = await createSession(supabase, userId, question, scriptureRefs);
 
+    // ── iOS native: buffer full response, no streaming ──────────────────────────
+    if (nativeIOS) {
+      const iosReader = call2Res.body!.getReader();
+      const iosDecoder = new TextDecoder();
+      let iosBuf = "";
+      let iosText = "";
+      while (true) {
+        const { done, value } = await iosReader.read();
+        if (done) break;
+        iosBuf += iosDecoder.decode(value, { stream: true });
+        const lines = iosBuf.split("\n");
+        iosBuf = lines.pop() || "";
+        for (const line of lines) {
+          const t = line.trim();
+          if (!t.startsWith("data: ") || t.slice(6) === "[DONE]") continue;
+          try { iosText += JSON.parse(t.slice(6)).choices?.[0]?.delta?.content ?? ""; } catch { /* skip */ }
+        }
+      }
+      if (sessionId) {
+        await supabase.from("wisdom_sessions")
+          .update({ response: iosText.trim() })
+          .eq("id", sessionId);
+      }
+      return new Response(
+        JSON.stringify({ response: iosText, sessionId: sessionId ?? "" }),
+        {
+          headers: {
+            ...corsHeaders,
+            "Content-Type": "application/json",
+            "Access-Control-Expose-Headers": "X-Session-Id, X-Intent-Key",
+            "X-Session-Id": sessionId || "",
+            "X-Intent-Key": onboardingIntentKey || "",
+          },
+        }
+      );
+    }
+
     // ── Stream to client ──
     let fullText = "";
     const encoder = new TextEncoder();
