@@ -102,12 +102,14 @@ const AuthModal = forwardRef<HTMLDivElement, AuthModalProps>(({ isOpen, onClose,
     }
     setLoading(true);
     try {
+      const redirectBase = isNative() ? "https://dabarbible.com" : window.location.origin;
       const { error } = await supabase.auth.resetPasswordForEmail(email.trim(), {
-        redirectTo: `${window.location.origin}/reset-password`,
+        redirectTo: `${redirectBase}/reset-password`,
       });
       if (error) throw error;
       setForgotSent(true);
     } catch (err: any) {
+      recordAuthError(`forgot: ${err?.message || err}`);
       setForgotError(err.message || "Something went wrong.");
     } finally {
       setLoading(false);
@@ -127,11 +129,12 @@ const AuthModal = forwardRef<HTMLDivElement, AuthModalProps>(({ isOpen, onClose,
           return;
         }
 
+        const redirectBase = isNative() ? "https://dabarbible.com" : window.location.origin;
         const { error } = await supabase.auth.signUp({
           email,
           password,
           options: {
-            emailRedirectTo: `${window.location.origin}/auth/callback`,
+            emailRedirectTo: `${redirectBase}/auth/callback`,
             data: { age_group: result.ageGroup },
           },
         });
@@ -173,6 +176,7 @@ const AuthModal = forwardRef<HTMLDivElement, AuthModalProps>(({ isOpen, onClose,
         onClose();
       }
     } catch (err: any) {
+      recordAuthError(`${mode}: ${err?.message || err}`);
       toast.error(err.message || "Something went wrong.");
     } finally {
       setLoading(false);
