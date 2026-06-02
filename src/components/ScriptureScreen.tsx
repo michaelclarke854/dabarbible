@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from "react";
-import { ArrowLeft, Bookmark, BookmarkCheck, ChevronRight } from "lucide-react";
+import { ArrowLeft, Bookmark, BookmarkCheck, ChevronRight, Search } from "lucide-react";
 import { kjvBooks, type BibleBook } from "@/data/kjvBooks";
+import dailyVersesData from "@/content/daily-verses.json";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import type { User } from "@supabase/supabase-js";
@@ -80,6 +81,37 @@ const ScriptureScreen = ({
 
   // Saved verse version display state
   const [savedVerseExpandedId, setSavedVerseExpandedId] = useState<string | null>(null);
+
+  // Books-view search query
+  const [searchQuery, setSearchQuery] = useState("");
+
+  // Today's devotional verse — rotates by day-of-year over the local devotional set
+  const devotionalVerse = (() => {
+    const list = dailyVersesData as Array<{ day: number; ref: string; text: string; prompt?: string }>;
+    const start = new Date(new Date().getFullYear(), 0, 0);
+    const diff = Date.now() - start.getTime();
+    const dayOfYear = Math.floor(diff / 86400000);
+    return list[dayOfYear % list.length];
+  })();
+
+  // Open Scripture view from a devotional reference like "Psalm 23:1" or "Lamentations 3:22-23"
+  const openDevotionalRef = (ref: string) => {
+    const match = ref.match(/^(.+?)\s+(\d+)(?::(\d+))?/);
+    if (!match) return;
+    let bookName = match[1].trim();
+    const chapter = parseInt(match[2], 10);
+    const verse = match[3] ? parseInt(match[3], 10) : 1;
+    // Normalize common variants (e.g. "Psalm" → "Psalms")
+    let book = kjvBooks.find((b) => b.name.toLowerCase() === bookName.toLowerCase());
+    if (!book && bookName.toLowerCase() === "psalm") {
+      book = kjvBooks.find((b) => b.name === "Psalms");
+    }
+    if (!book) return;
+    setSelectedBook(book);
+    setSelectedChapter(chapter);
+    setHighlightVerse(verse);
+    setView("verses");
+  };
 
   // Session version — persists across chapter navigation within same tab session
   const [sessionVersion, setSessionVersion] = useState<BibleVersion | null>(null);
@@ -390,9 +422,26 @@ const ScriptureScreen = ({
 
   // BOOKS VIEW
   if (view === "books") {
+    const q = searchQuery.trim().toLowerCase();
+    const filteredOT = q ? otBooks.filter((b) => b.name.toLowerCase().includes(q)) : otBooks;
+    const filteredNT = q ? ntBooks.filter((b) => b.name.toLowerCase().includes(q)) : ntBooks;
+
+    const renderBookCard = (book: BibleBook) => (
+      <button
+        key={book.name}
+        type="button"
+        onClick={() => { setSelectedBook(book); setView("chapters"); }}
+        className="text-left bg-ink/70 border border-gold/15 rounded-xl px-3 py-2.5 hover:bg-gold/5 hover:border-gold/30 transition-all relative group"
+      >
+        <p className="font-serif text-sm font-normal text-parchment/90 mb-0.5">{book.name}</p>
+        <p className="text-[10px] font-light text-parchment/40">{book.chapters} chapters</p>
+        <span className="absolute bottom-2 right-2.5 text-[10px] text-gold/30 group-hover:text-gold/60 transition-colors">→</span>
+      </button>
+    );
+
     return (
       <div className="min-h-[calc(100vh-80px)] px-6 py-8 max-w-2xl mx-auto">
-        <div className="flex items-center justify-between mb-8">
+        <div className="flex items-center justify-between mb-5">
           <h1 className="font-serif text-2xl text-foreground tracking-wide">Scripture</h1>
           {user && (
             <button
@@ -404,39 +453,67 @@ const ScriptureScreen = ({
           )}
         </div>
 
-        <div className="mb-8">
-          <h2 className="font-serif text-sm tracking-[0.2em] uppercase text-gold mb-4">Old Testament</h2>
-          <div className="grid grid-cols-2 gap-1">
-            {otBooks.map((book) => (
-              <button
-                key={book.name}
-                onClick={() => { setSelectedBook(book); setView("chapters"); }}
-                className="text-left py-2.5 px-3 font-body text-sm text-foreground hover:text-gold hover:bg-gold/5 rounded-sm transition-colors flex items-center justify-between group"
-              >
-                <span>{book.name}</span>
-                <ChevronRight size={14} className="text-muted-foreground/40 group-hover:text-gold transition-colors" />
-              </button>
-            ))}
-          </div>
+        {/* Today's devotional — tap to open the scripture */}
+        {devotionalVerse && (
+          <button
+            type="button"
+            onClick={() => openDevotionalRef(devotionalVerse.ref)}
+            className="relative w-full text-left bg-ink/85 border border-gold/25 rounded-2xl p-4 mb-4 overflow-hidden hover:border-gold/45 transition-colors"
+          >
+            <div className="absolute top-0 left-0 right-0 h-[1.5px] bg-gradient-to-r from-transparent via-gold/50 to-transparent" />
+            <p className="text-[9px] font-light tracking-[0.20em] uppercase text-gold/55 mb-2">
+              Today's devotional
+            </p>
+            <p className="font-serif text-sm italic text-parchment/90 leading-relaxed mb-1.5">
+              "{devotionalVerse.text}"
+            </p>
+            <p className="text-[10px] tracking-widest uppercase text-gold/50">
+              {devotionalVerse.ref} · tap to reflect
+            </p>
+          </button>
+        )}
+
+        {/* Search */}
+        <div className="flex items-center gap-2 bg-ink/80 border border-gold/20 rounded-xl px-4 py-3 mb-5">
+          <Search size={14} className="text-gold/55 flex-shrink-0" />
+          <input
+            type="text"
+            placeholder="Search a verse, book, or topic…"
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="flex-1 bg-transparent font-serif italic text-sm text-parchment/90 placeholder:text-parchment/30 outline-none"
+          />
         </div>
 
-        <div className="w-12 h-px bg-gold/30 mx-auto mb-8" />
-
-        <div>
-          <h2 className="font-serif text-sm tracking-[0.2em] uppercase text-gold mb-4">New Testament</h2>
-          <div className="grid grid-cols-2 gap-1">
-            {ntBooks.map((book) => (
-              <button
-                key={book.name}
-                onClick={() => { setSelectedBook(book); setView("chapters"); }}
-                className="text-left py-2.5 px-3 font-body text-sm text-foreground hover:text-gold hover:bg-gold/5 rounded-sm transition-colors flex items-center justify-between group"
-              >
-                <span>{book.name}</span>
-                <ChevronRight size={14} className="text-muted-foreground/40 group-hover:text-gold transition-colors" />
-              </button>
-            ))}
+        {/* Old Testament */}
+        {filteredOT.length > 0 && (
+          <div className="mb-5">
+            <p className="text-[9px] font-medium tracking-[0.20em] uppercase text-gold/45 mb-2.5">
+              Old Testament
+            </p>
+            <div className="grid grid-cols-2 gap-1.5">
+              {filteredOT.map(renderBookCard)}
+            </div>
           </div>
-        </div>
+        )}
+
+        {/* New Testament */}
+        {filteredNT.length > 0 && (
+          <div className="mb-5">
+            <p className="text-[9px] font-medium tracking-[0.20em] uppercase text-gold/45 mb-2.5">
+              New Testament
+            </p>
+            <div className="grid grid-cols-2 gap-1.5">
+              {filteredNT.map(renderBookCard)}
+            </div>
+          </div>
+        )}
+
+        {q && filteredOT.length === 0 && filteredNT.length === 0 && (
+          <p className="text-center font-body text-xs text-muted-foreground mt-8">
+            No books match "{searchQuery}".
+          </p>
+        )}
       </div>
     );
   }
