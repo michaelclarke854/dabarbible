@@ -384,6 +384,8 @@ const AuthModal = forwardRef<HTMLDivElement, AuthModalProps>(({ isOpen, onClose,
                 placeholder="Email"
                 required
                 style={inputStyle}
+                onFocus={handleInputFocus}
+                onBlur={handleInputBlur}
               />
               {forgotError && (
                 <p className="text-xs text-destructive font-body">{forgotError}</p>
@@ -451,6 +453,8 @@ const AuthModal = forwardRef<HTMLDivElement, AuthModalProps>(({ isOpen, onClose,
             required
             disabled={oauthLoading}
             style={{ ...inputStyle, opacity: oauthLoading ? 0.5 : 1 }}
+            onFocus={handleInputFocus}
+            onBlur={handleInputBlur}
           />
           <input
             type="password"
@@ -461,6 +465,8 @@ const AuthModal = forwardRef<HTMLDivElement, AuthModalProps>(({ isOpen, onClose,
             minLength={8}
             disabled={oauthLoading}
             style={{ ...inputStyle, opacity: oauthLoading ? 0.5 : 1 }}
+            onFocus={handleInputFocus}
+            onBlur={handleInputBlur}
           />
 
           {mode === "signin" && (
@@ -531,6 +537,8 @@ const AuthModal = forwardRef<HTMLDivElement, AuthModalProps>(({ isOpen, onClose,
               placeholder="Reviewer code"
               autoComplete="off"
               style={inputStyle}
+              onFocus={handleInputFocus}
+              onBlur={handleInputBlur}
             />
             {reviewerError && (
               <p className="text-xs text-destructive font-body text-center">{reviewerError}</p>
