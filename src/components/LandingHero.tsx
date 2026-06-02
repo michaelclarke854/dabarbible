@@ -3,7 +3,6 @@ import { Link, useSearchParams } from "react-router-dom";
 import { motion, useReducedMotion } from "framer-motion";
 import { fadeUp } from "@/lib/motionVariants";
 import { trackEvent } from "@/lib/trackEvent";
-import { TrustStrip } from "@/components/ask/TrustStrip";
 import { SEO } from "@/components/SEO";
 
 interface LandingHeroProps {
@@ -56,13 +55,10 @@ export function LandingHero({ onSeekWisdom, isLoading, onSignIn }: LandingHeroPr
 
   const tagline = isGrief
     ? "For those carrying grief and the questions it brings"
-    : "For the questions faith rarely answers cleanly";
-  const hookCopy = isGrief
-    ? "You don't have to carry this alone"
-    : "Ask your first question — no account needed";
+    : "For the questions you've been afraid to ask out loud.";
   const inputPlaceholder = isGrief
     ? "What are you carrying right now?"
-    : "Or write your own question…";
+    : "What's weighing on you today?";
   const example = isGrief ? EXAMPLE_GRIEF : EXAMPLE;
 
   // Pick 3 seed questions once per mount (stable across re-renders).
@@ -121,7 +117,7 @@ export function LandingHero({ onSeekWisdom, isLoading, onSignIn }: LandingHeroPr
   ];
 
   return (
-    <section className="relative px-6 pt-10 pb-16 sm:pt-14 sm:pb-20 max-w-2xl mx-auto flex flex-col items-center text-center">
+    <section className="relative px-6 pt-4 pb-16 sm:pt-6 sm:pb-20 max-w-2xl mx-auto flex flex-col items-center text-center">
       <SEO
         title="Dabar Bible — Ask the Bible Anything | AI Devotionals & Scripture Search"
         description="The first AI Bible companion. Ask any spiritual question, get scripture-backed answers, explore daily devotionals, KJV Bible reading plans, and personalized wisdom — powered by AI."
@@ -167,11 +163,11 @@ export function LandingHero({ onSeekWisdom, isLoading, onSignIn }: LandingHeroPr
             letterSpacing: "0.18em",
             textTransform: "uppercase" as const,
             color: "rgba(184,145,58,0.6)",
-            marginBottom: 6,
+            marginBottom: 4,
             animation: "dabar-fadeup 0.6s ease forwards",
           }}
         >
-          AI-powered spiritual discernment
+          AI-powered biblical wisdom
         </p>
         <div
           aria-label="Dabar"
@@ -187,59 +183,19 @@ export function LandingHero({ onSeekWisdom, isLoading, onSignIn }: LandingHeroPr
       {/* Positioning headline — primary SEO H1 */}
       <motion.h1
         {...reveal(0.15)}
-        className="font-serif text-2xl sm:text-3xl text-foreground leading-tight max-w-md mt-6"
+        className="font-serif text-2xl sm:text-3xl text-foreground leading-tight max-w-md mt-4"
       >
         Ask the Bible Anything
       </motion.h1>
       <motion.p
         {...reveal(0.18)}
-        className="font-serif text-base sm:text-lg text-foreground/85 leading-relaxed max-w-md mt-3"
+        className="font-serif text-base sm:text-lg text-foreground/85 leading-relaxed max-w-md mt-2 mb-2"
       >
         {tagline}
       </motion.p>
 
-      <motion.p
-        {...reveal(0.2)}
-        className="font-body text-sm text-muted-foreground mt-3"
-      >
-        {hookCopy}
-      </motion.p>
-
-      <motion.p
-        {...reveal(0.25)}
-        className="font-body text-muted-foreground/50 mt-2 text-center"
-        style={{ fontSize: "10px", letterSpacing: "0.04em" }}
-      >
-        Free for 30 days · $4.99/month after · Cancel anytime
-      </motion.p>
-
-      <div className="w-12 h-px bg-gold my-6" />
-
-      {/* Example response preview card — strongest proof of value */}
-      <motion.div
-        {...reveal(0.3)}
-        className="dabar-glass w-full rounded-sm border border-gold/20 p-6 sm:p-8 text-left mb-10"
-      >
-        <div
-          className="mb-4"
-          style={{ height: '1px', width: '28px', background: 'rgba(196,151,58,0.4)' }}
-        />
-        <p className="font-['Playfair_Display'] italic text-sm text-muted-foreground mb-5 leading-relaxed">
-          "{example.question}"
-        </p>
-        <p className="font-body normal-case text-base sm:text-lg leading-relaxed text-foreground mb-4">
-          {example.mirror}
-        </p>
-        <p className="scripture-italic text-base sm:text-lg leading-relaxed text-foreground/90 border-l-2 border-gold/60 pl-4 py-1 my-4">
-          {example.scripture}
-        </p>
-        <p className="font-body normal-case text-base leading-relaxed text-foreground/85">
-          {example.bridge}
-        </p>
-      </motion.div>
-
-      {/* Inline ask: tappable chips + textarea + submit — no navigation */}
-      <motion.div {...reveal(0.45)} className="w-full text-left">
+      {/* Inline ask: above the fold — chips + textarea + submit */}
+      <motion.div {...reveal(0.25)} className="w-full text-left mt-3">
         <p className="font-body text-[11px] tracking-widest uppercase text-muted-foreground/80 mb-3 text-center">
           Or start with one of these
         </p>
@@ -250,9 +206,9 @@ export function LandingHero({ onSeekWisdom, isLoading, onSignIn }: LandingHeroPr
               type="button"
               onClick={() => handleChipTap(q)}
               disabled={isLoading}
-              className="rounded-full border border-gold/50 bg-transparent px-4 py-1.5 text-[13px] leading-snug text-foreground/85 font-body transition-all hover:border-gold hover:text-foreground hover:bg-gold/10 disabled:opacity-50 disabled:cursor-not-allowed text-left"
+              className="rounded-full border border-gold/40 bg-transparent px-4 py-1.5 text-[13px] leading-snug text-foreground/85 font-body transition-all duration-200 hover:border-gold/60 hover:text-foreground hover:bg-gold/10 disabled:opacity-50 disabled:cursor-not-allowed text-left cursor-pointer"
             >
-              {q}
+              {q} <span className="text-gold/70">→</span>
             </button>
           ))}
         </div>
@@ -299,7 +255,22 @@ export function LandingHero({ onSeekWisdom, isLoading, onSignIn }: LandingHeroPr
           {isLoading ? "Seeking…" : "Seek Wisdom"}
         </button>
 
-        <TrustStrip />
+        {/* Pricing line — directly below CTA */}
+        <p
+          className="font-body text-muted-foreground/60 mt-3 text-center"
+          style={{ fontSize: "10.5px", letterSpacing: "0.04em" }}
+        >
+          Free for 30 days · $4.99/month after · Cancel anytime
+        </p>
+
+        {/* Above-the-fold trust row */}
+        <div className="flex flex-wrap items-center justify-center gap-x-3 gap-y-1 text-[11px] font-light tracking-wide text-muted-foreground/50 py-2 mt-1">
+          <span>✝ Built by a Christian</span>
+          <span className="text-gold/20" aria-hidden="true">·</span>
+          <span>🔒 Private by default</span>
+          <span className="text-gold/20" aria-hidden="true">·</span>
+          <span>Free · No card needed</span>
+        </div>
 
         <p className="font-body text-[11px] text-muted-foreground/80 mt-3 text-center leading-relaxed">
           Scripture-grounded reflection ·{" "}
@@ -307,9 +278,41 @@ export function LandingHero({ onSeekWisdom, isLoading, onSignIn }: LandingHeroPr
             not pastoral counsel
           </Link>
         </p>
-        <p className="font-body text-xs text-muted-foreground mt-1 text-center tracking-wide">
-          Free · No card required
+      </motion.div>
+
+      <div className="w-12 h-px bg-gold my-10" />
+
+      {/* Example response preview card — proof of value, below the fold */}
+      <motion.div
+        {...reveal(0.3)}
+        className="dabar-glass w-full rounded-sm border border-gold/20 p-6 sm:p-8 text-left mb-10"
+      >
+        <div
+          className="mb-4"
+          style={{ height: '1px', width: '28px', background: 'rgba(196,151,58,0.4)' }}
+        />
+        <p className="font-['Playfair_Display'] italic text-sm text-muted-foreground mb-5 leading-relaxed">
+          "{example.question}"
         </p>
+        <p className="font-body normal-case text-base sm:text-lg leading-relaxed text-foreground mb-4">
+          {example.mirror}
+        </p>
+        <p className="scripture-italic text-base sm:text-lg leading-relaxed text-foreground/90 border-l-2 border-gold/60 pl-4 py-1 my-4">
+          {example.scripture}
+        </p>
+        <p className="font-body normal-case text-base leading-relaxed text-foreground/85">
+          {example.bridge}
+        </p>
+        <button
+          type="button"
+          onClick={() => {
+            inputRef.current?.focus();
+            inputRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
+          }}
+          className="text-xs tracking-widest uppercase text-gold/55 hover:text-gold/90 transition-colors mt-4 w-full text-right"
+        >
+          Ask your own question →
+        </button>
       </motion.div>
 
       {/* FAQ — long-tail search targeting */}
