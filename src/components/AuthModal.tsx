@@ -280,8 +280,10 @@ const AuthModal = forwardRef<HTMLDivElement, AuthModalProps>(({ isOpen, onClose,
   };
 
   const inputStyle: React.CSSProperties = {
-    background: "rgba(255,255,255,0.04)",
-    border: "0.5px solid rgba(184,145,58,0.3)",
+    background: "rgba(255,250,238,0.08)",
+    borderWidth: "0.5px",
+    borderStyle: "solid",
+    borderColor: "rgba(255,250,238,0.25)",
     borderRadius: 8,
     padding: "11px 13px",
     color: "#e8dfc8",
@@ -290,7 +292,16 @@ const AuthModal = forwardRef<HTMLDivElement, AuthModalProps>(({ isOpen, onClose,
     fontWeight: 300,
     width: "100%",
     outline: "none",
-    transition: "border-color 0.2s ease",
+    transition: "border-color 0.2s ease, background-color 0.2s ease",
+  };
+
+  const handleInputFocus = (e: React.FocusEvent<HTMLInputElement>) => {
+    e.currentTarget.style.background = "rgba(255,250,238,0.12)";
+    e.currentTarget.style.borderColor = "rgba(232,184,75,0.6)";
+  };
+  const handleInputBlur = (e: React.FocusEvent<HTMLInputElement>) => {
+    e.currentTarget.style.background = "rgba(255,250,238,0.08)";
+    e.currentTarget.style.borderColor = "rgba(255,250,238,0.25)";
   };
 
   const dobFields = (
