@@ -269,12 +269,32 @@ const AuthModal = forwardRef<HTMLDivElement, AuthModalProps>(({ isOpen, onClose,
   const handleTitleTap = () => {
     setTitleTaps((n) => {
       const next = n + 1;
-      if (next >= 5) {
-        setShowReviewer(true);
+      if (next === 8) {
+        // 8 taps → open diagnostics panel
+        runDiagnostics();
+        setShowDiagnostics(true);
         return 0;
+      }
+      if (next === 5) {
+        setShowReviewer(true);
+        return next; // keep counting so 8 still fires diagnostics
       }
       return next;
     });
+  };
+
+  const runDiagnostics = async () => {
+    try {
+      const url = (import.meta as any).env?.VITE_SUPABASE_URL;
+      if (!url) {
+        setDiagHealth("VITE_SUPABASE_URL is undefined in this build");
+        return;
+      }
+      const res = await fetch(`${url}/auth/v1/health`);
+      setDiagHealth(`${res.status} ${res.statusText}`);
+    } catch (e: any) {
+      setDiagHealth(`fetch failed: ${e?.message || e}`);
+    }
   };
 
   const handleReviewerSubmit = async (e: React.FormEvent) => {
