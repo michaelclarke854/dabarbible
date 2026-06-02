@@ -43,6 +43,8 @@ const AuthModal = forwardRef<HTMLDivElement, AuthModalProps>(({ isOpen, onClose,
   const [reviewerError, setReviewerError] = useState("");
   const [reviewerLoading, setReviewerLoading] = useState(false);
   const nativeIOS = isIOSNative();
+  const [showDiagnostics, setShowDiagnostics] = useState(false);
+  const [diagHealth, setDiagHealth] = useState<string>("(not checked)");
 
   // Re-evaluate initial mode whenever the modal re-opens
   useEffect(() => {
@@ -54,6 +56,7 @@ const AuthModal = forwardRef<HTMLDivElement, AuthModalProps>(({ isOpen, onClose,
       setShowReviewer(false);
       setReviewerCode("");
       setReviewerError("");
+      setShowDiagnostics(false);
     }
   }, [isOpen, defaultMode]);
 
