@@ -3,7 +3,6 @@ import { Link, useSearchParams } from "react-router-dom";
 import { motion, useReducedMotion } from "framer-motion";
 import { fadeUp } from "@/lib/motionVariants";
 import { trackEvent } from "@/lib/trackEvent";
-import { TrustStrip } from "@/components/ask/TrustStrip";
 import { SEO } from "@/components/SEO";
 
 interface LandingHeroProps {
