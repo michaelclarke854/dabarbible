@@ -258,7 +258,7 @@ const JournalScreen = ({
               value={searchInput}
               onChange={(e) => setSearchInput(e.target.value)}
               placeholder="Search saved wisdom by topic, word, or phrase…"
-              className="w-full bg-transparent border-b border-border pb-2 pr-7 text-sm font-body text-foreground placeholder:text-muted-foreground/50 outline-none focus:border-gold transition-colors"
+              className="w-full bg-[rgba(255,250,238,0.08)] border border-[rgba(255,250,238,0.25)] rounded-sm px-3 py-2 pr-7 text-sm font-body text-foreground placeholder:text-muted-foreground/50 outline-none focus:bg-[rgba(255,250,238,0.12)] focus:border-[rgba(232,184,75,0.6)] transition-colors"
             />
             {searchInput && (
               <button
