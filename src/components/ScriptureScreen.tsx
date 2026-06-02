@@ -82,6 +82,37 @@ const ScriptureScreen = ({
   // Saved verse version display state
   const [savedVerseExpandedId, setSavedVerseExpandedId] = useState<string | null>(null);
 
+  // Books-view search query
+  const [searchQuery, setSearchQuery] = useState("");
+
+  // Today's devotional verse — rotates by day-of-year over the local devotional set
+  const devotionalVerse = (() => {
+    const list = dailyVersesData as Array<{ day: number; ref: string; text: string; prompt?: string }>;
+    const start = new Date(new Date().getFullYear(), 0, 0);
+    const diff = Date.now() - start.getTime();
+    const dayOfYear = Math.floor(diff / 86400000);
+    return list[dayOfYear % list.length];
+  })();
+
+  // Open Scripture view from a devotional reference like "Psalm 23:1" or "Lamentations 3:22-23"
+  const openDevotionalRef = (ref: string) => {
+    const match = ref.match(/^(.+?)\s+(\d+)(?::(\d+))?/);
+    if (!match) return;
+    let bookName = match[1].trim();
+    const chapter = parseInt(match[2], 10);
+    const verse = match[3] ? parseInt(match[3], 10) : 1;
+    // Normalize common variants (e.g. "Psalm" → "Psalms")
+    let book = kjvBooks.find((b) => b.name.toLowerCase() === bookName.toLowerCase());
+    if (!book && bookName.toLowerCase() === "psalm") {
+      book = kjvBooks.find((b) => b.name === "Psalms");
+    }
+    if (!book) return;
+    setSelectedBook(book);
+    setSelectedChapter(chapter);
+    setHighlightVerse(verse);
+    setView("verses");
+  };
+
   // Session version — persists across chapter navigation within same tab session
   const [sessionVersion, setSessionVersion] = useState<BibleVersion | null>(null);
 
