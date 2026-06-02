@@ -3,7 +3,9 @@ import { supabase } from "@/integrations/supabase/client";
 import { lovable } from "@/integrations/lovable/index";
 import { toast } from "sonner";
 import { useAuth } from "@/contexts/AuthContext";
-import { isIOSNative } from "@/lib/platform";
+import { isIOSNative, isNative } from "@/lib/platform";
+import { signInWithAppleNative, recordAuthError, getLastAuthError } from "@/lib/nativeAuth";
+import { Capacitor } from "@capacitor/core";
 import { trackEvent } from "@/lib/trackEvent";
 
 interface AuthModalProps {
@@ -41,6 +43,8 @@ const AuthModal = forwardRef<HTMLDivElement, AuthModalProps>(({ isOpen, onClose,
   const [reviewerError, setReviewerError] = useState("");
   const [reviewerLoading, setReviewerLoading] = useState(false);
   const nativeIOS = isIOSNative();
+  const [showDiagnostics, setShowDiagnostics] = useState(false);
+  const [diagHealth, setDiagHealth] = useState<string>("(not checked)");
 
   // Re-evaluate initial mode whenever the modal re-opens
   useEffect(() => {
@@ -52,6 +56,7 @@ const AuthModal = forwardRef<HTMLDivElement, AuthModalProps>(({ isOpen, onClose,
       setShowReviewer(false);
       setReviewerCode("");
       setReviewerError("");
+      setShowDiagnostics(false);
     }
   }, [isOpen, defaultMode]);
 
@@ -97,12 +102,14 @@ const AuthModal = forwardRef<HTMLDivElement, AuthModalProps>(({ isOpen, onClose,
     }
     setLoading(true);
     try {
+      const redirectBase = isNative() ? "https://dabarbible.com" : window.location.origin;
       const { error } = await supabase.auth.resetPasswordForEmail(email.trim(), {
-        redirectTo: `${window.location.origin}/reset-password`,
+        redirectTo: `${redirectBase}/reset-password`,
       });
       if (error) throw error;
       setForgotSent(true);
     } catch (err: any) {
+      recordAuthError(`forgot: ${err?.message || err}`);
       setForgotError(err.message || "Something went wrong.");
     } finally {
       setLoading(false);
@@ -122,11 +129,12 @@ const AuthModal = forwardRef<HTMLDivElement, AuthModalProps>(({ isOpen, onClose,
           return;
         }
 
+        const redirectBase = isNative() ? "https://dabarbible.com" : window.location.origin;
         const { error } = await supabase.auth.signUp({
           email,
           password,
           options: {
-            emailRedirectTo: `${window.location.origin}/auth/callback`,
+            emailRedirectTo: `${redirectBase}/auth/callback`,
             data: { age_group: result.ageGroup },
           },
         });
@@ -168,6 +176,7 @@ const AuthModal = forwardRef<HTMLDivElement, AuthModalProps>(({ isOpen, onClose,
         onClose();
       }
     } catch (err: any) {
+      recordAuthError(`${mode}: ${err?.message || err}`);
       toast.error(err.message || "Something went wrong.");
     } finally {
       setLoading(false);
@@ -212,6 +221,27 @@ const AuthModal = forwardRef<HTMLDivElement, AuthModalProps>(({ isOpen, onClose,
     localStorage.setItem(RETURNING_USER_KEY, "1");
     trackEvent("oauth_start", { metadata: { provider: "apple" } });
 
+    // Native iOS: use the system Sign in with Apple sheet + signInWithIdToken.
+    // Avoids the capacitor:// redirect_uri problem that breaks the web OAuth flow inside the WebView.
+    if (nativeIOS) {
+      try {
+        await signInWithAppleNative();
+        toast.success("Welcome.");
+        onClose();
+      } catch (err: any) {
+        const msg = err?.message || "Unknown error";
+        recordAuthError(`apple-native: ${msg}`);
+        trackEvent("oauth_failure", { metadata: { provider: "apple", reason: msg } });
+        // Apple returns "canceled" when the user dismisses — don't show as an error.
+        if (!/cancel/i.test(msg)) {
+          setOauthError(`Apple sign-in failed: ${msg}`);
+        }
+      } finally {
+        setOauthLoading(false);
+      }
+      return;
+    }
+
     const result = await lovable.auth.signInWithOAuth("apple", {
       redirect_uri: `${window.location.origin}/auth/callback`,
     });
@@ -239,12 +269,32 @@ const AuthModal = forwardRef<HTMLDivElement, AuthModalProps>(({ isOpen, onClose,
   const handleTitleTap = () => {
     setTitleTaps((n) => {
       const next = n + 1;
-      if (next >= 5) {
-        setShowReviewer(true);
+      if (next === 8) {
+        // 8 taps → open diagnostics panel
+        runDiagnostics();
+        setShowDiagnostics(true);
         return 0;
+      }
+      if (next === 5) {
+        setShowReviewer(true);
+        return next; // keep counting so 8 still fires diagnostics
       }
       return next;
     });
+  };
+
+  const runDiagnostics = async () => {
+    try {
+      const url = (import.meta as any).env?.VITE_SUPABASE_URL;
+      if (!url) {
+        setDiagHealth("VITE_SUPABASE_URL is undefined in this build");
+        return;
+      }
+      const res = await fetch(`${url}/auth/v1/health`);
+      setDiagHealth(`${res.status} ${res.statusText}`);
+    } catch (e: any) {
+      setDiagHealth(`fetch failed: ${e?.message || e}`);
+    }
   };
 
   const handleReviewerSubmit = async (e: React.FormEvent) => {
@@ -490,39 +540,59 @@ const AuthModal = forwardRef<HTMLDivElement, AuthModalProps>(({ isOpen, onClose,
           </button>
         </form>
 
+        <div className="flex items-center gap-3 my-5">
+          <div className="flex-1 h-px bg-border" />
+          <span className="text-xs text-muted-foreground font-body">or</span>
+          <div className="flex-1 h-px bg-border" />
+        </div>
+
+        {/* Apple Sign In — placed above Google per Apple HIG (App Store 4.8.0).
+            On iOS native, uses the system sheet via @capacitor-community/apple-sign-in.
+            On web, uses the Lovable OAuth broker. */}
+        <button
+          onClick={handleApple}
+          disabled={oauthLoading || loading}
+          aria-label="Continue with Apple"
+          className="w-full font-body text-sm py-3 mb-3 rounded-sm bg-[#0a0907] text-[#f0ead8] border border-[#0a0907] hover:bg-[#1a1410] transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
+        >
+          <svg width="14" height="16" viewBox="0 0 14 16" fill="currentColor" aria-hidden="true">
+            <path d="M11.6 8.49c-.02-2.07 1.69-3.06 1.77-3.11-.96-1.41-2.46-1.6-2.99-1.62-1.27-.13-2.48.75-3.13.75-.65 0-1.65-.73-2.71-.71-1.4.02-2.69.81-3.41 2.06-1.45 2.52-.37 6.25 1.05 8.3.7 1 1.51 2.13 2.58 2.09 1.04-.04 1.43-.67 2.69-.67 1.25 0 1.61.67 2.71.65 1.12-.02 1.83-1.02 2.51-2.03.79-1.16 1.12-2.29 1.14-2.35-.02-.01-2.18-.84-2.21-3.36ZM9.6 2.41c.57-.7.96-1.66.85-2.62-.83.04-1.83.55-2.42 1.24-.53.61-.99 1.59-.87 2.53.93.07 1.87-.47 2.44-1.15Z" />
+          </svg>
+          {oauthLoading ? "Connecting…" : "Continue with Apple"}
+        </button>
+
+        {/* Google: web only for now. Native Google requires a separate iOS OAuth client. */}
         {!nativeIOS && (
-          <>
-            <div className="flex items-center gap-3 my-5">
-              <div className="flex-1 h-px bg-border" />
-              <span className="text-xs text-muted-foreground font-body">or</span>
-              <div className="flex-1 h-px bg-border" />
-            </div>
-
-            {/* Apple Sign In — placed above Google per Apple HIG (App Store 4.8.0) */}
-            <button
-              onClick={handleApple}
-              disabled={oauthLoading || loading}
-              aria-label="Continue with Apple"
-              className="w-full font-body text-sm py-3 mb-3 rounded-sm bg-[#0a0907] text-[#f0ead8] border border-[#0a0907] hover:bg-[#1a1410] transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
-            >
-              <svg width="14" height="16" viewBox="0 0 14 16" fill="currentColor" aria-hidden="true">
-                <path d="M11.6 8.49c-.02-2.07 1.69-3.06 1.77-3.11-.96-1.41-2.46-1.6-2.99-1.62-1.27-.13-2.48.75-3.13.75-.65 0-1.65-.73-2.71-.71-1.4.02-2.69.81-3.41 2.06-1.45 2.52-.37 6.25 1.05 8.3.7 1 1.51 2.13 2.58 2.09 1.04-.04 1.43-.67 2.69-.67 1.25 0 1.61.67 2.71.65 1.12-.02 1.83-1.02 2.51-2.03.79-1.16 1.12-2.29 1.14-2.35-.02-.01-2.18-.84-2.21-3.36ZM9.6 2.41c.57-.7.96-1.66.85-2.62-.83.04-1.83.55-2.42 1.24-.53.61-.99 1.59-.87 2.53.93.07 1.87-.47 2.44-1.15Z" />
-              </svg>
-              {oauthLoading ? "Connecting…" : "Continue with Apple"}
-            </button>
-
-            <button
-              onClick={handleGoogle}
-              disabled={oauthLoading || loading}
-              className="w-full font-body text-sm py-3 border border-border rounded-sm hover:border-gold transition-colors disabled:opacity-50"
-            >
-              {oauthLoading ? "Connecting…" : "Continue with Google"}
-            </button>
-          </>
+          <button
+            onClick={handleGoogle}
+            disabled={oauthLoading || loading}
+            className="w-full font-body text-sm py-3 border border-border rounded-sm hover:border-gold transition-colors disabled:opacity-50"
+          >
+            {oauthLoading ? "Connecting…" : "Continue with Google"}
+          </button>
         )}
 
         {oauthError && (
           <p className="text-xs text-destructive font-body mt-2 text-center">{oauthError}</p>
+        )}
+
+        {showDiagnostics && (
+          <div className="mt-5 pt-5 border-t border-border space-y-1 text-[10px] font-mono text-muted-foreground break-all">
+            <p className="text-foreground/70">Diagnostics</p>
+            <p>platform: {Capacitor.getPlatform()} (native: {String(Capacitor.isNativePlatform())})</p>
+            <p>origin: {window.location.origin}</p>
+            <p>supabase: {(import.meta as any).env?.VITE_SUPABASE_URL || "(undefined)"}</p>
+            <p>health: {diagHealth}</p>
+            <p>lastErr: {getLastAuthError() ? `${getLastAuthError()!.at} — ${getLastAuthError()!.message}` : "(none)"}</p>
+            <p>ua: {navigator.userAgent}</p>
+            <button
+              type="button"
+              onClick={runDiagnostics}
+              className="mt-2 text-gold underline"
+            >
+              re-run health check
+            </button>
+          </div>
         )}
 
         {showReviewer && (
