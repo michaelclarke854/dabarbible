@@ -265,7 +265,7 @@ const JournalScreen = ({
                 type="button"
                 onClick={() => setSearchInput("")}
                 aria-label="Clear search"
-                className="absolute right-0 top-0 bottom-2 flex items-center text-muted-foreground/60 hover:text-foreground transition-colors text-lg leading-none px-1"
+                className="absolute right-2 top-0 bottom-0 flex items-center text-muted-foreground/60 hover:text-foreground transition-colors text-lg leading-none px-1"
               >
                 ×
               </button>
