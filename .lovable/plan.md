@@ -1,77 +1,97 @@
-# DABAR Apple Resubmission — Capacitor Translation Plan
+# iOS Sign-In Fix — App Store build
 
-Confirmed bundle ID: `com.dabarbible.app`. Stack: Capacitor 8 + React 18 + Vite + Lovable Cloud managed auth.
+## Root cause
 
-## Block 1 — Database migrations
+The App Store build serves the WebView from `capacitor://localhost/`. `AuthModal.handleApple` and `handleGoogle` both call:
 
-Single migration adding everything not already present:
+```ts
+lovable.auth.signInWithOAuth("apple" | "google", {
+  redirect_uri: `${window.location.origin}/auth/callback`,
+})
+```
 
-- **`support_requests`** table (new) — exact schema from prompt, with RLS: anon+auth INSERT, auth SELECT own.
-- **`subscriptions`** ALTER — add `tier`, `current_period_end`, `cancel_at_period_end`, `stripe_customer_id`, `provider` (default `'stripe'`), `revenuecat_user_id`, `revenuecat_entitlement`, `apple_product_id`, `environment`, `last_webhook_event_id`, `updated_at`. Add `(user_id, provider)` unique index. Existing data left intact.
-- **`processed_webhook_events`** already exists — add `provider` column if missing; otherwise skip.
+Inside the iOS WebView, `window.location.origin` is `capacitor://localhost`. The Lovable OAuth broker (`oauth.lovable.app/~oauth/initiate`) won't redirect back into a `capacitor://` URL — the popup/SFSafariViewController opens, the user authorizes, then the redirect drops on the floor. From the user's seat: spinner → blank → "load fail". The same is true for any email-confirmation deep link.
 
-## Block 2 — RevenueCat webhook edge function
+Email/password should still hit `https://crkkimoblnrxpszehmkg.supabase.co` directly and work. If the user reports it's broken too, it's almost certainly the OAuth overlay getting stuck (the modal sets `oauthLoading=true` and never clears it because the browser tab never returns), not a real auth-API failure. We'll add diagnostics to confirm before guessing further.
 
-`supabase/functions/revenuecat-webhook/index.ts` — exact logic from prompt. Adds `verify_jwt = false` config block. Authentication via shared-secret header (`REVENUECAT_WEBHOOK_AUTH`).
+## What we'll build
 
-I'll request the secret via `add_secret` so you can paste a generated random value (same value goes into the RevenueCat dashboard webhook config).
+### 1. Native Apple Sign-In (Apple HIG / 4.8.0 — required regardless)
 
-## Block 3 — Reviewer premium row
+- Install `@capacitor-community/apple-sign-in`.
+- New `src/lib/nativeAuth.ts` exporting `signInWithAppleNative()`:
+  - Calls `SignInWithApple.authorize({ clientId: 'com.dabarbible.app', scopes: 'email name', state: '...', nonce: '...' })`.
+  - Hands the returned `identityToken` (+ `nonce`) to `supabase.auth.signInWithIdToken({ provider: 'apple', token, nonce })`.
+- `AuthModal.handleApple` branches on `isIOSNative()`:
+  - native → `signInWithAppleNative()` (no WebView redirect, runs in-process)
+  - web → existing `lovable.auth.signInWithOAuth("apple", …)` flow, unchanged.
+- Xcode side: enable the **Sign In with Apple** capability on the App target (manual step — I'll list it in the close-out; I can't toggle the entitlement from here).
 
-The reviewer auth user already exists (created on demand by the `reviewer-signin` edge function from the bypass-code work). I'll insert/upsert an `active` Personal subscription row for `reviewer@dabarbible.com` with `current_period_end = now() + 1 year`, `provider = 'stripe'`, so all paywalled paths unlock for the reviewer.
+### 2. Native Google Sign-In
 
-## Block 4 — Sign in with Apple
+- Install `@codetrix-studio/capacitor-google-auth`.
+- `signInWithGoogleNative()` in the same `nativeAuth.ts`:
+  - `GoogleAuth.initialize({ clientId: '<iOS client id>', scopes: ['email','profile'], grantOfflineAccess: false })` once at app launch (inside `AuthContext` mount, native-only).
+  - `const { authentication: { idToken } } = await GoogleAuth.signIn()`.
+  - `supabase.auth.signInWithIdToken({ provider: 'google', token: idToken })`.
+- `AuthModal.handleGoogle` branches on `isIOSNative()` the same way.
+- You'll need to create an **iOS OAuth client** in Google Cloud Console (bundle `com.dabarbible.app`) and paste the client id + reversed-client-id URL scheme. New secret: `VITE_GOOGLE_IOS_CLIENT_ID`. URL scheme goes into `ios/App/App/Info.plist` `CFBundleURLTypes`.
 
-Two-track because of Capacitor:
+### 3. Always-clear the OAuth overlay on native failure
 
-1. **Web / browser** (preview, dabarbible.com): use **Lovable Cloud managed Apple OAuth** via `lovable.auth.signInWithOAuth("apple", ...)`. I'll call `supabase--configure_social_auth` with `providers: ["apple"]`.
-2. **Native iOS**: install `@capacitor-community/apple-sign-in`, detect `Capacitor.isNativePlatform() && platform === 'ios'`, run the native flow, then `supabase.auth.signInWithIdToken({ provider: 'apple', token })`.
+Even with native flows, wrap every `signIn*Native()` call in try/finally that resets `oauthLoading=false` and surfaces the real `err.message` in the toast (current code only clears the spinner on the web `redirected===false` path). This kills the "infinite spinner / load fail" symptom for any non-redirect failure mode.
 
-Add a single **"Continue with Apple"** button in `AuthModal.tsx` *above* the Google button (Apple HIG / 4.8.0 placement requirement). Same height / weight as Google button.
+### 4. Email confirmation deep link
 
-You will still need to do the manual Apple Developer Portal steps (Services ID, .p8 key, return URL) — I'll list them in the close-out.
+`supabase.auth.signUp` currently sets `emailRedirectTo: window.location.origin + '/auth/callback'` → `capacitor://localhost/auth/callback`, which Mail.app on iOS won't open. On native, send `emailRedirectTo: 'https://dabarbible.com/auth/callback'` instead — the Android intent filter already handles `https://dabarbible.com/auth/callback`; iOS needs a matching **Associated Domains** entitlement (`applinks:dabarbible.com`) + `apple-app-site-association` file at `https://dabarbible.com/.well-known/apple-app-site-association`. I can author the AASA JSON and add the entitlement note; you'll need to host the file (it's a flat JSON, no code).
 
-## Block 5 — `/support` page
+Same change for `resetPasswordForEmail.redirectTo` in `AuthModal.handleForgotPassword`.
 
-New `src/pages/Support.tsx` (Tailwind/React, matching DABAR design tokens — parchment, ink, gold, Cinzel/Lato — not the generic stone palette in the prompt). Public route added to `src/App.tsx` above the `*` catch-all. Inserts into `support_requests`, exposes `support@dabarbible.com`, FAQ section.
+### 5. Diagnostics surface
 
-## Block 6 — Strip non-iOS references
+The current reviewer-bypass easter egg is "tap title 5×". Add a sibling: tap title 5× while holding the `email` field focused → shows a small diagnostic panel:
 
-Single edit: `src/components/OnboardingScreen.tsx:232` — replace `"iOS & Android apps coming soon"` with `"Available on iOS"`. Also sweep `index.html`, blog content, and email templates to confirm nothing else slipped in.
+- `Capacitor.getPlatform()`, `isNativePlatform()`, `navigator.userAgent`
+- Supabase URL (already public), result of a `fetch(SUPABASE_URL + '/auth/v1/health')`
+- Last auth error message + timestamp (stored in a module-level ref)
 
-## Block 7 — RevenueCat init (Capacitor)
+This lets reviewers — and you — paste the actual failure mode into a screenshot instead of "load fail".
 
-Install `@revenuecat/purchases-capacitor`. Create `src/lib/revenuecat.ts` with `initRevenueCat`, `identify`, `logout` — all gated behind `Capacitor.getPlatform() === 'ios'`. No-ops on web. Hook `init` into `AuthContext` after session resolves; `identify` on SIGNED_IN; `logout` on SIGNED_OUT.
+### 6. Validation
 
-The public iOS API key goes in an env var `VITE_REVENUECAT_IOS_KEY` — you'll paste this from the RevenueCat dashboard. I'll leave a `// TODO mike` comment + warn if missing.
+- `tsc --noEmit` clean (build runs automatically).
+- I can't reproduce the native flow in the Lovable preview. After `npx cap sync ios` + Xcode run on a real device, expected results:
+  - Apple button → native sheet → returns signed in.
+  - Google button → Google account chooser → returns signed in.
+  - Email/password → no behavior change (already works on HTTPS), spinner clears on failure.
 
-## Block 8 — Paywall iOS gate
+## Files I'll touch
 
-In `BillingConfirmModal.tsx` / `TrialPaywall.tsx` / `PricingPage.tsx`:
-- **Web (default)**: existing Stripe `create-checkout` flow stays untouched.
-- **Native iOS**: replace the "Subscribe" button handler with `Purchases.purchasePackage(pkg)` from RevenueCat, plus a **Restore Purchases** button (Apple requires it). Add the **auto-renew disclosure paragraph + ToS/Privacy links** below the buy buttons (Apple 3.1.2 requirement).
+```text
+package.json                          + 2 plugin deps
+src/lib/nativeAuth.ts                 NEW
+src/contexts/AuthContext.tsx          GoogleAuth.initialize() on iOS native
+src/components/AuthModal.tsx          branch Apple/Google handlers; finally{} cleanup; diagnostic panel; emailRedirectTo swap
+ios/App/App/Info.plist                + Google reversed-client-id URL scheme
+ios/App/App/App.entitlements          + applinks:dabarbible.com (NEW file if not present)
+public/.well-known/apple-app-site-association   NEW (served by the marketing site, not the WebView)
+```
 
-`useIsPremium` / `hasFullAccess` in `AuthContext` already reads from `subscriptions` — no logic change needed once new columns exist (it'll see RC-written rows the same way it sees Stripe rows).
+## What I need from you mid-flight
 
-## Block 9 — Verification
+1. **Google iOS OAuth client id** + the reversed-client-id URL scheme (paste from Google Cloud Console). I'll request via `add_secret` for `VITE_GOOGLE_IOS_CLIENT_ID`.
+2. **Confirm** you want the AASA file served from `dabarbible.com/.well-known/apple-app-site-association` (vs. skipping universal links and keeping the custom-scheme `com.dabarbible.app://auth` flow only).
 
-- `tsc --noEmit` clean (build runs automatically — I'll watch console)
-- DB checks: confirm new columns exist, reviewer row present
-- Edge function curl with bad/good auth header
-- Grep: zero remaining "Android" / "Google Play" / "Subscribe on web" in `src/`
-- Native verification (Apple sign-in button, IAP flow, restore) is **deferred to you on a real iOS device** — I cannot run native code in the sandbox preview.
+## Manual steps after I'm done (Xcode-only, can't automate)
 
-## Block 10 — Open items list (delivered as final message)
+1. Xcode → target App → Signing & Capabilities → **+ Sign In with Apple**.
+2. Xcode → target App → Signing & Capabilities → **+ Associated Domains** → add `applinks:dabarbible.com` (only if you confirm #2 above).
+3. `npx cap sync ios && open ios/App/App.xcworkspace` → Archive → upload to TestFlight as build 83.
 
-The Apple Developer Portal steps, App Store Connect IAP setup, RevenueCat dashboard config, secret rotation, and `eas`-equivalent (here: `npx cap sync && open ios/App/App.xcworkspace`) build/submit instructions — translated for Capacitor + Xcode (no `eas`).
+## Out of scope (call out explicitly)
 
----
+- Email/password flow logic — only the overlay cleanup. If a confirmed real failure remains after diagnostics ship, that's a follow-up.
+- RevenueCat / IAP changes — separate from auth.
+- Web (browser) Apple/Google flows — unchanged; they already work.
 
-## Risks I want you to acknowledge before I start
-
-1. **Native plug-ins won't work in the Lovable preview** — `@capacitor-community/apple-sign-in` and `@revenuecat/purchases-capacitor` only execute inside the native iOS shell. The web preview will fall back to the existing Google + Stripe path. You must `npx cap sync` and run in Xcode/TestFlight to verify these.
-2. **Lovable Cloud managed Apple OAuth** uses Lovable's Apple credentials by default. If Apple App Review needs the bundle-ID-bound flow only, you'll need BYOC (your own Services ID + .p8) — I can't configure that for you; it's a dashboard step.
-3. **Subscription schema migration is additive only** — no existing rows will be rewritten. The `tier` column is added with default `'personal'` so existing trial / free rows remain valid.
-4. **No `eas` here** — submission is Xcode → Archive → Distribute → App Store Connect (or `fastlane`, which is already in `ios/App/fastlane/`).
-
-Approve and I'll execute Blocks 1–9 in order, requesting the RevenueCat webhook secret partway through.
+Approve and I'll execute. If you only want a subset (e.g. just Apple native + overlay fix, defer Google), say which blocks and I'll trim.
