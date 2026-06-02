@@ -221,6 +221,27 @@ const AuthModal = forwardRef<HTMLDivElement, AuthModalProps>(({ isOpen, onClose,
     localStorage.setItem(RETURNING_USER_KEY, "1");
     trackEvent("oauth_start", { metadata: { provider: "apple" } });
 
+    // Native iOS: use the system Sign in with Apple sheet + signInWithIdToken.
+    // Avoids the capacitor:// redirect_uri problem that breaks the web OAuth flow inside the WebView.
+    if (nativeIOS) {
+      try {
+        await signInWithAppleNative();
+        toast.success("Welcome.");
+        onClose();
+      } catch (err: any) {
+        const msg = err?.message || "Unknown error";
+        recordAuthError(`apple-native: ${msg}`);
+        trackEvent("oauth_failure", { metadata: { provider: "apple", reason: msg } });
+        // Apple returns "canceled" when the user dismisses — don't show as an error.
+        if (!/cancel/i.test(msg)) {
+          setOauthError(`Apple sign-in failed: ${msg}`);
+        }
+      } finally {
+        setOauthLoading(false);
+      }
+      return;
+    }
+
     const result = await lovable.auth.signInWithOAuth("apple", {
       redirect_uri: `${window.location.origin}/auth/callback`,
     });
