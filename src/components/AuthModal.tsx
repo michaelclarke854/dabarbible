@@ -3,7 +3,9 @@ import { supabase } from "@/integrations/supabase/client";
 import { lovable } from "@/integrations/lovable/index";
 import { toast } from "sonner";
 import { useAuth } from "@/contexts/AuthContext";
-import { isIOSNative } from "@/lib/platform";
+import { isIOSNative, isNative } from "@/lib/platform";
+import { signInWithAppleNative, recordAuthError, getLastAuthError } from "@/lib/nativeAuth";
+import { Capacitor } from "@capacitor/core";
 import { trackEvent } from "@/lib/trackEvent";
 
 interface AuthModalProps {
