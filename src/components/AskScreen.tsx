@@ -207,7 +207,7 @@ const AskScreen = forwardRef<HTMLDivElement, AskScreenProps>(({ onSeekWisdom, is
             if (scriptureHint) setScriptureHint(null);
           }}
           placeholder={QUESTION_PLACEHOLDERS[placeholderIndex]}
-          className="w-full min-h-[160px] bg-input border-none outline-none resize-none text-lg font-body text-foreground placeholder:text-muted-foreground/60 leading-relaxed p-4 focus:ring-0 rounded-sm"
+          className="w-full min-h-[160px] bg-[rgba(255,250,238,0.08)] border border-[rgba(255,250,238,0.25)] outline-none resize-none text-lg font-body text-foreground placeholder:text-muted-foreground/60 leading-relaxed p-4 focus:ring-0 focus:bg-[rgba(255,250,238,0.12)] focus:border-[rgba(232,184,75,0.6)] transition-colors rounded-sm"
           disabled={isLoading}
           onKeyDown={(e) => {
             if (e.key === "Enter" && !e.shiftKey) {
