@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from "react";
-import { ArrowLeft, Bookmark, BookmarkCheck, ChevronRight } from "lucide-react";
+import { ArrowLeft, Bookmark, BookmarkCheck, ChevronRight, Search } from "lucide-react";
 import { kjvBooks, type BibleBook } from "@/data/kjvBooks";
+import dailyVersesData from "@/content/daily-verses.json";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import type { User } from "@supabase/supabase-js";
