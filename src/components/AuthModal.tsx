@@ -572,6 +572,18 @@ const AuthModal = forwardRef<HTMLDivElement, AuthModalProps>(({ isOpen, onClose,
           </button>
         )}
 
+        {mode === "signin" && (
+          <div className="mt-3">
+            <PasskeyButton
+              mode="login"
+              onSuccess={() => {
+                onClose?.();
+              }}
+              onError={(msg) => setOauthError(msg)}
+            />
+          </div>
+        )}
+
         {oauthError && (
           <p className="text-xs text-destructive font-body mt-2 text-center">{oauthError}</p>
         )}
