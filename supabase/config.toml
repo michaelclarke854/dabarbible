@@ -45,3 +45,7 @@ project_id = "crkkimoblnrxpszehmkg"
     verify_jwt = false
   [functions.apple-iap-verify]
     verify_jwt = true
+  [functions.webauthn-register]
+    verify_jwt = false
+  [functions.webauthn-authenticate]
+    verify_jwt = false
