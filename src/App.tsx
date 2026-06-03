@@ -126,7 +126,11 @@ const AppBootstrap = () => {
       }
     });
 
-    if (!isNative()) return;
+    if (!isNative()) {
+      return () => {
+        recoverySub.subscription.unsubscribe();
+      };
+    }
 
     let cleanup: (() => void) | undefined;
     (async () => {
