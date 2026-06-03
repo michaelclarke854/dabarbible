@@ -1,10 +1,11 @@
 import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { X, AlertTriangle, Download, Users } from "lucide-react";
+import { X, AlertTriangle, Download, Users, Fingerprint } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useNavigate } from "react-router-dom";
 import { isIOSNative } from "@/lib/platform";
+import { PasskeyButton } from "@/components/PasskeyButton";
 
 interface PrivacySettingsProps {
   userId: string;
@@ -163,6 +164,25 @@ const PrivacySettings = ({ userId, onClose }: PrivacySettingsProps) => {
       </div>
 
       <div className="flex-1 overflow-y-auto px-6 py-8 max-w-lg mx-auto w-full space-y-10">
+        {/* Biometric login */}
+        <div className="space-y-4">
+          <div className="flex items-center gap-2">
+            <Fingerprint size={14} className="text-gold" />
+            <h3 className="font-serif text-sm text-gold uppercase tracking-widest">
+              Biometric login
+            </h3>
+          </div>
+          <p className="font-body text-sm text-muted-foreground leading-relaxed">
+            Enable Face ID or Touch ID so you can sign in without a password on this device.
+          </p>
+          <PasskeyButton
+            mode="enroll"
+            onSuccess={() => toast.success("Face ID enabled for this device.")}
+            onError={(msg) => toast.error(msg)}
+          />
+        </div>
+        <div className="h-px bg-border" />
+
         {/* Pastor Dashboard activation */}
         {!isPastor && (
           <>

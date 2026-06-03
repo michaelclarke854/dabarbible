@@ -7,6 +7,7 @@ import { isIOSNative, isNative } from "@/lib/platform";
 import { signInWithAppleNative, recordAuthError, getLastAuthError } from "@/lib/nativeAuth";
 import { Capacitor } from "@capacitor/core";
 import { trackEvent } from "@/lib/trackEvent";
+import { PasskeyButton } from "@/components/PasskeyButton";
 
 interface AuthModalProps {
   isOpen: boolean;
@@ -570,6 +571,18 @@ const AuthModal = forwardRef<HTMLDivElement, AuthModalProps>(({ isOpen, onClose,
           >
             {oauthLoading ? "Connecting…" : "Continue with Google"}
           </button>
+        )}
+
+        {mode === "signin" && (
+          <div className="mt-3">
+            <PasskeyButton
+              mode="login"
+              onSuccess={() => {
+                onClose?.();
+              }}
+              onError={(msg) => setOauthError(msg)}
+            />
+          </div>
         )}
 
         {oauthError && (
