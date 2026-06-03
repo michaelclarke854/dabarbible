@@ -131,7 +131,7 @@ const AuthModal = forwardRef<HTMLDivElement, AuthModalProps>(({ isOpen, onClose,
         }
 
         const redirectBase = isNative() ? "https://dabarbible.com" : window.location.origin;
-        const { error } = await supabase.auth.signUp({
+        const { data: signUpData, error } = await supabase.auth.signUp({
           email,
           password,
           options: {
@@ -140,6 +140,23 @@ const AuthModal = forwardRef<HTMLDivElement, AuthModalProps>(({ isOpen, onClose,
           },
         });
         if (error) throw error;
+
+        // Supabase returns a user with an empty `identities` array when the
+        // email is already registered (to prevent account enumeration). In
+        // that case no confirmation email is sent — surface a clear message
+        // instead of telling the user to check their inbox.
+        const identities = signUpData?.user?.identities ?? [];
+        if (signUpData?.user && identities.length === 0) {
+          localStorage.setItem(RETURNING_USER_KEY, "1");
+          trackEvent("signup_existing_email", {
+            metadata: { email_domain: email.split("@")[1] ?? null },
+          });
+          toast.info("An account with this email already exists. Try signing in or resetting your password.");
+          setMode("signin");
+          setPassword("");
+          setLoading(false);
+          return;
+        }
 
         // Mark this device as having attempted signup so future opens default to Sign In
         localStorage.setItem(RETURNING_USER_KEY, "1");
