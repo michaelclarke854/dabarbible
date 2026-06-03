@@ -7,6 +7,7 @@ import { isIOSNative, isNative } from "@/lib/platform";
 import { signInWithAppleNative, recordAuthError, getLastAuthError } from "@/lib/nativeAuth";
 import { Capacitor } from "@capacitor/core";
 import { trackEvent } from "@/lib/trackEvent";
+import { PasskeyButton } from "@/components/PasskeyButton";
 
 interface AuthModalProps {
   isOpen: boolean;
