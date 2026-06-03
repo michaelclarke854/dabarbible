@@ -177,7 +177,12 @@ const PrivacySettings = ({ userId, onClose }: PrivacySettingsProps) => {
           </p>
           <PasskeyButton
             mode="enroll"
-            onSuccess={() => toast.success("Face ID enabled for this device.")}
+            onSuccess={() => {
+              try {
+                if (userId) localStorage.setItem(`dabar_passkey_enrolled_${userId}`, "1");
+              } catch {}
+              toast.success("Face ID enabled for this device.");
+            }}
             onError={(msg) => toast.error(msg)}
           />
         </div>

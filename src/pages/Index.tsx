@@ -20,6 +20,7 @@ import EmailConfirmationPending from "@/components/EmailConfirmationPending";
 import AgeGateScreen from "@/components/AgeGateScreen";
 import { OnboardingIntent } from "@/components/OnboardingIntent";
 import DailyVerseOptIn from "@/components/DailyVerseOptIn";
+import PasskeyEnrollPrompt from "@/components/PasskeyEnrollPrompt";
 import { parseScriptureRef } from "@/data/kjvBooks";
 import { useAuth } from "@/contexts/AuthContext";
 import { trackEvent } from "@/lib/trackEvent";
@@ -845,6 +846,7 @@ const Index = () => {
                 <Suspense fallback={null}>
                   <NativeDailyPractice />
                 </Suspense>
+                <PasskeyEnrollPrompt />
                 <AskScreen
                   onSeekWisdom={seekWisdom}
                   isLoading={isLoading}
