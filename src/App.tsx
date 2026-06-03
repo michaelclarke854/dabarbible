@@ -103,6 +103,29 @@ const AppBootstrap = () => {
       },
     });
 
+    // Password recovery routing — if the user lands anywhere with a
+    // recovery token in the URL hash (Supabase falls back to Site URL when
+    // the redirect_to is not on the allowlist), forward them to the
+    // reset-password form instead of letting the implicit session silently
+    // log them in on the home page.
+    if (
+      typeof window !== "undefined" &&
+      window.location.hash.includes("type=recovery") &&
+      window.location.pathname !== "/reset-password"
+    ) {
+      navigate("/reset-password" + window.location.search + window.location.hash, {
+        replace: true,
+      });
+    }
+
+    const { data: recoverySub } = supabase.auth.onAuthStateChange((event) => {
+      if (event === "PASSWORD_RECOVERY") {
+        if (window.location.pathname !== "/reset-password") {
+          navigate("/reset-password", { replace: true });
+        }
+      }
+    });
+
     if (!isNative()) return;
 
     let cleanup: (() => void) | undefined;
@@ -157,6 +180,7 @@ const AppBootstrap = () => {
 
     return () => {
       cleanup?.();
+      recoverySub.subscription.unsubscribe();
     };
   }, [navigate]);
   return null;
