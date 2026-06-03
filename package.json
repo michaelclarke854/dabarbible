@@ -13,7 +13,7 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "test:visual": "playwright test --config=playwright.config.ts",
-    "test:visual:update": "playwright test --config=playwright.config.ts --update-snapshots",
+    "test:visual:update": "playwright test tests/visual/visual.spec.ts --config=playwright.config.ts --project=desktop --project=mobile-375 --project=mobile-320 --update-snapshots",
     "test:visual:report": "playwright show-report tests/visual/test-results",
     "test:security": "vitest run --config vitest.security.config.ts",
     "test:security:watch": "vitest --config vitest.security.config.ts",
