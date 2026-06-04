@@ -5,6 +5,9 @@ import { fadeUp } from "@/lib/motionVariants";
 import { trackEvent } from "@/lib/trackEvent";
 import { TrustStrip } from "@/components/ask/TrustStrip";
 import { SEO } from "@/components/SEO";
+import { PillarCard } from "@/components/PillarCard";
+import { GoldDivider } from "@/components/GoldDivider";
+import { useFadeInOnScroll } from "@/hooks/useFadeInOnScroll";
 
 interface LandingHeroProps {
   /** Submit a question directly from the landing screen. */
