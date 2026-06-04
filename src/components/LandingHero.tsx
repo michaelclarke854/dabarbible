@@ -362,3 +362,145 @@ export function LandingHero({ onSeekWisdom, isLoading, onSignIn }: LandingHeroPr
 }
 
 export default LandingHero;
+
+/* ------------------------------------------------------------------ */
+/* Restyled landing sections — sit between the inline ask and the FAQ. */
+/* Each section fades in on scroll; sections are separated by GoldDivider. */
+/* ------------------------------------------------------------------ */
+
+function FadeSection({
+  children,
+  className = "",
+}: {
+  children: React.ReactNode;
+  className?: string;
+}) {
+  const { ref, visible } = useFadeInOnScroll<HTMLElement>();
+  return (
+    <section
+      ref={ref}
+      className={`transition-all duration-700 ease-out will-change-transform ${
+        visible ? "opacity-100 translate-y-0" : "opacity-0 translate-y-6"
+      } ${className}`}
+    >
+      {children}
+    </section>
+  );
+}
+
+function LandingSections({ onFocusAsk }: { onFocusAsk: () => void }) {
+  return (
+    <div className="w-full mt-16">
+      {/* ── Today's Word ─────────────────────────────────────── */}
+      <FadeSection className="px-2 py-8">
+        <div className="max-w-md mx-auto flex flex-col gap-8">
+          <p className="font-body text-gold text-xs tracking-[0.3em] uppercase text-center">
+            Today's Word
+          </p>
+          <h2 className="font-serif text-foreground text-3xl font-semibold text-center leading-snug">
+            Where can you<br />meet God today?
+          </h2>
+          <div className="border border-gold/40 rounded-sm p-6 bg-gold/5">
+            <p className="scripture-italic text-gold text-xl leading-relaxed text-center">
+              "Be still, and know that I am God."
+            </p>
+            <p className="font-body text-foreground/50 text-xs text-center mt-3 tracking-widest uppercase">
+              Psalm 46:10 · KJV
+            </p>
+          </div>
+          <p className="font-body text-foreground/70 text-sm leading-relaxed text-center">
+            Each morning, Dabar gives you a living word, a practice to carry into your day,
+            and a reflection to bring you back.
+          </p>
+        </div>
+      </FadeSection>
+
+      <GoldDivider />
+
+      {/* ── The Lifestyle Journey (pillars) ──────────────────── */}
+      <FadeSection className="px-2 py-8">
+        <div className="max-w-md mx-auto flex flex-col gap-2">
+          <p className="font-body text-gold text-xs tracking-[0.3em] uppercase text-center mb-6">
+            The Lifestyle Journey
+          </p>
+          <PillarCard
+            icon="📖"
+            title="The Word"
+            description="A daily KJV scripture, chosen to meet you where you are today."
+          />
+          <PillarCard
+            icon="🙏"
+            title="The Practice"
+            description="A simple spiritual discipline to carry God's word into your actions."
+          />
+          <PillarCard
+            icon="🕊️"
+            title="The Teaching"
+            description="Deeper context — theology, history, and application from trusted voices."
+          />
+          <PillarCard
+            icon="🫂"
+            title="The Reflection"
+            description="A private place to journal what God is stirring — yours alone, never shared."
+          />
+        </div>
+      </FadeSection>
+
+      <GoldDivider />
+
+      {/* ── Testimonial ─────────────────────────────────────── */}
+      <FadeSection className="px-2 py-8">
+        <div className="max-w-md mx-auto flex flex-col gap-8">
+          <p className="font-body text-gold text-xs tracking-[0.3em] uppercase text-center">
+            A Sample of the Journey
+          </p>
+          <figure className="bg-gold/[0.08] border border-gold/25 rounded-sm p-6 flex flex-col gap-4">
+            <blockquote className="scripture-italic text-foreground text-xl leading-relaxed">
+              "Dabar gave me back the Bible. I had been a Christian for 20 years and never
+              felt like I truly understood what I was reading — until I started asking it questions."
+            </blockquote>
+            <figcaption className="flex items-center gap-3 mt-2">
+              <div
+                aria-hidden="true"
+                className="w-8 h-8 rounded-full bg-gold/20 flex items-center justify-center font-body text-gold text-sm font-semibold"
+              >
+                T
+              </div>
+              <div>
+                <p className="font-body text-foreground text-sm font-semibold">Tanya M.</p>
+                <p className="font-body text-foreground/40 text-xs">Member since 2024</p>
+              </div>
+            </figcaption>
+          </figure>
+        </div>
+      </FadeSection>
+
+      <GoldDivider />
+
+      {/* ── CTA — focuses the inline ask above ───────────────── */}
+      <FadeSection className="px-2 py-10">
+        <div className="max-w-md mx-auto flex flex-col items-center gap-6 text-center">
+          <h2 className="font-serif text-foreground text-3xl font-semibold leading-snug">
+            Start your free<br />daily devotional.
+          </h2>
+          <p className="font-body text-foreground/60 text-sm leading-relaxed max-w-xs">
+            Join thousands of believers who start each morning with a living word.
+            Free to begin. No credit card required.
+          </p>
+          <div className="flex items-center gap-2 text-gold/70">
+            <span className="text-xs font-body">✦ 3 free questions/day</span>
+            <span className="text-gold/30">|</span>
+            <span className="text-xs font-body">✦ Cancel anytime</span>
+          </div>
+          <button
+            type="button"
+            onClick={onFocusAsk}
+            className="w-full bg-gold text-primary-foreground font-body font-semibold text-base py-4 px-8 rounded-sm tracking-wide min-h-[56px] flex items-center justify-center active:opacity-90 transition-opacity hover:bg-gold-light"
+          >
+            Ask Your First Question — It's Free
+          </button>
+        </div>
+      </FadeSection>
+    </div>
+  );
+}
