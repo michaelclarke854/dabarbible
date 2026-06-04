@@ -316,6 +316,12 @@ export function LandingHero({ onSeekWisdom, isLoading, onSignIn }: LandingHeroPr
       </motion.div>
 
       {/* FAQ — long-tail search targeting */}
+      <LandingSections onFocusAsk={() => {
+        const el = document.querySelector<HTMLTextAreaElement>("[data-ask-input]");
+        el?.scrollIntoView({ behavior: "smooth", block: "center" });
+        setTimeout(() => el?.focus(), 400);
+      }} />
+
       <motion.div {...reveal(0.55)} className="w-full mt-16 text-left">
         <h2 className="font-serif text-xl sm:text-2xl text-foreground text-center mb-6">
           Frequently Asked Questions
