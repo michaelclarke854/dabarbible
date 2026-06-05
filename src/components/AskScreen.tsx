@@ -362,33 +362,12 @@ const AskScreen = forwardRef<HTMLDivElement, AskScreenProps>(({ onSeekWisdom, is
       )}
 
       {/* Guest free-questions counter */}
-      {guestLimit != null && guestQuestionsUsed != null && (
-        <div className="mt-6 text-center">
-          <p className="font-body text-[11px] tracking-wide text-muted-foreground/70">
-            {guestQuestionsUsed >= guestLimit ? (
-              <span className="text-gold">
-                Sign in to continue seeking wisdom
-              </span>
-            ) : (
-              <>
-                <span className="text-gold font-medium">
-                  {guestLimit - guestQuestionsUsed}
-                </span>
-                {" "}free question{guestLimit - guestQuestionsUsed === 1 ? "" : "s"} remaining
-              </>
-            )}
-          </p>
-          <div className="flex justify-center gap-1.5 mt-2">
-            {Array.from({ length: guestLimit }).map((_, i) => (
-              <div
-                key={i}
-                className={`w-1.5 h-1.5 rounded-full transition-colors ${
-                  i < guestQuestionsUsed ? "bg-gold/30" : "bg-gold"
-                }`}
-              />
-            ))}
-          </div>
-        </div>
+      {guestLimit != null && guestQuestionsUsed != null && guestQuestionsUsed < guestLimit && (
+        <p className="mt-6 text-center font-body text-[10px] tracking-wider uppercase text-muted-foreground">
+          {guestQuestionsUsed === guestLimit - 1
+            ? "Last free question — start your free trial for unlimited access"
+            : `Question ${guestQuestionsUsed + 1} of ${guestLimit} — free`}
+        </p>
       )}
     </div>
   );
