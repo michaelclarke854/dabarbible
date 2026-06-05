@@ -942,7 +942,7 @@ const Index = () => {
       </main>
 
       {/* Bottom Navigation */}
-      {(hasOnboarded || user) && <nav aria-label="Main navigation" className="fixed bottom-0 left-0 right-0 bg-nav/95 backdrop-blur-sm border-t border-gold/15 z-30">
+      <nav aria-label="Main navigation" className="fixed bottom-0 left-0 right-0 bg-nav/95 backdrop-blur-sm border-t border-gold/15 z-30">
         <div className="flex max-w-lg mx-auto" role="tablist">
           <button
             role="tab"
@@ -959,44 +959,50 @@ const Index = () => {
           <button
             role="tab"
             aria-selected={tab === "scripture"}
-            aria-label="Scripture companion"
+            aria-label={!user ? "Sign up free to access the full Scripture companion" : "Scripture companion"}
+            title={!user ? "Sign up free to access the full Scripture companion" : undefined}
             onClick={() => handleTabChange("scripture")}
             className={`flex-1 py-3 flex flex-col items-center gap-1 transition-colors ${
               tab === "scripture" ? "text-gold" : "text-muted-foreground"
             }`}
           >
-            {!effectiveHasFullAccess && user ? <Lock size={18} strokeWidth={1.5} aria-hidden="true" /> : <BookText size={18} strokeWidth={1.5} aria-hidden="true" />}
+            {(!effectiveHasFullAccess && user) || !user ? <Lock size={18} strokeWidth={1.5} aria-hidden="true" /> : <BookText size={18} strokeWidth={1.5} aria-hidden="true" />}
             <span className="font-serif text-[10px] tracking-widest uppercase">Scripture</span>
+            {!user && <span className="font-serif text-[8px] tracking-widest uppercase text-muted-foreground/60">Free</span>}
           </button>
           <button
             role="tab"
             aria-selected={tab === "history"}
-            aria-label="View history"
+            aria-label={!user ? "Sign up free to view your question history" : "View history"}
+            title={!user ? "Sign up free to view your question history" : undefined}
             onClick={() => handleTabChange("history")}
             className={`flex-1 py-3 flex flex-col items-center gap-1 transition-colors ${
               tab === "history" ? "text-gold" : "text-muted-foreground"
             }`}
           >
-            {!effectiveHasFullAccess && user ? <Lock size={18} strokeWidth={1.5} aria-hidden="true" /> : <Clock size={18} strokeWidth={1.5} aria-hidden="true" />}
+            {(!effectiveHasFullAccess && user) || !user ? <Lock size={18} strokeWidth={1.5} aria-hidden="true" /> : <Clock size={18} strokeWidth={1.5} aria-hidden="true" />}
             <span className="font-serif text-[10px] tracking-widest uppercase">History</span>
+            {!user && <span className="font-serif text-[8px] tracking-widest uppercase text-muted-foreground/60">Free</span>}
           </button>
           <button
             role="tab"
             aria-selected={tab === "journal"}
-            aria-label="Open journal"
+            aria-label={!user ? "Sign up free to save reflections to your journal" : "Open journal"}
+            title={!user ? "Sign up free to save reflections to your journal" : undefined}
             onClick={() => handleTabChange("journal")}
             className={`flex-1 py-3 flex flex-col items-center gap-1 transition-colors ${
               tab === "journal" ? "text-gold" : "text-muted-foreground"
             }`}
           >
-            {!effectiveHasFullAccess && user ? <Lock size={18} strokeWidth={1.5} aria-hidden="true" /> : <BookOpen size={18} strokeWidth={1.5} aria-hidden="true" />}
+            {(!effectiveHasFullAccess && user) || !user ? <Lock size={18} strokeWidth={1.5} aria-hidden="true" /> : <BookOpen size={18} strokeWidth={1.5} aria-hidden="true" />}
             <span className="font-serif text-[10px] tracking-widest uppercase">Journal</span>
+            {!user && <span className="font-serif text-[8px] tracking-widest uppercase text-muted-foreground/60">Free</span>}
           </button>
         </div>
-      </nav>}
+      </nav>
 
       {/* Top bar */}
-      {(hasOnboarded || user) && <div className={`fixed ${(showDay14Banner || showDay28Banner) ? "top-10" : "top-0"} left-0 right-0 z-20 flex justify-between items-center px-4 py-3`}>
+      <div className={`fixed ${(showDay14Banner || showDay28Banner) ? "top-10" : "top-0"} left-0 right-0 z-20 flex justify-between items-center px-4 py-3`}>
         <div className="flex items-center gap-2">
           {user && !hasFullAccess && !nativeIOS && (
             <button
@@ -1059,9 +1065,16 @@ const Index = () => {
             >
               Sign out
             </button>
+          ) : (hasOnboarded || getGuestQuestionsUsed() > 0) ? (
+            <button
+              onClick={() => openAuthModal('topbar_signin', 'Welcome back. Sign in to continue.')}
+              className="text-xs font-body text-muted-foreground hover:text-gold transition-colors"
+            >
+              Sign in
+            </button>
           ) : null}
         </div>
-      </div>}
+      </div>
 
       {/* Beta feedback button */}
       <BetaFeedbackButton />
