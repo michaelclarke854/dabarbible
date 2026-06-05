@@ -4,6 +4,8 @@ import { parseResponse, extractThresholdQuestion, ScriptureCard, type ContentBlo
 import { Share2 } from "lucide-react";
 import { toast } from "sonner";
 import { nativeSuccess, saveLastReflection, shareReflection } from "@/lib/nativePractice";
+import { trackEvent } from "@/lib/trackEvent";
+import { isIOSNative } from "@/lib/platform";
 
 const INTENT_LABELS: Record<string, string> = {
   grief:     'Responding with grief in mind',
@@ -102,6 +104,7 @@ const ResponseScreen = ({
   const thresholdQuestion = useMemo(() => extractThresholdQuestion(blocks), [blocks]);
   const shouldReduceMotion = useReducedMotion();
   const seedQuestions = useMemo(() => pickSeeds(question, 3), [question]);
+  const nativeIOS = isIOSNative();
 
   // During streaming, show all blocks immediately; after streaming ends, keep them all visible
   useEffect(() => {
@@ -281,6 +284,11 @@ const ResponseScreen = ({
                 await saveLastReflection(shareText);
                 await shareReflection("A reflection from DabarBible", shareText);
                 await nativeSuccess();
+                trackEvent("share_clicked", {
+                  screen: "response",
+                  metadata: { method: "native" },
+                  userId: userId ?? null,
+                });
               } catch {
                 // user cancelled share sheet
               }
@@ -304,6 +312,30 @@ const ResponseScreen = ({
               Share this reflection
             </span>
           </button>
+
+          {!nativeIOS && (
+            <button
+              type="button"
+              onClick={async () => {
+                try {
+                  await navigator.clipboard.writeText(
+                    `"${question}" — answered through scripture on DaBarBible.com`,
+                  );
+                  toast.success("Copied to clipboard");
+                  trackEvent("share_clicked", {
+                    screen: "response",
+                    metadata: { method: "copy" },
+                    userId: userId ?? null,
+                  });
+                } catch {
+                  toast.error("Could not copy");
+                }
+              }}
+              className="font-body text-xs tracking-wide px-4 py-2 border border-gold/30 text-gold rounded-sm hover:bg-gold/10 transition-colors self-start"
+            >
+              Copy & share
+            </button>
+          )}
 
           {onContinueExploring && (
             <div className="mt-8 pt-6 border-t border-gold/15">
