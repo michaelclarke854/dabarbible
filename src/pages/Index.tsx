@@ -21,6 +21,8 @@ import AgeGateScreen from "@/components/AgeGateScreen";
 import { OnboardingIntent } from "@/components/OnboardingIntent";
 import DailyVerseOptIn from "@/components/DailyVerseOptIn";
 import PasskeyEnrollPrompt from "@/components/PasskeyEnrollPrompt";
+import PostResponseVerseOptIn from "@/components/PostResponseVerseOptIn";
+import ContinuePrompt from "@/components/ContinuePrompt";
 import { parseScriptureRef } from "@/data/kjvBooks";
 import { useAuth } from "@/contexts/AuthContext";
 import { trackEvent } from "@/lib/trackEvent";
@@ -478,6 +480,14 @@ const Index = () => {
         const scriptureRefs = extractScriptureRefs(fullText);
         setCurrentResponse({ question, response: fullText, scriptures: scriptureRefs });
 
+        // Persist last question for "continue where you left off" return-visit prompt
+        try {
+          localStorage.setItem("dabar-last-question", question);
+          localStorage.setItem("dabar-last-question-ts", String(Date.now()));
+          const prev = parseInt(localStorage.getItem("dabar-response-count") || "0", 10);
+          localStorage.setItem("dabar-response-count", String(prev + 1));
+        } catch {}
+
         if (!user) {
           incrementGuestQuestions();
           const newCount = getGuestQuestionsUsed();
@@ -568,6 +578,11 @@ const Index = () => {
       }
       setIsSaved(true);
       toast.success("Saved to your journal.");
+      trackEvent("journal_saved", {
+        screen: "response",
+        metadata: { session_id: currentSessionId ?? null },
+        userId: user?.id ?? null,
+      });
     } catch {
       toast.error("Could not save. Please try again.");
     } finally {
@@ -630,6 +645,9 @@ const Index = () => {
     if (newTab === "ask" && !user && askPageViewFiredRef.current) return;
     if (newTab === "ask" && !user) askPageViewFiredRef.current = true;
     trackEvent("page_view", { screen: newTab, userId: user?.id ?? null });
+    if (newTab === "scripture") {
+      trackEvent("scripture_viewed", { screen: "scripture", userId: user?.id ?? null });
+    }
   };
 
   const handleUpgrade = () => {
@@ -852,6 +870,9 @@ const Index = () => {
                   <NativeDailyPractice />
                 </Suspense>
                 <PasskeyEnrollPrompt />
+                <ContinuePrompt
+                  onContinue={(q) => seekWisdom(q)}
+                />
                 <AskScreen
                   onSeekWisdom={seekWisdom}
                   isLoading={isLoading}
@@ -912,6 +933,12 @@ const Index = () => {
                 }}
               />
               {renderSoftGate()}
+              {!showSoftGate && (
+                <PostResponseVerseOptIn
+                  defaultEmail={userEmail ?? undefined}
+                  userId={user?.id ?? null}
+                />
+              )}
             </>
           ) : null
         ) : tab === "scripture" ? (
