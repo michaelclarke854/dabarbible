@@ -14,6 +14,7 @@ interface AskScreenProps {
   guestQuestionsUsed?: number;
   guestLimit?: number;
   onScriptureRef?: (ref: string) => void;
+  onBackToResponse?: () => void;
 }
 
 const SOUL_PROMPTS = [
@@ -42,7 +43,7 @@ const isCapacitor =
   !!(window as any).Capacitor?.isNativePlatform?.();
 const isDev = (import.meta as any)?.env?.DEV || false;
 
-const AskScreen = forwardRef<HTMLDivElement, AskScreenProps>(({ onSeekWisdom, isLoading, guestQuestionsUsed, guestLimit, onScriptureRef }, ref) => {
+const AskScreen = forwardRef<HTMLDivElement, AskScreenProps>(({ onSeekWisdom, isLoading, guestQuestionsUsed, guestLimit, onScriptureRef, onBackToResponse }, ref) => {
   const [question, setQuestion] = useState("");
   const [scriptureHint, setScriptureHint] = useState<ScriptureParseResult | null>(null);
   const [promptIndex, setPromptIndex] = useState(() =>
@@ -199,6 +200,14 @@ const AskScreen = forwardRef<HTMLDivElement, AskScreenProps>(({ onSeekWisdom, is
       <div className="w-12 h-px bg-gold my-6" />
 
       <div className="w-full max-w-lg">
+        {onBackToResponse && (
+          <button
+            onClick={onBackToResponse}
+            className="text-[10px] font-body tracking-wider uppercase text-muted-foreground hover:text-gold transition-colors flex items-center gap-1 mb-3"
+          >
+            ← Back to last response
+          </button>
+        )}
         <textarea
           data-ask-input=""
           value={question}
