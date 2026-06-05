@@ -578,6 +578,11 @@ const Index = () => {
       }
       setIsSaved(true);
       toast.success("Saved to your journal.");
+      trackEvent("journal_saved", {
+        screen: "response",
+        metadata: { session_id: currentSessionId ?? null },
+        userId: user?.id ?? null,
+      });
     } catch {
       toast.error("Could not save. Please try again.");
     } finally {
@@ -865,6 +870,9 @@ const Index = () => {
                   <NativeDailyPractice />
                 </Suspense>
                 <PasskeyEnrollPrompt />
+                <ContinuePrompt
+                  onContinue={(q) => seekWisdom(q)}
+                />
                 <AskScreen
                   onSeekWisdom={seekWisdom}
                   isLoading={isLoading}
