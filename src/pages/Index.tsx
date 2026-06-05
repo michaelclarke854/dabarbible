@@ -812,15 +812,8 @@ const Index = () => {
         />
       )}
 
-      <main className={`flex-1 ${hasOnboarded || user ? "pb-20" : ""} ${(showDay14Banner || showDay28Banner) && (hasOnboarded || user) ? "pt-10" : ""}`}>
-        {!hasOnboarded && !user ? (
-          <OnboardingScreen
-            onBegin={() => {
-              try { localStorage.setItem(ONBOARDING_KEY, "true"); } catch {}
-              setHasOnboarded(true);
-            }}
-          />
-        ) : showLanguageSettings && user ? (
+      <main className={`flex-1 pb-20 ${(showDay14Banner || showDay28Banner) && (hasOnboarded || user) ? "pt-10" : ""}`}>
+        {showLanguageSettings && user ? (
           <Suspense fallback={<PageSpinner />}>
             <LanguageSettings
               userId={user.id}
@@ -840,7 +833,7 @@ const Index = () => {
                 onDismiss={() => refreshProfile()}
                 onDismissWithCrisisState={(stillStruggling) => setCrisisActive(stillStruggling)}
               />
-            ) : !user && getGuestQuestionsUsed() === 0 ? (
+            ) : !user && getGuestQuestionsUsed() === 0 && !hasOnboarded ? (
               <>
                 <Suspense fallback={null}>
                   <NativeDailyPractice />
@@ -865,6 +858,11 @@ const Index = () => {
                   guestQuestionsUsed={!user ? getGuestQuestionsUsed() : undefined}
                   guestLimit={!user ? GUEST_LIMIT : undefined}
                   onScriptureRef={handleScriptureDeepLink}
+                  onBackToResponse={previousResponse ? () => {
+                    setCurrentResponse(previousResponse);
+                    setPreviousResponse(null);
+                    setScreen("response");
+                  } : undefined}
                 />
               </>
             )
@@ -876,7 +874,13 @@ const Index = () => {
                 scriptures={currentResponse.scriptures}
                 isStreaming={isStreaming}
                 agentStage={agentStage}
-                onAskAgain={() => { setScreen("ask"); setCurrentResponse(null); setShowSoftGate(false); setCrisisActive(false); }}
+                onAskAgain={() => {
+                  if (currentResponse) setPreviousResponse(currentResponse);
+                  setScreen("ask");
+                  setCurrentResponse(null);
+                  setShowSoftGate(false);
+                  setCrisisActive(false);
+                }}
                 onReflect={reflectOnThis}
                 onStir={(thresholdQ) => {
                   reflectOnThis().then(() => {
