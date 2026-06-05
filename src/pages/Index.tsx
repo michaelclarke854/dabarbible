@@ -933,6 +933,12 @@ const Index = () => {
                 }}
               />
               {renderSoftGate()}
+              {!showSoftGate && (
+                <PostResponseVerseOptIn
+                  defaultEmail={userEmail ?? undefined}
+                  userId={user?.id ?? null}
+                />
+              )}
             </>
           ) : null
         ) : tab === "scripture" ? (
