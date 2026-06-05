@@ -150,6 +150,13 @@ const Index = () => {
   // Soft gate state for guest limit
   const [showSoftGate, setShowSoftGate] = useState(false);
 
+  // Previous response — populated when user taps "Ask Again" so they can return.
+  const [previousResponse, setPreviousResponse] = useState<{
+    question: string;
+    response: string;
+    scriptures: string[];
+  } | null>(null);
+
   // Crisis check-in state — true if user just said "still struggling"
   const [crisisActive, setCrisisActive] = useState(false);
 
@@ -271,6 +278,7 @@ const Index = () => {
       if (isSubmittingRef.current) return;
       if (!question.trim()) return;
       isSubmittingRef.current = true;
+      setPreviousResponse(null);
       console.time('[DABAR] seek-wisdom:request');
       const slowWarn = setTimeout(() => {
         console.warn('[DABAR] seek-wisdom: >5s elapsed — potential slow network or cold start');
@@ -473,6 +481,10 @@ const Index = () => {
         if (!user) {
           incrementGuestQuestions();
           const newCount = getGuestQuestionsUsed();
+          if (!hasOnboarded) {
+            try { localStorage.setItem(ONBOARDING_KEY, "true"); } catch {}
+            setHasOnboarded(true);
+          }
           trackEvent('response_viewed', {
             screen: 'response',
             metadata: { is_guest: true, guest_question_number: newCount },
