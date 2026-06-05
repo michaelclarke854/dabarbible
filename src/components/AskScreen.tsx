@@ -14,6 +14,7 @@ interface AskScreenProps {
   guestQuestionsUsed?: number;
   guestLimit?: number;
   onScriptureRef?: (ref: string) => void;
+  onBackToResponse?: () => void;
 }
 
 const SOUL_PROMPTS = [
@@ -42,7 +43,7 @@ const isCapacitor =
   !!(window as any).Capacitor?.isNativePlatform?.();
 const isDev = (import.meta as any)?.env?.DEV || false;
 
-const AskScreen = forwardRef<HTMLDivElement, AskScreenProps>(({ onSeekWisdom, isLoading, guestQuestionsUsed, guestLimit, onScriptureRef }, ref) => {
+const AskScreen = forwardRef<HTMLDivElement, AskScreenProps>(({ onSeekWisdom, isLoading, guestQuestionsUsed, guestLimit, onScriptureRef, onBackToResponse }, ref) => {
   const [question, setQuestion] = useState("");
   const [scriptureHint, setScriptureHint] = useState<ScriptureParseResult | null>(null);
   const [promptIndex, setPromptIndex] = useState(() =>
@@ -199,6 +200,14 @@ const AskScreen = forwardRef<HTMLDivElement, AskScreenProps>(({ onSeekWisdom, is
       <div className="w-12 h-px bg-gold my-6" />
 
       <div className="w-full max-w-lg">
+        {onBackToResponse && (
+          <button
+            onClick={onBackToResponse}
+            className="text-[10px] font-body tracking-wider uppercase text-muted-foreground hover:text-gold transition-colors flex items-center gap-1 mb-3"
+          >
+            ← Back to last response
+          </button>
+        )}
         <textarea
           data-ask-input=""
           value={question}
@@ -353,33 +362,12 @@ const AskScreen = forwardRef<HTMLDivElement, AskScreenProps>(({ onSeekWisdom, is
       )}
 
       {/* Guest free-questions counter */}
-      {guestLimit != null && guestQuestionsUsed != null && (
-        <div className="mt-6 text-center">
-          <p className="font-body text-[11px] tracking-wide text-muted-foreground/70">
-            {guestQuestionsUsed >= guestLimit ? (
-              <span className="text-gold">
-                Sign in to continue seeking wisdom
-              </span>
-            ) : (
-              <>
-                <span className="text-gold font-medium">
-                  {guestLimit - guestQuestionsUsed}
-                </span>
-                {" "}free question{guestLimit - guestQuestionsUsed === 1 ? "" : "s"} remaining
-              </>
-            )}
-          </p>
-          <div className="flex justify-center gap-1.5 mt-2">
-            {Array.from({ length: guestLimit }).map((_, i) => (
-              <div
-                key={i}
-                className={`w-1.5 h-1.5 rounded-full transition-colors ${
-                  i < guestQuestionsUsed ? "bg-gold/30" : "bg-gold"
-                }`}
-              />
-            ))}
-          </div>
-        </div>
+      {guestLimit != null && guestQuestionsUsed != null && guestQuestionsUsed < guestLimit && (
+        <p className="mt-6 text-center font-body text-[10px] tracking-wider uppercase text-muted-foreground">
+          {guestQuestionsUsed === guestLimit - 1
+            ? "Last free question — start your free trial for unlimited access"
+            : `Question ${guestQuestionsUsed + 1} of ${guestLimit} — free`}
+        </p>
       )}
     </div>
   );

@@ -150,6 +150,13 @@ const Index = () => {
   // Soft gate state for guest limit
   const [showSoftGate, setShowSoftGate] = useState(false);
 
+  // Previous response — populated when user taps "Ask Again" so they can return.
+  const [previousResponse, setPreviousResponse] = useState<{
+    question: string;
+    response: string;
+    scriptures: string[];
+  } | null>(null);
+
   // Crisis check-in state — true if user just said "still struggling"
   const [crisisActive, setCrisisActive] = useState(false);
 
@@ -271,6 +278,7 @@ const Index = () => {
       if (isSubmittingRef.current) return;
       if (!question.trim()) return;
       isSubmittingRef.current = true;
+      setPreviousResponse(null);
       console.time('[DABAR] seek-wisdom:request');
       const slowWarn = setTimeout(() => {
         console.warn('[DABAR] seek-wisdom: >5s elapsed — potential slow network or cold start');
@@ -473,6 +481,10 @@ const Index = () => {
         if (!user) {
           incrementGuestQuestions();
           const newCount = getGuestQuestionsUsed();
+          if (!hasOnboarded) {
+            try { localStorage.setItem(ONBOARDING_KEY, "true"); } catch {}
+            setHasOnboarded(true);
+          }
           trackEvent('response_viewed', {
             screen: 'response',
             metadata: { is_guest: true, guest_question_number: newCount },
@@ -800,15 +812,8 @@ const Index = () => {
         />
       )}
 
-      <main className={`flex-1 ${hasOnboarded || user ? "pb-20" : ""} ${(showDay14Banner || showDay28Banner) && (hasOnboarded || user) ? "pt-10" : ""}`}>
-        {!hasOnboarded && !user ? (
-          <OnboardingScreen
-            onBegin={() => {
-              try { localStorage.setItem(ONBOARDING_KEY, "true"); } catch {}
-              setHasOnboarded(true);
-            }}
-          />
-        ) : showLanguageSettings && user ? (
+      <main className={`flex-1 pb-20 ${(showDay14Banner || showDay28Banner) && (hasOnboarded || user) ? "pt-10" : ""}`}>
+        {showLanguageSettings && user ? (
           <Suspense fallback={<PageSpinner />}>
             <LanguageSettings
               userId={user.id}
@@ -828,7 +833,7 @@ const Index = () => {
                 onDismiss={() => refreshProfile()}
                 onDismissWithCrisisState={(stillStruggling) => setCrisisActive(stillStruggling)}
               />
-            ) : !user && getGuestQuestionsUsed() === 0 ? (
+            ) : !user && getGuestQuestionsUsed() === 0 && !hasOnboarded ? (
               <>
                 <Suspense fallback={null}>
                   <NativeDailyPractice />
@@ -853,6 +858,11 @@ const Index = () => {
                   guestQuestionsUsed={!user ? getGuestQuestionsUsed() : undefined}
                   guestLimit={!user ? GUEST_LIMIT : undefined}
                   onScriptureRef={handleScriptureDeepLink}
+                  onBackToResponse={previousResponse ? () => {
+                    setCurrentResponse(previousResponse);
+                    setPreviousResponse(null);
+                    setScreen("response");
+                  } : undefined}
                 />
               </>
             )
@@ -864,7 +874,13 @@ const Index = () => {
                 scriptures={currentResponse.scriptures}
                 isStreaming={isStreaming}
                 agentStage={agentStage}
-                onAskAgain={() => { setScreen("ask"); setCurrentResponse(null); setShowSoftGate(false); setCrisisActive(false); }}
+                onAskAgain={() => {
+                  if (currentResponse) setPreviousResponse(currentResponse);
+                  setScreen("ask");
+                  setCurrentResponse(null);
+                  setShowSoftGate(false);
+                  setCrisisActive(false);
+                }}
                 onReflect={reflectOnThis}
                 onStir={(thresholdQ) => {
                   reflectOnThis().then(() => {
@@ -926,7 +942,7 @@ const Index = () => {
       </main>
 
       {/* Bottom Navigation */}
-      {(hasOnboarded || user) && <nav aria-label="Main navigation" className="fixed bottom-0 left-0 right-0 bg-nav/95 backdrop-blur-sm border-t border-gold/15 z-30">
+      <nav aria-label="Main navigation" className="fixed bottom-0 left-0 right-0 bg-nav/95 backdrop-blur-sm border-t border-gold/15 z-30">
         <div className="flex max-w-lg mx-auto" role="tablist">
           <button
             role="tab"
@@ -943,44 +959,50 @@ const Index = () => {
           <button
             role="tab"
             aria-selected={tab === "scripture"}
-            aria-label="Scripture companion"
+            aria-label={!user ? "Sign up free to access the full Scripture companion" : "Scripture companion"}
+            title={!user ? "Sign up free to access the full Scripture companion" : undefined}
             onClick={() => handleTabChange("scripture")}
             className={`flex-1 py-3 flex flex-col items-center gap-1 transition-colors ${
               tab === "scripture" ? "text-gold" : "text-muted-foreground"
             }`}
           >
-            {!effectiveHasFullAccess && user ? <Lock size={18} strokeWidth={1.5} aria-hidden="true" /> : <BookText size={18} strokeWidth={1.5} aria-hidden="true" />}
+            {(!effectiveHasFullAccess && user) || !user ? <Lock size={18} strokeWidth={1.5} aria-hidden="true" /> : <BookText size={18} strokeWidth={1.5} aria-hidden="true" />}
             <span className="font-serif text-[10px] tracking-widest uppercase">Scripture</span>
+            {!user && <span className="font-serif text-[8px] tracking-widest uppercase text-muted-foreground/60">Free</span>}
           </button>
           <button
             role="tab"
             aria-selected={tab === "history"}
-            aria-label="View history"
+            aria-label={!user ? "Sign up free to view your question history" : "View history"}
+            title={!user ? "Sign up free to view your question history" : undefined}
             onClick={() => handleTabChange("history")}
             className={`flex-1 py-3 flex flex-col items-center gap-1 transition-colors ${
               tab === "history" ? "text-gold" : "text-muted-foreground"
             }`}
           >
-            {!effectiveHasFullAccess && user ? <Lock size={18} strokeWidth={1.5} aria-hidden="true" /> : <Clock size={18} strokeWidth={1.5} aria-hidden="true" />}
+            {(!effectiveHasFullAccess && user) || !user ? <Lock size={18} strokeWidth={1.5} aria-hidden="true" /> : <Clock size={18} strokeWidth={1.5} aria-hidden="true" />}
             <span className="font-serif text-[10px] tracking-widest uppercase">History</span>
+            {!user && <span className="font-serif text-[8px] tracking-widest uppercase text-muted-foreground/60">Free</span>}
           </button>
           <button
             role="tab"
             aria-selected={tab === "journal"}
-            aria-label="Open journal"
+            aria-label={!user ? "Sign up free to save reflections to your journal" : "Open journal"}
+            title={!user ? "Sign up free to save reflections to your journal" : undefined}
             onClick={() => handleTabChange("journal")}
             className={`flex-1 py-3 flex flex-col items-center gap-1 transition-colors ${
               tab === "journal" ? "text-gold" : "text-muted-foreground"
             }`}
           >
-            {!effectiveHasFullAccess && user ? <Lock size={18} strokeWidth={1.5} aria-hidden="true" /> : <BookOpen size={18} strokeWidth={1.5} aria-hidden="true" />}
+            {(!effectiveHasFullAccess && user) || !user ? <Lock size={18} strokeWidth={1.5} aria-hidden="true" /> : <BookOpen size={18} strokeWidth={1.5} aria-hidden="true" />}
             <span className="font-serif text-[10px] tracking-widest uppercase">Journal</span>
+            {!user && <span className="font-serif text-[8px] tracking-widest uppercase text-muted-foreground/60">Free</span>}
           </button>
         </div>
-      </nav>}
+      </nav>
 
       {/* Top bar */}
-      {(hasOnboarded || user) && <div className={`fixed ${(showDay14Banner || showDay28Banner) ? "top-10" : "top-0"} left-0 right-0 z-20 flex justify-between items-center px-4 py-3`}>
+      <div className={`fixed ${(showDay14Banner || showDay28Banner) ? "top-10" : "top-0"} left-0 right-0 z-20 flex justify-between items-center px-4 py-3`}>
         <div className="flex items-center gap-2">
           {user && !hasFullAccess && !nativeIOS && (
             <button
@@ -1043,9 +1065,16 @@ const Index = () => {
             >
               Sign out
             </button>
+          ) : (hasOnboarded || getGuestQuestionsUsed() > 0) ? (
+            <button
+              onClick={() => openAuthModal('topbar_signin', 'Welcome back. Sign in to continue.')}
+              className="text-xs font-body text-muted-foreground hover:text-gold transition-colors"
+            >
+              Sign in
+            </button>
           ) : null}
         </div>
-      </div>}
+      </div>
 
       {/* Beta feedback button */}
       <BetaFeedbackButton />
