@@ -3,6 +3,7 @@ import { Link } from "react-router-dom";
 import { Helmet } from "react-helmet-async";
 import { Flame } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
+import { ArticlesFooter } from "@/components/ArticlesFooter";
 
 interface PostRow {
   slug: string;
@@ -81,6 +82,8 @@ const BlogIndex = () => {
           Ask Dabar
         </Link>
       </div>
+
+      <ArticlesFooter />
     </div>
   );
 };
