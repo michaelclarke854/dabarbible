@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback, useRef, lazy, Suspense } from "react"
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { useNavigate, useSearchParams } from "react-router-dom";
-import { Flame, BookOpen, Globe, BookText, Lock, Settings, Clock } from "lucide-react";
+import { Flame, BookOpen, Globe, BookText, Lock, Settings, Clock, Heart } from "lucide-react";
 import AskScreen from "@/components/AskScreen";
 import CrisisCheckinCard from "@/components/CrisisCheckinCard";
 import ResponseScreen from "@/components/ResponseScreen";
@@ -23,6 +23,7 @@ import DailyVerseOptIn from "@/components/DailyVerseOptIn";
 import PasskeyEnrollPrompt from "@/components/PasskeyEnrollPrompt";
 import PostResponseVerseOptIn from "@/components/PostResponseVerseOptIn";
 import ContinuePrompt from "@/components/ContinuePrompt";
+import MonthlyTestimonyBanner from "@/components/MonthlyTestimonyBanner";
 import { parseScriptureRef } from "@/data/kjvBooks";
 import { useAuth } from "@/contexts/AuthContext";
 import { trackEvent } from "@/lib/trackEvent";
@@ -869,6 +870,7 @@ const Index = () => {
                 <Suspense fallback={null}>
                   <NativeDailyPractice />
                 </Suspense>
+                <MonthlyTestimonyBanner />
                 <PasskeyEnrollPrompt />
                 <ContinuePrompt
                   onContinue={(q) => seekWisdom(q)}
@@ -1023,6 +1025,36 @@ const Index = () => {
           >
             {(!effectiveHasFullAccess && user) || !user ? <Lock size={18} strokeWidth={1.5} aria-hidden="true" /> : <BookOpen size={18} strokeWidth={1.5} aria-hidden="true" />}
             <span className="font-serif text-[10px] tracking-widest uppercase">Journal</span>
+            {!user && <span className="font-serif text-[8px] tracking-widest uppercase text-muted-foreground/60">Free</span>}
+          </button>
+          <button
+            role="tab"
+            aria-selected={false}
+            aria-label={!user ? "Sign up free to keep a private prayer log" : !effectiveHasFullAccess ? "Prayers available on Personal plan and above" : "Open prayers"}
+            title={!user ? "Sign up free to keep a private prayer log" : !effectiveHasFullAccess ? "Prayers available on Personal plan and above" : undefined}
+            onClick={() => {
+              if (!user) {
+                openAuthModal(
+                  'nav_prayers',
+                  nativeIOS
+                    ? "Sign in to keep your prayer log in the iOS experience."
+                    : "Create a free account to keep a private prayer log — 30 days free, no card needed."
+                );
+                return;
+              }
+              if (!effectiveHasFullAccess) {
+                toast("Prayers requires a Personal plan or above.", {
+                  action: { label: "View Plans", onClick: () => navigate("/pricing") },
+                });
+                return;
+              }
+              trackEvent("page_view", { screen: "prayers", userId: user.id });
+              navigate("/prayers");
+            }}
+            className="flex-1 py-3 flex flex-col items-center gap-1 transition-colors text-muted-foreground"
+          >
+            {(!effectiveHasFullAccess && user) || !user ? <Lock size={18} strokeWidth={1.5} aria-hidden="true" /> : <Heart size={18} strokeWidth={1.5} aria-hidden="true" />}
+            <span className="font-serif text-[10px] tracking-widest uppercase">Prayers</span>
             {!user && <span className="font-serif text-[8px] tracking-widest uppercase text-muted-foreground/60">Free</span>}
           </button>
         </div>

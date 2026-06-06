@@ -1285,6 +1285,42 @@ export type Database = {
           },
         ]
       }
+      prayer_log: {
+        Row: {
+          answered_at: string | null
+          answered_note: string | null
+          created_at: string
+          deleted_at: string | null
+          id: string
+          request: string
+          status: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          answered_at?: string | null
+          answered_note?: string | null
+          created_at?: string
+          deleted_at?: string | null
+          id?: string
+          request: string
+          status?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          answered_at?: string | null
+          answered_note?: string | null
+          created_at?: string
+          deleted_at?: string | null
+          id?: string
+          request?: string
+          status?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       processed_webhook_events: {
         Row: {
           event_id: string
