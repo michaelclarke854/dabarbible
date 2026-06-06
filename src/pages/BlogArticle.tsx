@@ -4,6 +4,7 @@ import { Helmet } from "react-helmet-async";
 import { Flame, ChevronLeft } from "lucide-react";
 import ReactMarkdown from "react-markdown";
 import { supabase } from "@/integrations/supabase/client";
+import { ArticlesFooter, ALL_ARTICLES } from "@/components/ArticlesFooter";
 
 const AUTHOR = {
   name: "The Dabar Editorial Team",
@@ -229,6 +230,27 @@ const BlogArticle = () => {
         </div>
       )}
 
+      {/* Related reading — surfaces 4 other posts as crawlable internal links */}
+      <section aria-label="Related reading" className="mt-10 pt-8 border-t border-border">
+        <p className="font-body text-xs uppercase tracking-widest text-gold/80 mb-4">
+          Related reading
+        </p>
+        <ul className="space-y-3">
+          {ALL_ARTICLES.filter((a) => a.slug !== article.slug)
+            .slice(0, 4)
+            .map((a) => (
+              <li key={a.slug}>
+                <Link
+                  to={`/blog/${a.slug}`}
+                  className="font-serif text-base text-foreground hover:text-gold transition-colors leading-snug"
+                >
+                  {a.title}
+                </Link>
+              </li>
+            ))}
+        </ul>
+      </section>
+
       {/* CTA */}
       <div className="mt-12 pt-8 border-t border-border text-center">
         <p className="font-serif text-xl text-foreground tracking-wide mb-2">
@@ -244,6 +266,8 @@ const BlogArticle = () => {
           Ask Dabar
         </Link>
       </div>
+
+      <ArticlesFooter />
     </div>
   );
 };
