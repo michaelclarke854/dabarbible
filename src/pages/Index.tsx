@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback, useRef, lazy, Suspense } from "react"
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { useNavigate, useSearchParams } from "react-router-dom";
-import { Flame, BookOpen, Globe, BookText, Lock, Settings, Clock } from "lucide-react";
+import { Flame, BookOpen, Globe, BookText, Lock, Settings, Clock, Heart } from "lucide-react";
 import AskScreen from "@/components/AskScreen";
 import CrisisCheckinCard from "@/components/CrisisCheckinCard";
 import ResponseScreen from "@/components/ResponseScreen";
@@ -23,6 +23,7 @@ import DailyVerseOptIn from "@/components/DailyVerseOptIn";
 import PasskeyEnrollPrompt from "@/components/PasskeyEnrollPrompt";
 import PostResponseVerseOptIn from "@/components/PostResponseVerseOptIn";
 import ContinuePrompt from "@/components/ContinuePrompt";
+import MonthlyTestimonyBanner from "@/components/MonthlyTestimonyBanner";
 import { parseScriptureRef } from "@/data/kjvBooks";
 import { useAuth } from "@/contexts/AuthContext";
 import { trackEvent } from "@/lib/trackEvent";
