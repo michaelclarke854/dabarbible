@@ -870,6 +870,7 @@ const Index = () => {
                 <Suspense fallback={null}>
                   <NativeDailyPractice />
                 </Suspense>
+                <MonthlyTestimonyBanner />
                 <PasskeyEnrollPrompt />
                 <ContinuePrompt
                   onContinue={(q) => seekWisdom(q)}
