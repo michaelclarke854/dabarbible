@@ -7,6 +7,7 @@ import { TrustStrip } from "@/components/ask/TrustStrip";
 import { SEO } from "@/components/SEO";
 import { PillarCard } from "@/components/PillarCard";
 import { GoldDivider } from "@/components/GoldDivider";
+import { ArticlesFooter } from "@/components/ArticlesFooter";
 import { useFadeInOnScroll } from "@/hooks/useFadeInOnScroll";
 
 interface LandingHeroProps {
@@ -349,7 +350,14 @@ export function LandingHero({ onSeekWisdom, isLoading, onSignIn }: LandingHeroPr
         <Link to="/terms" className="text-muted-foreground hover:text-gold transition-colors">
           Terms
         </Link>
+        <span className="text-muted-foreground/30" aria-hidden="true">·</span>
+        <Link to="/blog" className="text-muted-foreground hover:text-gold transition-colors">
+          Articles
+        </Link>
       </motion.div>
+
+      {/* Site-wide internal links to the blog hub + featured articles (SEO crawlability) */}
+      <ArticlesFooter />
 
       {/* Keyword-rich footer summary (low-emphasis, screen-reader friendly) */}
       <p className="font-body text-[11px] text-muted-foreground/70 leading-relaxed text-center max-w-xl mt-8">
