@@ -1,19 +1,16 @@
-# DABAR
+# DABAR (DaBarBible)
+> AI-assisted Bible study and daily reflection app grounded in scripture (KJV). Ask a question, receive a scripture-grounded reflection, and save it to a private journal. Faith-respectful and safety-aware (not a substitute for pastoral counsel or crisis help).
 
-> AI-powered spiritual discernment grounded in KJV scripture. Bring the questions faith rarely answers cleanly — anxiety, grief, doubt, purpose — and receive a scripture-based reflection in seconds.
+## Key pages
+- [Home / Ask Dabar](https://dabarbible.com/): Ask a question and get a scripture-grounded reflection.
+- [Pricing](https://dabarbible.com/pricing)
+- [Our Beliefs / Doctrine](https://dabarbible.com/doctrine)
+- [Articles](https://dabarbible.com/blog): Bible reflections on common life questions.
 
-DABAR is a personal reflection tool, not pastoral counsel. Responses are generated with a unified wisdom voice and always cite scripture from the King James Version.
-
-## Pages
-
-- [Home](/): Ask a question and receive a scripture-grounded reflection.
-- [Pricing](/pricing): Free trial, Personal, Family, and Community plans.
-- [Blog](/blog): Articles on anxiety, grief, purpose, forgiveness, fear, loneliness, and how to hear from God.
-- [Our Beliefs](/doctrine): Doctrinal statement and AI disclosure.
-- [Support](/support): Contact, FAQs, and a request form.
-- [Privacy](/privacy): How DABAR handles your reflections.
-- [Terms](/terms): Terms of service.
-
-## Optional
-
-- [Unsubscribe](/unsubscribe): Stop email communications.
+## Articles
+- [What does the Bible say about anxiety](https://dabarbible.com/blog/what-does-the-bible-say-about-anxiety)
+- [What does the Bible say about fear](https://dabarbible.com/blog/what-does-the-bible-say-about-fear)
+- [KJV Bible verses for grief and loss](https://dabarbible.com/blog/kjv-bible-verses-for-grief-and-loss)
+- [Bible verses for loneliness (KJV)](https://dabarbible.com/blog/bible-verses-for-loneliness-kjv)
+- [How to forgive someone who hurt you](https://dabarbible.com/blog/how-to-forgive-someone-who-hurt-you-biblical-guidance)
+- [How to hear from God in daily life](https://dabarbible.com/blog/how-to-hear-from-god-in-daily-life)
