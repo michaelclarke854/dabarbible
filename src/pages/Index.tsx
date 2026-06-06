@@ -1027,6 +1027,36 @@ const Index = () => {
             <span className="font-serif text-[10px] tracking-widest uppercase">Journal</span>
             {!user && <span className="font-serif text-[8px] tracking-widest uppercase text-muted-foreground/60">Free</span>}
           </button>
+          <button
+            role="tab"
+            aria-selected={false}
+            aria-label={!user ? "Sign up free to keep a private prayer log" : !effectiveHasFullAccess ? "Prayers available on Personal plan and above" : "Open prayers"}
+            title={!user ? "Sign up free to keep a private prayer log" : !effectiveHasFullAccess ? "Prayers available on Personal plan and above" : undefined}
+            onClick={() => {
+              if (!user) {
+                openAuthModal(
+                  'nav_prayers',
+                  nativeIOS
+                    ? "Sign in to keep your prayer log in the iOS experience."
+                    : "Create a free account to keep a private prayer log — 30 days free, no card needed."
+                );
+                return;
+              }
+              if (!effectiveHasFullAccess) {
+                toast("Prayers requires a Personal plan or above.", {
+                  action: { label: "View Plans", onClick: () => navigate("/pricing") },
+                });
+                return;
+              }
+              trackEvent("page_view", { screen: "prayers", userId: user.id });
+              navigate("/prayers");
+            }}
+            className="flex-1 py-3 flex flex-col items-center gap-1 transition-colors text-muted-foreground"
+          >
+            {(!effectiveHasFullAccess && user) || !user ? <Lock size={18} strokeWidth={1.5} aria-hidden="true" /> : <Heart size={18} strokeWidth={1.5} aria-hidden="true" />}
+            <span className="font-serif text-[10px] tracking-widest uppercase">Prayers</span>
+            {!user && <span className="font-serif text-[8px] tracking-widest uppercase text-muted-foreground/60">Free</span>}
+          </button>
         </div>
       </nav>
 
