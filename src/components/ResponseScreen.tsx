@@ -286,6 +286,7 @@ const ResponseScreen = ({
           {/* Share reflection */}
           <button
             type="button"
+            aria-label="Share this reflection"
             onClick={async () => {
               // Build formatted share text from all blocks
               const parts: string[] = [];
