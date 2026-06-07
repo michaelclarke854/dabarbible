@@ -175,7 +175,7 @@ export function LandingHero({ onSeekWisdom, isLoading, onSignIn }: LandingHeroPr
             animation: "dabar-fadeup 0.6s ease forwards",
           }}
         >
-          AI-powered spiritual discernment
+          A daily scripture reflection
         </p>
         <div
           aria-label="Dabar"
