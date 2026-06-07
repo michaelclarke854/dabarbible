@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { motion, useReducedMotion } from "framer-motion";
+import ReactMarkdown from "react-markdown";
 import ScriptureVersionPills from "./ScriptureVersionPills";
 
 export interface ContentBlock {
@@ -44,11 +45,70 @@ export function parseResponse(response: string): ContentBlock[] {
 export function extractThresholdQuestion(blocks: ContentBlock[]): string | null {
   for (let i = blocks.length - 1; i >= 0; i--) {
     if (blocks[i].type === "text" && blocks[i].content.trim().endsWith("?")) {
-      return blocks[i].content.trim();
+      // Strip any markdown emphasis markers so the surfaced question is clean
+      return blocks[i].content.trim().replace(/^\*+|\*+$/g, "").trim();
     }
   }
   return null;
 }
+
+const SECTION_LABEL_RE = /^\*\*\s*([A-Z][A-Z0-9\s'’&-]+?)\s*:?\s*\*\*\s*:?\s*([\s\S]*)$/;
+
+const MARKDOWN_COMPONENTS = {
+  p: ({ node, ...props }: any) => (
+    <p
+      style={{
+        fontFamily: "'DM Sans', sans-serif",
+        fontSize: 17,
+        lineHeight: 1.65,
+        color: "#f7f2e8",
+        fontWeight: 400,
+        margin: 0,
+      }}
+      {...props}
+    />
+  ),
+  strong: ({ node, ...props }: any) => (
+    <strong style={{ fontWeight: 500, color: "#f7f2e8" }} {...props} />
+  ),
+  em: ({ node, ...props }: any) => (
+    <em style={{ fontStyle: "italic" }} {...props} />
+  ),
+  a: ({ node, ...props }: any) => (
+    <a style={{ color: "#b8913a", textDecoration: "underline" }} {...props} />
+  ),
+};
+
+export const TextBlock = ({ content }: { content: string }) => {
+  const trimmed = content.trim();
+  const match = trimmed.match(SECTION_LABEL_RE);
+
+  if (match) {
+    const label = match[1].trim();
+    const rest = match[2].trim();
+    return (
+      <div>
+        <p
+          className="font-serif text-gold uppercase mb-2"
+          style={{
+            fontFamily: "'Cormorant Garamond', serif",
+            fontSize: 11,
+            letterSpacing: "0.22em",
+            fontWeight: 500,
+            color: "#b8913a",
+          }}
+        >
+          {label}
+        </p>
+        {rest && (
+          <ReactMarkdown components={MARKDOWN_COMPONENTS}>{rest}</ReactMarkdown>
+        )}
+      </div>
+    );
+  }
+
+  return <ReactMarkdown components={MARKDOWN_COMPONENTS}>{trimmed}</ReactMarkdown>;
+};
 
 export const ScriptureCard = ({
   block,
