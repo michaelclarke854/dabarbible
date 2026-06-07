@@ -3,6 +3,7 @@ import { supabase } from "@/integrations/supabase/client";
 import type { User } from "@supabase/supabase-js";
 import { trackEvent } from "@/lib/trackEvent";
 import { isIOSNative } from "@/lib/platform";
+import { initRevenueCat, rcLogIn, rcHasActiveEntitlement } from "@/lib/revenuecat";
 
 export type UserRole =
   | "super_admin" | "admin" | "beta" | "free" | "personal"
@@ -34,6 +35,8 @@ interface AuthContextValue {
   isPastor: boolean;
   pastoralCommunityId: string | null;
   hasFullAccess: boolean;
+  rcEntitled: boolean;
+  refreshEntitlement: () => Promise<void>;
   loading: boolean;
   isHydrating: boolean;
   emailUnconfirmed: boolean;
@@ -100,6 +103,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [isPastor, setIsPastor] = useState(false);
   const [pastoralCommunityId, setPastoralCommunityId] = useState<string | null>(null);
   const [needsOnboardingIntent, setNeedsOnboardingIntent] = useState(false);
+  const [rcEntitled, setRcEntitled] = useState(false);
 
   const isFetchingRef = useRef(false);
   // Track which user IDs we've already fired signup_completed for (per session)
@@ -119,7 +123,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       if (profile) {
         const nativeIOS = isIOSNative();
         const profileRole = (profile.role || "free") as UserRole;
-        const profilePlan = (nativeIOS ? "free" : (profile.plan || "free")) as UserPlan;
+        const profilePlan = (profile.plan || "free") as UserPlan;
         setRole(profileRole);
         setPlan(profilePlan);
         setIsSuspended(profile.is_suspended || false);
@@ -142,6 +146,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   }, []);
 
+  const refreshEntitlement = useCallback(async () => {
+    if (!isIOSNative()) return;
+    const ok = await rcHasActiveEntitlement();
+    setRcEntitled(ok);
+  }, []);
+
   const refreshProfile = useCallback(async () => {
     if (user) {
       isFetchingRef.current = false; // Allow re-fetch on explicit refresh
@@ -151,6 +161,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     console.time('[DABAR] auth:hydration');
+    // Initialize RevenueCat on mount (native iOS only; no-op without key)
+    initRevenueCat().then(() => refreshEntitlement());
     let hydrationLogged = false;
     const markHydrated = () => {
       if (!hydrationLogged) {
@@ -193,6 +205,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             // ignore
           }
           setNeedsAgeGate(false);
+          // Link RevenueCat identity to the Supabase user id (native iOS).
+          if (isIOSNative()) {
+            rcLogIn(u.id).then(() => refreshEntitlement());
+          }
           fetchProfile(u.id).then(() => {
             // If user signed in/up via an invite link, complete the join flow.
             const pendingInvite = typeof window !== 'undefined'
@@ -264,6 +280,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           setIsPastor(false);
           setPastoralCommunityId(null);
           setNeedsOnboardingIntent(false);
+          setRcEntitled(false);
           setTrial({ isOnTrial: false, trialEndsAt: null, trialStartedAt: null, trialConverted: false, trialNudgeSent: DEFAULT_NUDGE, daysLeft: 0, trialExpired: false });
           setNeedsAgeGate(false);
           setIsHydrating(false);
@@ -278,11 +295,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     supabase.auth.getSession().finally(markHydrated);
 
     return () => subscription.unsubscribe();
-  }, [fetchProfile]);
+  }, [fetchProfile, refreshEntitlement]);
 
+  const webPaidAccess = FULL_ACCESS_ROLES.includes(role) || (plan === "trial" && !trial.trialExpired);
   const hasFullAccess = isIOSNative()
-    ? !!user
-    : FULL_ACCESS_ROLES.includes(role) || (plan === "trial" && !trial.trialExpired);
+    ? rcEntitled || webPaidAccess
+    : webPaidAccess;
 
   const setPendingConfirmation = useCallback((email: string | null) => {
     if (email) {
@@ -315,6 +333,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     isPastor,
     pastoralCommunityId,
     hasFullAccess,
+    rcEntitled,
+    refreshEntitlement,
     loading,
     isHydrating,
     emailUnconfirmed,
@@ -331,7 +351,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }), [
     user, role, plan, isSuspended, ageGroup, languagePreference,
     preferredBibleVersion, isPastor, pastoralCommunityId, hasFullAccess,
-    loading, isHydrating, emailUnconfirmed, userEmail, trial, needsAgeGate,
+    rcEntitled, refreshEntitlement, loading, isHydrating, emailUnconfirmed, userEmail, trial, needsAgeGate,
     pendingCheckin, needsOnboardingIntent, refreshProfile,
     setPendingConfirmation, clearAgeGate,
   ]);
