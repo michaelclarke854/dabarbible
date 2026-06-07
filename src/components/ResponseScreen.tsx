@@ -1,6 +1,6 @@
 import { useEffect, useState, useMemo } from "react";
 import { motion, useReducedMotion } from "framer-motion";
-import { parseResponse, extractThresholdQuestion, ScriptureCard, type ContentBlock } from "./WisdomResponseBlocks";
+import { parseResponse, extractThresholdQuestion, ScriptureCard, TextBlock, type ContentBlock } from "./WisdomResponseBlocks";
 import { Share2 } from "lucide-react";
 import { toast } from "sonner";
 import { nativeSuccess, saveLastReflection, shareReflection } from "@/lib/nativePractice";
@@ -51,9 +51,9 @@ interface ResponseScreenProps {
 }
 
 const STAGE_LABELS: Record<string, string> = {
-  thinking: "Listening…",
-  scripture: "Searching scripture…",
-  reflecting: "Reflecting…",
+  thinking: "Dabar is listening…",
+  scripture: "Dabar is searching scripture…",
+  reflecting: "Dabar is reflecting…",
 };
 
 const CONTINUE_SEEDS = [
@@ -119,8 +119,24 @@ const ResponseScreen = ({
   }, [isStreaming, blocks.length]);
 
   return (
-    <div className="min-h-[calc(100vh-80px)] px-6 py-12 max-w-2xl mx-auto">
-      <p className="font-body text-sm text-muted-foreground italic mb-8 leading-relaxed">
+    <div
+      className="px-6 py-12 max-w-2xl mx-auto"
+      style={{
+        minHeight: "calc(100dvh - 80px)",
+        paddingTop: "max(48px, env(safe-area-inset-top))",
+        paddingBottom: "max(48px, env(safe-area-inset-bottom))",
+      }}
+    >
+      <p
+        className="mb-8"
+        style={{
+          fontFamily: "'Cormorant Garamond', serif",
+          fontStyle: "italic",
+          fontSize: 15,
+          lineHeight: 1.6,
+          color: "rgba(247,242,232,0.55)",
+        }}
+      >
         "{question}"
       </p>
 
@@ -188,14 +204,19 @@ const ResponseScreen = ({
               />
             ) : isCrisisResourceLine(block.content) ? (
               <div className="dabar-glass border-l-2 border-amber-500/60 pl-4 py-3 bg-amber-500/5 rounded-sm">
-                <p className="font-serif text-base leading-relaxed text-foreground">
+                <p
+                  style={{
+                    fontFamily: "'DM Sans', sans-serif",
+                    fontSize: 17,
+                    lineHeight: 1.65,
+                    color: "#f7f2e8",
+                  }}
+                >
                   {block.content.replace(/^[•·]\s*/, "")}
                 </p>
               </div>
             ) : (
-              <p className="font-serif text-lg md:text-xl leading-relaxed text-foreground">
-                {block.content}
-              </p>
+              <TextBlock content={block.content} />
             )}
           </motion.div>
           );
@@ -203,14 +224,24 @@ const ResponseScreen = ({
       </div>
 
       {agentStage && !response && (
-        <div className="flex items-center gap-3 mb-6 animate-fade-in">
-          <div className="flex gap-1">
-            <span className="w-1.5 h-1.5 rounded-full bg-gold animate-pulse" />
-            <span className="w-1.5 h-1.5 rounded-full bg-gold animate-pulse" style={{ animationDelay: "200ms" }} />
-            <span className="w-1.5 h-1.5 rounded-full bg-gold animate-pulse" style={{ animationDelay: "400ms" }} />
-          </div>
-          <span className="font-body text-sm text-muted-foreground italic">
-            {STAGE_LABELS[agentStage] || "Listening…"}
+        <div
+          className="flex items-center justify-center mb-6"
+          role="status"
+          aria-live="polite"
+        >
+          <span
+            style={{
+              fontFamily: "'Cormorant Garamond', serif",
+              fontStyle: "italic",
+              fontSize: 18,
+              color: "#b8913a",
+              letterSpacing: "0.02em",
+              animation: shouldReduceMotion
+                ? "none"
+                : "dabar-listening-pulse 2s ease-in-out infinite",
+            }}
+          >
+            {STAGE_LABELS[agentStage] || "Dabar is listening…"}
           </span>
         </div>
       )}
@@ -227,13 +258,17 @@ const ResponseScreen = ({
             <button
               onClick={onReflect}
               disabled={isSaving || isSaved}
-              className="font-body text-sm tracking-wide px-6 py-3 border border-gold text-gold rounded-sm transition-all hover:bg-gold hover:text-primary-foreground disabled:opacity-50"
+              aria-label={isSaved ? "Saved to journal" : "Save reflection to journal"}
+              className="font-body text-sm tracking-wide px-6 border border-gold text-gold rounded-sm transition-all hover:bg-gold hover:text-primary-foreground disabled:opacity-50 active:scale-[0.98]"
+              style={{ minHeight: 44, minWidth: 44 }}
             >
               {isSaved ? "Saved to journal" : isSaving ? "Saving…" : "Save to Journal"}
             </button>
             <button
               onClick={onAskAgain}
-              className="font-body text-sm tracking-wide px-6 py-3 text-muted-foreground hover:text-foreground transition-colors"
+              aria-label="Ask another question"
+              className="font-body text-sm tracking-wide px-6 text-muted-foreground hover:text-foreground transition-colors active:scale-[0.98]"
+              style={{ minHeight: 44, minWidth: 44 }}
             >
               Ask Again
             </button>
