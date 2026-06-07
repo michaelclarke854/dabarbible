@@ -29,6 +29,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { trackEvent } from "@/lib/trackEvent";
 import { isIOSNative } from "@/lib/platform";
 import { extractScriptureRefs } from "@/lib/scriptureParser";
+import Paywall from "@/components/Paywall";
 
 const JournalScreen = lazy(() => import("@/components/JournalScreen"));
 const ScriptureScreen = lazy(() => import("@/components/ScriptureScreen"));
@@ -69,7 +70,8 @@ const Index = () => {
     needsAgeGate, pendingCheckin,
   } = useAuth();
   const nativeIOS = isIOSNative();
-  const effectiveHasFullAccess = nativeIOS ? !!user : hasFullAccess;
+  const effectiveHasFullAccess = hasFullAccess;
+  const [showPaywall, setShowPaywall] = useState(false);
 
   
   
@@ -245,6 +247,10 @@ const Index = () => {
 
     const count = data?.question_count ?? 0;
     if (count >= FREE_DAILY_LIMIT) {
+      if (nativeIOS) {
+        setShowPaywall(true);
+        return false;
+      }
       toast("You've reached your 3 daily questions.", {
         description: "Upgrade for unlimited wisdom.",
         action: { label: "View Plans", onClick: () => navigate("/pricing") },
@@ -252,7 +258,7 @@ const Index = () => {
       return false;
     }
     return true;
-  }, [user, effectiveHasFullAccess, navigate]);
+  }, [user, effectiveHasFullAccess, navigate, nativeIOS]);
 
   const incrementDailyUsage = useCallback(async () => {
     if (!user) return;
@@ -710,6 +716,12 @@ const Index = () => {
         onFreePlan={handleDowngradeToFree}
       />
     );
+  }
+
+  // iOS RevenueCat paywall — shown when a non-entitled signed-in iOS user hits the limit,
+  // or when triggered from an Upgrade entry.
+  if (showPaywall && nativeIOS && !hasFullAccess) {
+    return <Paywall onClose={() => setShowPaywall(false)} />;
   }
 
   // Nudge display — derived from profile, not React state
