@@ -189,7 +189,15 @@ const AskScreen = forwardRef<HTMLDivElement, AskScreenProps>(({ onSeekWisdom, is
   };
 
   return (
-    <div ref={ref} className="flex flex-col items-center justify-center min-h-[calc(100vh-80px)] px-6 py-12">
+    <div
+      ref={ref}
+      className="flex flex-col items-center justify-center px-6 py-12"
+      style={{
+        minHeight: "calc(100dvh - 80px)",
+        paddingTop: "max(48px, env(safe-area-inset-top))",
+        paddingBottom: "max(48px, env(safe-area-inset-bottom))",
+      }}
+    >
       <h1 className="font-serif text-4xl md:text-5xl text-foreground tracking-widest text-center">
         DABAR
       </h1>
@@ -313,8 +321,11 @@ const AskScreen = forwardRef<HTMLDivElement, AskScreenProps>(({ onSeekWisdom, is
       <button
         onClick={handleSubmit}
         disabled={!question.trim() || isLoading}
+        aria-label="Seek wisdom — submit your question"
+        className="active:scale-[0.98]"
         style={{
-          height: 54,
+          minHeight: 54,
+          minWidth: 44,
           borderRadius: 6,
           border: "0.5px solid rgba(184,145,58,0.4)",
           background: "linear-gradient(135deg, #b8913a 0%, #d4a84b 100%)",
@@ -353,10 +364,17 @@ const AskScreen = forwardRef<HTMLDivElement, AskScreenProps>(({ onSeekWisdom, is
         />
       )}
       {isLoading && (
-        <div className="mt-10 flex flex-col items-center gap-3">
-          <div className="w-3 h-3 rounded-full bg-gold animate-candle-glow" />
-          <span className="text-xs font-body text-muted-foreground tracking-wide">
-            Be still, and wait…
+        <div className="mt-10 flex flex-col items-center gap-3" role="status" aria-live="polite">
+          <span
+            style={{
+              fontFamily: "'Cormorant Garamond', serif",
+              fontStyle: "italic",
+              fontSize: 18,
+              color: "#b8913a",
+              animation: "dabar-listening-pulse 2s ease-in-out infinite",
+            }}
+          >
+            Dabar is listening…
           </span>
         </div>
       )}
