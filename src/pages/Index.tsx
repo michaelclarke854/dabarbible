@@ -718,6 +718,12 @@ const Index = () => {
     );
   }
 
+  // iOS RevenueCat paywall — shown when a non-entitled signed-in iOS user hits the limit,
+  // or when triggered from an Upgrade entry.
+  if (showPaywall && nativeIOS && !hasFullAccess) {
+    return <Paywall onClose={() => setShowPaywall(false)} />;
+  }
+
   // Nudge display — derived from profile, not React state
   const showDay14Banner = !nativeIOS && trial.isOnTrial && trial.daysLeft <= 16 && trial.daysLeft > 9 && !trial.trialNudgeSent.day14 && !trial.trialConverted;
   const showDay28Banner = !nativeIOS && trial.isOnTrial && trial.daysLeft <= 2 && !trial.trialConverted;
