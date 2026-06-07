@@ -142,6 +142,8 @@ const ScriptureVersionPills = ({
             key={v}
             onClick={() => handlePillClick(v)}
             disabled={loading && v !== active}
+            aria-label={`Show this verse in ${VERSION_LABELS[v].full}`}
+            aria-pressed={isActive}
             className={`font-serif-display text-[0.6rem] tracking-[0.08em] uppercase px-2 py-[3px] rounded-[4px] border transition-all duration-200 ${
               isActive
                 ? "bg-gold text-[#0D0B08] border-gold"
