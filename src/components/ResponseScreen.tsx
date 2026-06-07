@@ -355,7 +355,7 @@ const ResponseScreen = ({
               onClick={async () => {
                 try {
                   await navigator.clipboard.writeText(
-                    `"${question}" — answered through scripture on DaBarBible.com`,
+                    `"${question}" — answered through scripture on dabarbible.com`,
                   );
                   toast.success("Copied to clipboard");
                   trackEvent("share_clicked", {

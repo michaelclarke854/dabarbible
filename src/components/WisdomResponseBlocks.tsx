@@ -127,12 +127,23 @@ export const ScriptureCard = ({
   const [activeVersion, setActiveVersion] = useState(profileDefault || "KJV");
   const shouldReduceMotion = useReducedMotion();
   const motionProps = shouldReduceMotion
-    ? { initial: { opacity: 1 }, animate: { opacity: 1 } }
+    ? { initial: { opacity: 1, y: 0 }, animate: { opacity: 1, y: 0 } }
     : {
-        initial: { opacity: 0, y: 12 },
-        whileInView: { opacity: 1, y: 0 },
-        viewport: { once: true, margin: "-40px" },
-        transition: { duration: 0.5, ease: "easeOut" as const },
+        initial: { opacity: 0, y: 12, boxShadow: "0 0 0 0 rgba(196,151,58,0)" },
+        animate: {
+          opacity: 1,
+          y: 0,
+          boxShadow: [
+            "0 0 0 0 rgba(196,151,58,0)",
+            "0 0 28px 2px rgba(196,151,58,0.22)",
+            "0 0 0 0 rgba(196,151,58,0)",
+          ],
+        },
+        transition: {
+          duration: 0.6,
+          ease: [0.25, 0.46, 0.45, 0.94] as [number, number, number, number],
+          boxShadow: { duration: 1.8, times: [0, 0.45, 1], ease: "easeOut" as const },
+        },
       };
 
   return (
