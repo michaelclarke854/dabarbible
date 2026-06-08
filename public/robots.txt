@@ -19,5 +19,14 @@ Disallow: /pastor/
 Disallow: /reset-password
 Disallow: /payment-success
 Disallow: /__visual/
+Disallow: /unsubscribe
+Disallow: /unsubscribe-verse
+Disallow: /suspended
+Disallow: /auth/callback
+Disallow: /share/draft/
+Disallow: /admin/outreach
+Disallow: /prayers
+Disallow: /pastor/setup
+Disallow: /pastor-access
 
 Sitemap: https://dabarbible.com/sitemap.xml

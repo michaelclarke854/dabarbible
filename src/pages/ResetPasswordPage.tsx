@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { Helmet } from "react-helmet-async";
 import { supabase } from "@/integrations/supabase/client";
 
 const ResetPasswordPage = () => {
@@ -35,15 +36,26 @@ const ResetPasswordPage = () => {
 
   if (status === "success") {
     return (
+      <>
+        <Helmet>
+          <title>Reset Password — Dabar Bible</title>
+          <meta name="robots" content="noindex, nofollow" />
+        </Helmet>
       <div className="min-h-screen flex flex-col items-center justify-center px-6 text-center">
         <h1 className="font-serif text-4xl text-gold tracking-[0.2em] mb-4">DABAR</h1>
         <p className="font-serif text-xl text-foreground mb-2">Password updated successfully.</p>
         <p className="font-body text-sm text-muted-foreground">Redirecting you back to the app…</p>
       </div>
+      </>
     );
   }
 
   return (
+    <>
+      <Helmet>
+        <title>Reset Password — Dabar Bible</title>
+        <meta name="robots" content="noindex, nofollow" />
+      </Helmet>
     <div className="min-h-screen flex flex-col items-center justify-center px-6">
       <div className="w-full max-w-sm">
         <h1 className="font-serif text-4xl text-gold tracking-[0.2em] text-center mb-2">DABAR</h1>
@@ -83,6 +95,7 @@ const ResetPasswordPage = () => {
         </form>
       </div>
     </div>
+    </>
   );
 };
 

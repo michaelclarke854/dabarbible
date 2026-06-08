@@ -339,6 +339,18 @@ export function LandingHero({ onSeekWisdom, isLoading, onSignIn }: LandingHeroPr
 
       {/* Footer trust links */}
       <motion.div {...reveal(0.6)} className="mt-12 flex flex-wrap items-center justify-center gap-x-5 gap-y-2 text-[11px] font-body tracking-wider uppercase">
+        <Link to="/pricing" className="text-muted-foreground hover:text-gold transition-colors">
+          Pricing
+        </Link>
+        <span className="text-muted-foreground/30" aria-hidden="true">·</span>
+        <Link to="/blog" className="text-muted-foreground hover:text-gold transition-colors">
+          Articles
+        </Link>
+        <span className="text-muted-foreground/30" aria-hidden="true">·</span>
+        <Link to="/support" className="text-muted-foreground hover:text-gold transition-colors">
+          Support
+        </Link>
+        <span className="text-muted-foreground/30" aria-hidden="true">·</span>
         <Link to="/privacy" className="text-muted-foreground hover:text-gold transition-colors">
           Privacy
         </Link>
@@ -349,10 +361,6 @@ export function LandingHero({ onSeekWisdom, isLoading, onSignIn }: LandingHeroPr
         <span className="text-muted-foreground/30" aria-hidden="true">·</span>
         <Link to="/terms" className="text-muted-foreground hover:text-gold transition-colors">
           Terms
-        </Link>
-        <span className="text-muted-foreground/30" aria-hidden="true">·</span>
-        <Link to="/blog" className="text-muted-foreground hover:text-gold transition-colors">
-          Articles
         </Link>
       </motion.div>
 
