@@ -1,5 +1,6 @@
 import { useEffect } from "react";
 import { useNavigate } from "react-router-dom";
+import { Helmet } from "react-helmet-async";
 import { supabase } from "@/integrations/supabase/client";
 import { trackEvent } from "@/lib/trackEvent";
 
@@ -102,12 +103,18 @@ const AuthCallback = () => {
   }, [navigate]);
 
   return (
+    <>
+    <Helmet>
+      <title>Dabar Bible</title>
+      <meta name="robots" content="noindex, nofollow" />
+    </Helmet>
     <div className="min-h-screen flex flex-col items-center justify-center px-6 text-center">
       <h1 className="font-serif text-3xl text-gold tracking-[0.2em] mb-6">DABAR</h1>
       <div className="w-10 h-px bg-gold mb-8" />
       <div className="w-6 h-6 border-2 border-gold/30 border-t-gold rounded-full animate-spin mb-6" />
       <p className="font-body text-sm text-foreground/70">Verifying your sign-in…</p>
     </div>
+    </>
   );
 };
 

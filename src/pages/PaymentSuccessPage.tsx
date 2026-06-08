@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { Helmet } from "react-helmet-async";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { isIOSNative } from "@/lib/platform";
@@ -58,6 +59,11 @@ const PaymentSuccessPage = () => {
   }
 
   return (
+    <>
+    <Helmet>
+      <title>Payment Successful — Dabar Bible</title>
+      <meta name="robots" content="noindex, nofollow" />
+    </Helmet>
     <div className="min-h-screen flex flex-col items-center justify-center px-6 text-center">
       <h1 className="font-serif text-4xl text-gold tracking-[0.2em] mb-4">DABAR</h1>
       <p className="text-gold font-serif text-sm tracking-wider mb-8">דָּבָר</p>
@@ -84,6 +90,7 @@ const PaymentSuccessPage = () => {
         </>
       )}
     </div>
+    </>
   );
 };
 

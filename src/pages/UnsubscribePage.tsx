@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { useSearchParams } from "react-router-dom";
+import { Helmet } from "react-helmet-async";
 import { supabase } from "@/integrations/supabase/client";
 
 export default function UnsubscribePage() {
@@ -26,6 +27,11 @@ export default function UnsubscribePage() {
   }, [email]);
 
   return (
+    <>
+      <Helmet>
+        <title>Unsubscribe — Dabar Bible</title>
+        <meta name="robots" content="noindex, nofollow" />
+      </Helmet>
     <div className="min-h-screen flex items-center justify-center px-6 bg-background">
       <div className="max-w-md w-full text-center space-y-4">
         <h1 className="font-serif text-3xl text-foreground">Unsubscribe</h1>
@@ -47,5 +53,6 @@ export default function UnsubscribePage() {
         )}
       </div>
     </div>
+    </>
   );
 }
