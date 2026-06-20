@@ -250,9 +250,15 @@ export function LandingHero({ onSeekWisdom, isLoading, onSignIn }: LandingHeroPr
       {/* Positioning headline — primary SEO H1 */}
       <motion.h1
         {...reveal(0.15)}
-        className="font-serif text-2xl sm:text-3xl text-foreground leading-tight max-w-md mt-6"
+        className="font-serif text-foreground leading-tight max-w-md mt-6"
+        style={{
+          fontFamily: headlineFontFamily,
+          fontSize: heroVariant === "locked" ? undefined : "1.85rem",
+        }}
       >
-        Ask the Bible Anything
+        {heroVariant === "locked"
+          ? "Ask the Bible Anything"
+          : "Get Scripture-Grounded Answers to Your Deepest Questions"}
       </motion.h1>
       <motion.p
         {...reveal(0.18)}
