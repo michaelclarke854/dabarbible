@@ -58,6 +58,37 @@ export function LandingHero({ onSeekWisdom, isLoading, onSignIn }: LandingHeroPr
   const landingContext = searchParams.get("context");
   const isGrief = landingContext === "grief";
 
+  // Visual direction exploration: ?hero=1|2|3
+  //   1 (default) = Locked Minimal (current sacred parchment + Cinzel)
+  //   2           = Warm Pivot (warm parchment, Cormorant, warmer gold, soft photo wash)
+  //   3           = Middle Path (locked tokens + small literary accent + slightly warmer rhythm)
+  const heroVariant = (searchParams.get("hero") === "2"
+    ? "warm"
+    : searchParams.get("hero") === "3"
+      ? "middle"
+      : "locked") as "locked" | "warm" | "middle";
+
+  const variantStyle: Record<string, string> =
+    heroVariant === "warm"
+      ? {
+          // Warm pivot palette — overrides only inside this section.
+          ["--gold" as string]: "32 50% 64%", // ~#D4A574 in HSL
+          ["--background" as string]: "36 60% 96%", // ~#FBF7F0
+          background:
+            "radial-gradient(120% 60% at 80% 0%, rgba(212,165,116,0.22) 0%, rgba(251,247,240,0) 55%), linear-gradient(180deg, #FBF7F0 0%, #F5EFE3 100%)",
+        }
+      : heroVariant === "middle"
+        ? {
+            background:
+              "radial-gradient(90% 40% at 90% 8%, rgba(196,151,58,0.10) 0%, rgba(245,240,232,0) 60%), hsl(var(--background))",
+          }
+        : {};
+
+  const headlineFontFamily =
+    heroVariant === "warm"
+      ? "'Cormorant Garamond', 'Cormorant', serif"
+      : undefined;
+
   const tagline = isGrief
     ? "For those carrying grief and the questions it brings"
     : "For the questions faith rarely answers cleanly";
