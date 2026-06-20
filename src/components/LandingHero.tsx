@@ -156,7 +156,35 @@ export function LandingHero({ onSeekWisdom, isLoading, onSignIn }: LandingHeroPr
   ];
 
   return (
-    <section className="relative px-6 pt-10 pb-16 sm:pt-14 sm:pb-20 max-w-2xl mx-auto flex flex-col items-center text-center">
+    <section
+      className="relative px-6 pt-10 pb-16 sm:pt-14 sm:pb-20 max-w-2xl mx-auto flex flex-col items-center text-center"
+      style={variantStyle as React.CSSProperties}
+      data-hero-variant={heroVariant}
+    >
+      {heroVariant !== "locked" && (
+        <div
+          aria-hidden
+          className="absolute right-0 top-0 pointer-events-none hidden sm:block"
+          style={{
+            width: heroVariant === "warm" ? 320 : 140,
+            height: heroVariant === "warm" ? 320 : 140,
+            opacity: heroVariant === "warm" ? 0.35 : 0.55,
+            background:
+              heroVariant === "warm"
+                ? "radial-gradient(closest-side, rgba(212,165,116,0.55), rgba(212,165,116,0) 70%)"
+                : "radial-gradient(closest-side, rgba(196,151,58,0.18), rgba(196,151,58,0) 70%)",
+          }}
+        />
+      )}
+      {heroVariant === "middle" && (
+        <div
+          aria-hidden
+          className="absolute right-4 top-12 font-serif text-gold/30 select-none hidden sm:block"
+          style={{ fontSize: 64, lineHeight: 1, letterSpacing: "0.05em" }}
+        >
+          ✦
+        </div>
+      )}
       <SEO
         title="Dabar Bible — Ask the Bible Anything | AI Devotionals & Scripture Search"
         description="The first AI Bible companion. Ask any spiritual question, get scripture-backed answers, explore daily devotionals, KJV Bible reading plans, and personalized wisdom — powered by AI."
