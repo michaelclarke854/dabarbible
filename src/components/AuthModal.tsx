@@ -210,7 +210,7 @@ const AuthModal = forwardRef<HTMLDivElement, AuthModalProps>(({ isOpen, onClose,
     trackEvent("oauth_start", { metadata: { provider: "google" } });
 
     const result = await lovable.auth.signInWithOAuth("google", {
-      redirect_uri: `${window.location.origin}/auth/callback`,
+      redirect_uri: window.location.origin,
     });
 
     if (result.error) {
@@ -222,15 +222,13 @@ const AuthModal = forwardRef<HTMLDivElement, AuthModalProps>(({ isOpen, onClose,
       return;
     }
 
+    // Popup flow: session was set inline (redirected=false) — onAuthStateChange will close the modal.
+    // Redirect flow: browser is navigating away; overlay persists until return.
     if (!result.redirected) {
       setOauthLoading(false);
-      trackEvent("oauth_failure", {
-        metadata: { provider: "google", reason: "no_redirect" },
-      });
-      setOauthError("Google sign-in could not complete. Please try again or use email.");
-      return;
+      toast.success("Welcome.");
+      onClose();
     }
-    // Redirect in progress — overlay persists until return
   };
 
   const handleApple = async () => {
@@ -261,7 +259,7 @@ const AuthModal = forwardRef<HTMLDivElement, AuthModalProps>(({ isOpen, onClose,
     }
 
     const result = await lovable.auth.signInWithOAuth("apple", {
-      redirect_uri: `${window.location.origin}/auth/callback`,
+      redirect_uri: window.location.origin,
     });
 
     if (result.error) {
@@ -275,13 +273,9 @@ const AuthModal = forwardRef<HTMLDivElement, AuthModalProps>(({ isOpen, onClose,
 
     if (!result.redirected) {
       setOauthLoading(false);
-      trackEvent("oauth_failure", {
-        metadata: { provider: "apple", reason: "no_redirect" },
-      });
-      setOauthError("Apple sign-in could not complete. Please try again or use email.");
-      return;
+      toast.success("Welcome.");
+      onClose();
     }
-    // Redirect in progress
   };
 
   const handleTitleTap = () => {
