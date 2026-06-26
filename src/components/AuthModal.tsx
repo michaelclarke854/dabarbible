@@ -8,6 +8,7 @@ import { signInWithAppleNative, recordAuthError, getLastAuthError } from "@/lib/
 import { Capacitor } from "@capacitor/core";
 import { trackEvent } from "@/lib/trackEvent";
 import { PasskeyButton } from "@/components/PasskeyButton";
+import { interpretOAuthResult } from "@/lib/oauthResult";
 
 interface AuthModalProps {
   isOpen: boolean;
@@ -212,23 +213,21 @@ const AuthModal = forwardRef<HTMLDivElement, AuthModalProps>(({ isOpen, onClose,
     const result = await lovable.auth.signInWithOAuth("google", {
       redirect_uri: window.location.origin,
     });
-
-    if (result.error) {
+    const outcome = interpretOAuthResult(result);
+    if (outcome.kind === "error") {
       setOauthLoading(false);
-      trackEvent("oauth_failure", {
-        metadata: { provider: "google", reason: result.error.message || "unknown" },
-      });
-      setOauthError(`Google sign-in failed: ${result.error.message || "Unknown error"}. Please try email instead.`);
+      trackEvent("oauth_failure", { metadata: { provider: "google", reason: outcome.message } });
+      setOauthError(`Google sign-in failed: ${outcome.message}. Please try email instead.`);
       return;
     }
-
-    // Popup flow: session was set inline (redirected=false) — onAuthStateChange will close the modal.
-    // Redirect flow: browser is navigating away; overlay persists until return.
-    if (!result.redirected) {
+    if (outcome.kind === "session_ready") {
+      // Popup flow: tokens received, session already set by the SDK.
       setOauthLoading(false);
       toast.success("Welcome.");
       onClose();
+      return;
     }
+    // outcome.kind === "redirecting" — browser is navigating; keep overlay.
   };
 
   const handleApple = async () => {
@@ -261,21 +260,20 @@ const AuthModal = forwardRef<HTMLDivElement, AuthModalProps>(({ isOpen, onClose,
     const result = await lovable.auth.signInWithOAuth("apple", {
       redirect_uri: window.location.origin,
     });
-
-    if (result.error) {
+    const outcome = interpretOAuthResult(result);
+    if (outcome.kind === "error") {
       setOauthLoading(false);
-      trackEvent("oauth_failure", {
-        metadata: { provider: "apple", reason: result.error.message || "unknown" },
-      });
-      setOauthError(`Apple sign-in failed: ${result.error.message || "Unknown error"}. Please try email instead.`);
+      trackEvent("oauth_failure", { metadata: { provider: "apple", reason: outcome.message } });
+      setOauthError(`Apple sign-in failed: ${outcome.message}. Please try email instead.`);
       return;
     }
-
-    if (!result.redirected) {
+    if (outcome.kind === "session_ready") {
       setOauthLoading(false);
       toast.success("Welcome.");
       onClose();
+      return;
     }
+    // redirecting — keep overlay until return.
   };
 
   const handleTitleTap = () => {
