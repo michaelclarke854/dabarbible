@@ -1362,6 +1362,7 @@ export type Database = {
           language_preference: string
           onboarding_completed_at: string | null
           onboarding_intent_key: string | null
+          paddle_customer_id: string | null
           pastoral_community_id: string | null
           pending_checkin: boolean
           plan: string
@@ -1401,6 +1402,7 @@ export type Database = {
           language_preference?: string
           onboarding_completed_at?: string | null
           onboarding_intent_key?: string | null
+          paddle_customer_id?: string | null
           pastoral_community_id?: string | null
           pending_checkin?: boolean
           plan?: string
@@ -1440,6 +1442,7 @@ export type Database = {
           language_preference?: string
           onboarding_completed_at?: string | null
           onboarding_intent_key?: string | null
+          paddle_customer_id?: string | null
           pastoral_community_id?: string | null
           pending_checkin?: boolean
           plan?: string
@@ -1699,6 +1702,7 @@ export type Database = {
           environment: string | null
           id: string
           last_webhook_event_id: string | null
+          paddle_subscription_id: string | null
           plan_type: string
           presentment_amount: number | null
           presentment_currency: string | null
@@ -1721,6 +1725,7 @@ export type Database = {
           environment?: string | null
           id?: string
           last_webhook_event_id?: string | null
+          paddle_subscription_id?: string | null
           plan_type?: string
           presentment_amount?: number | null
           presentment_currency?: string | null
@@ -1743,6 +1748,7 @@ export type Database = {
           environment?: string | null
           id?: string
           last_webhook_event_id?: string | null
+          paddle_subscription_id?: string | null
           plan_type?: string
           presentment_amount?: number | null
           presentment_currency?: string | null

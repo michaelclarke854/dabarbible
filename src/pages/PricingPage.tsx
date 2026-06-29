@@ -8,6 +8,8 @@ import { useAuth } from "@/contexts/AuthContext";
 import { Skeleton } from "@/components/ui/skeleton";
 import { trackEvent } from "@/lib/trackEvent";
 import { isIOSNative } from "@/lib/platform";
+import { isPaddleEnabled, openPaddleCheckout } from "@/lib/paddle";
+import { resolvePaddlePriceId, type PaddlePlanKey } from "@/lib/paddlePrices";
 
 const ALLOWED_CURRENCIES = [
   "usd", "gbp", "eur", "aud", "cad", "nzd", "ngn", "ghs", "kes", "zar", "tzs",
@@ -72,7 +74,8 @@ const formatTrialDate = (iso: string) =>
 const PricingPage = () => {
   const navigate = useNavigate();
   const { formatPrice, getPriceEntry, formatAmount, currency, canOverride, loading: priceLoading, saveCurrencyPreference } = useLocalizedPrice();
-  const { trial, plan, user } = useAuth();
+  const { trial, plan, user, ageGroup } = useAuth();
+  const paddleActive = isPaddleEnabled();
   const [loadingPlan, setLoadingPlan] = useState<string | null>(null);
   const [showAnnual, setShowAnnual] = useState<Record<string, boolean>>({});
   const [confirmPlan, setConfirmPlan] = useState<{ key: string; displayPrice: string } | null>(null);
@@ -134,6 +137,30 @@ const PricingPage = () => {
         toast.info("This iOS version uses the free access path.");
         return;
       }
+      // Paddle path — activates only when VITE_PADDLE_CLIENT_TOKEN is set.
+      if (paddleActive) {
+        const isStudent = ["youth", "young_adult"].includes(ageGroup || "");
+        const priceId = await resolvePaddlePriceId({
+          planKey: planKey as PaddlePlanKey,
+          cycle: cycle as "monthly" | "annual",
+          isStudent,
+        });
+        if (!priceId) {
+          throw new Error("This plan isn't available yet. Please try again shortly.");
+        }
+        if (!user?.email) {
+          toast.error("Please sign in first.");
+          return;
+        }
+        await openPaddleCheckout({
+          priceId,
+          email: user.email,
+          userId: user.id,
+          successUrl: `${window.location.origin}/payment-success`,
+        });
+        return;
+      }
+      // Stripe fallback (existing path).
       const { data, error } = await supabase.functions.invoke("create-checkout", {
         body: { planKey, cycle },
       });
@@ -152,6 +179,10 @@ const PricingPage = () => {
   const openPortal = async () => {
     if (isNativeIOS) {
       toast.info("This iOS version uses the free access path.");
+      return;
+    }
+    if (paddleActive) {
+      toast.info("To manage your subscription, use the link in your Paddle receipt email.");
       return;
     }
 
@@ -228,7 +259,7 @@ const PricingPage = () => {
           Your trial continues until {formatTrialDate(trial.trialEndsAt)}. No charge until then.
         </p>
       )}
-      {isPaid && !isNativeIOS && (
+      {isPaid && !isNativeIOS && !paddleActive && (
         <div className="text-center mb-10">
           <p className="font-body text-xs text-muted-foreground mb-2">
             You're on the <span className="text-gold capitalize">{plan}</span> plan.
@@ -242,13 +273,25 @@ const PricingPage = () => {
           </button>
         </div>
       )}
+      {isPaid && !isNativeIOS && paddleActive && (
+        <div className="text-center mb-10">
+          <p className="font-body text-xs text-muted-foreground">
+            You're on the <span className="text-gold capitalize">{plan}</span> plan. To manage your
+            subscription, use the link in your Paddle receipt email.
+          </p>
+        </div>
+      )}
 
       {/* Trust bar */}
       <div className="flex flex-col sm:flex-row items-center justify-center gap-3 sm:gap-6 mb-10 pb-6 border-b border-border/60">
         {[
           isNativeIOS ? "No card required" : "30-day free trial — no card required",
           isNativeIOS ? "Free iOS access" : "Cancel any time from Settings",
-          isNativeIOS ? "Core reflection tools included" : "Secure payments via Stripe",
+          isNativeIOS
+            ? "Core reflection tools included"
+            : paddleActive
+              ? "Secure payments via Paddle"
+              : "Secure payments via Stripe",
         ].map((item) => (
           <div key={item} className="flex items-center gap-2">
             <span className="text-gold text-xs">✦</span>
