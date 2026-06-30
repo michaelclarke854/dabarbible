@@ -65,6 +65,7 @@ const tiers: PricingTier[] = [
     description: "For churches, ministries, and schools.",
     features: ["Everything in Personal", "10+ members", "Admin sees usage only — never content"],
     cta: "Start Community",
+    hasAnnual: true,
   },
 ];
 
