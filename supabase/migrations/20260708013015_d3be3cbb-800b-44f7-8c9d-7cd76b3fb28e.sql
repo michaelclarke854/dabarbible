@@ -1,0 +1,1 @@
+DELETE FROM app_config WHERE key = 'paddle_price_personal_student';
