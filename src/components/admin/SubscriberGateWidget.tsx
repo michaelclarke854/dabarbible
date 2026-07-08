@@ -32,7 +32,6 @@ export function SubscriberGateWidget() {
         .from("app_config")
         .select("key, value")
         .in("key", [
-          "dabar_current_paid_subscribers",
           "dabar_paid_subscriber_gate",
           "dabar_gate_deadline",
           "dabar_gate_status",
@@ -42,8 +41,15 @@ export function SubscriberGateWidget() {
 
       if (!data) return;
       const map = Object.fromEntries(data.map((r: any) => [r.key, r.value]));
+
+      // Live count of paid subscribers (Paddle-synced via profiles.plan)
+      const { count: paidCount } = await supabase
+        .from("profiles")
+        .select("id", { count: "exact", head: true })
+        .in("plan", ["personal", "family", "community"]);
+
       setGate({
-        current: Number(map.dabar_current_paid_subscribers ?? 0),
+        current: paidCount ?? 0,
         target: Number(map.dabar_paid_subscriber_gate ?? 50),
         deadline: String(map.dabar_gate_deadline ?? "2026-07-31"),
         status: String(map.dabar_gate_status ?? "active"),
