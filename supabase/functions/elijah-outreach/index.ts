@@ -27,6 +27,13 @@ serve(async (req) => {
 
   const supabase = createClient(supabaseUrl, serviceRoleKey);
 
+  // ARIA owns DaBar's outreach strategy — pull the directive each run (fail-safe: fall back to local config)
+  let ariaDirective: any = null;
+  try {
+    const dr = await fetch("https://bhuprrzltfnthyjvweoc.supabase.co/functions/v1/aria-product-directive?product_id=dabar");
+    if (dr.ok) ariaDirective = (await dr.json()).directive ?? null;
+  } catch (_) { /* non-fatal — local outreach_config remains authoritative */ }
+
   // Circuit breaker
   const { data: pausedConfig } = await supabase
     .from("outreach_config")
@@ -43,6 +50,14 @@ serve(async (req) => {
     });
   }
 
+  if (ariaDirective?.sending_paused === true) {
+    console.log("Sending paused by ARIA directive");
+    return new Response(JSON.stringify({ skipped: "aria_directive_paused" }), {
+      status: 200,
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
+  }
+
   // Daily send limit
   const { data: limitConfig } = await supabase
     .from("outreach_config")
@@ -50,7 +65,7 @@ serve(async (req) => {
     .eq("key", "daily_send_limit")
     .single();
 
-  const dailyLimit = Number(limitConfig?.value ?? 50);
+  const dailyLimit = Number(ariaDirective?.daily_send_limit ?? limitConfig?.value ?? 50);
   const todayStart = new Date();
   todayStart.setUTCHours(0, 0, 0, 0);
 
@@ -67,9 +82,10 @@ serve(async (req) => {
     });
   }
 
-  const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
+  const cadenceDays = Number(ariaDirective?.cadence_days ?? 7);
+  const sevenDaysAgo = new Date(Date.now() - cadenceDays * 24 * 60 * 60 * 1000).toISOString();
 
-  const { data: leads, error: leadsErr } = await supabase
+  let leadsQuery = supabase
     .from("pastor_leads")
     .select("*")
     .eq("suppressed", false)
@@ -78,6 +94,17 @@ serve(async (req) => {
     .not("country_code", "is", null)
     .order("created_at", { ascending: true })
     .limit(10);
+
+  const targetCountries = ariaDirective?.targeting?.countries;
+  if (Array.isArray(targetCountries) && targetCountries.length > 0) {
+    leadsQuery = leadsQuery.in("country_code", targetCountries);
+  }
+  const targetDenominations = ariaDirective?.targeting?.denominations;
+  if (Array.isArray(targetDenominations) && targetDenominations.length > 0) {
+    leadsQuery = leadsQuery.in("denomination", targetDenominations);
+  }
+
+  const { data: leads, error: leadsErr } = await leadsQuery;
 
   if (leadsErr) {
     console.error("Failed to load leads:", leadsErr);
@@ -106,12 +133,12 @@ serve(async (req) => {
 
       const step = (priorSends ?? 0) + 1;
 
-      if (step > 3) {
+      if (step > Number(ariaDirective?.max_steps ?? 3)) {
         await supabase.from("pastor_leads").update({ suppressed: true }).eq("id", lead.id);
         continue;
       }
 
-      const email = await generateEmail(lead, step, supabase, lovableKey, anthropicKey);
+      const email = await generateEmail(lead, step, supabase, lovableKey, anthropicKey, ariaDirective?.messaging_angle);
       if (!email) {
         failed++;
         continue;
@@ -222,6 +249,7 @@ async function generateEmail(
   supabase: ReturnType<typeof createClient>,
   lovableKey: string | undefined,
   anthropicKey: string | undefined,
+  messagingAngle?: string,
 ): Promise<{ subject: string; body: string } | null> {
   const denomination = ((lead.denomination as string) ?? "default").toLowerCase();
 
@@ -251,7 +279,7 @@ async function generateEmail(
   console.warn(
     `No template found for step ${step} denomination ${denomination} — falling back to AI`,
   );
-  return await generateEmailViaAI(lead, step, lovableKey, anthropicKey);
+  return await generateEmailViaAI(lead, step, lovableKey, anthropicKey, messagingAngle);
 }
 
 async function generateEmailViaAI(
@@ -259,12 +287,13 @@ async function generateEmailViaAI(
   step: number,
   lovableKey: string | undefined,
   anthropicKey: string | undefined,
+  messagingAngle?: string,
 ): Promise<{ subject: string; body: string } | null> {
   const denom = (lead.denomination as string) ?? "other";
   const denomContext = DENOM_CONTEXT[denom] ?? DENOM_CONTEXT.other;
   const stepContext = STEP_CONTEXT[step] ?? "Follow-up";
 
-  const systemPrompt = `You write short, warm, personal outreach emails from Mike (founder of DABAR) to pastors.
+  let systemPrompt = `You write short, warm, personal outreach emails from Mike (founder of DABAR) to pastors.
 
 DABAR is a daily Biblical reflection app — members ask any spiritual question and receive scripture-grounded responses. Pastors can lead a Community of up to 50 congregation members, see their congregation's spiritual pulse weekly, and send a pastoral word that DABAR helps draft.
 
@@ -281,6 +310,10 @@ TONE RULES — non-negotiable:
 PROHIBITED phrases: "game-changer", "unlock", "leverage", "synergy", "AI tool", "platform", "users", "convert"
 
 Output ONLY valid JSON with fields: subject (under 50 chars), body (plain text, under 120 words). No markdown, no code fences.`;
+
+  if (typeof messagingAngle === "string" && messagingAngle.length > 0) {
+    systemPrompt += `\n\nARIA STRATEGY DIRECTIVE (follow this angle): ${messagingAngle}`;
+  }
 
   const userContent = `Write step ${step} of 3 outreach email to:
 Pastor: ${lead.pastor_name}
