@@ -145,6 +145,7 @@ const Index = () => {
     if (askPageViewFiredRef.current) return;
     askPageViewFiredRef.current = true;
     trackEvent("page_view", { screen: "ask", userId: null });
+    trackVirtualPageview("/ask", "Dabar — Ask");
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isHydrating, authLoading, user]);
 
@@ -440,6 +441,7 @@ const Index = () => {
         // Set up response — iOS WKWebView cannot stream ReadableStream
         setCurrentResponse({ question, response: "", scriptures: [] });
         setScreen("response");
+        trackVirtualPageview("/response", "Dabar — Response");
         let fullText = "";
 
         if (nativeIOS) {
@@ -648,6 +650,7 @@ const Index = () => {
     }
     setTab(newTab);
     if (newTab === "ask") setScreen("ask");
+    trackVirtualPageview(`/${newTab}`, `Dabar — ${newTab.charAt(0).toUpperCase()}${newTab.slice(1)}`);
     // Avoid double-firing page_view{screen:"ask"} for anon visitors —
     // the mount effect already covers that case via askPageViewFiredRef.
     if (newTab === "ask" && !user && askPageViewFiredRef.current) return;
