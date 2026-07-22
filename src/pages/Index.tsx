@@ -27,6 +27,7 @@ import MonthlyTestimonyBanner from "@/components/MonthlyTestimonyBanner";
 import { parseScriptureRef } from "@/data/kjvBooks";
 import { useAuth } from "@/contexts/AuthContext";
 import { trackEvent } from "@/lib/trackEvent";
+import { trackVirtualPageview } from "@/lib/virtualPageview";
 import { isIOSNative } from "@/lib/platform";
 import { extractScriptureRefs } from "@/lib/scriptureParser";
 import Paywall from "@/components/Paywall";
