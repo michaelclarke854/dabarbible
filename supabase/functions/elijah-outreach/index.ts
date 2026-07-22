@@ -44,7 +44,7 @@ serve(async (req) => {
       .gte("sent_at", windowStart);
     const dr = await fetch("https://bhuprrzltfnthyjvweoc.supabase.co/functions/v1/aria-product-directive", {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: { "Content-Type": "application/json", "x-ingest-token": Deno.env.get("ARIA_HEALTH_TOKEN") ?? "" },
       body: JSON.stringify({
         product_id: "dabar",
         source: "elijah-outreach",
