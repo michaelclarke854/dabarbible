@@ -27,10 +27,30 @@ serve(async (req) => {
 
   const supabase = createClient(supabaseUrl, serviceRoleKey);
 
-  // ARIA owns DaBar's outreach strategy — pull the directive each run (fail-safe: fall back to local config)
+  // ARIA owns DaBar's outreach strategy. Each run we REPORT our recent deliverability to ARIA
+  // (so ARIA's directive engine can throttle/pause on real bounces) and PULL the current directive
+  // back in the same call. Fail-safe: any error falls back to local outreach_config.
   let ariaDirective: any = null;
   try {
-    const dr = await fetch("https://bhuprrzltfnthyjvweoc.supabase.co/functions/v1/aria-product-directive?product_id=dabar");
+    const windowStart = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString();
+    const { count: total30 } = await supabase
+      .from("outreach_email_log")
+      .select("*", { count: "exact", head: true })
+      .gte("sent_at", windowStart);
+    const { count: bounced30 } = await supabase
+      .from("outreach_email_log")
+      .select("*", { count: "exact", head: true })
+      .eq("status", "bounced")
+      .gte("sent_at", windowStart);
+    const dr = await fetch("https://bhuprrzltfnthyjvweoc.supabase.co/functions/v1/aria-product-directive", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        product_id: "dabar",
+        source: "elijah-outreach",
+        health: { window_days: 30, total_sends: total30 ?? 0, hard_bounces: bounced30 ?? 0 },
+      }),
+    });
     if (dr.ok) ariaDirective = (await dr.json()).directive ?? null;
   } catch (_) { /* non-fatal — local outreach_config remains authoritative */ }
 
