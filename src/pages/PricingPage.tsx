@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { Capacitor } from "@capacitor/core";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
@@ -138,6 +139,27 @@ const PricingPage = () => {
         toast.info("This iOS version uses the free access path.");
         return;
       }
+
+      // Web (browser) path — native app keeps the RevenueCat in-app purchase flow.
+      if (!Capacitor.isNativePlatform()) {
+        if (!user?.email) {
+          toast.error("Please sign in first.");
+          return;
+        }
+        const isStudentWeb = ["youth", "young_adult"].includes(ageGroup || "");
+        const planId = `${planKey}${isStudentWeb && planKey === "personal" ? "_student" : ""}_${cycle}`;
+        const { data, error } = await supabase.functions.invoke("create-checkout", {
+          body: { plan_id: planId, customer_email: user.email },
+        });
+        if (error) throw error;
+        if (data?.error) throw new Error(data.error);
+        if (data?.checkout_url) {
+          window.location.href = data.checkout_url;
+          return;
+        }
+        throw new Error("Checkout is not available yet. Please try again later.");
+      }
+
       // Paddle path — activates only when VITE_PADDLE_CLIENT_TOKEN is set.
       if (paddleActive) {
         const isStudent = ["youth", "young_adult"].includes(ageGroup || "");
@@ -161,14 +183,7 @@ const PricingPage = () => {
         });
         return;
       }
-      // Stripe fallback (existing path).
-      const { data, error } = await supabase.functions.invoke("create-checkout", {
-        body: { planKey, cycle },
-      });
-
-      if (error) throw error;
-      if (data?.error) throw new Error(data.error);
-      if (data?.url) window.location.href = data.url;
+      throw new Error("Checkout isn't available on this device yet.");
     } catch (err: any) {
       toast.error(err.message || "Could not start checkout.");
     } finally {
