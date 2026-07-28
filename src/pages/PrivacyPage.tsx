@@ -74,10 +74,11 @@ const PrivacyPage = () => {
           </p>
         ) : (
           <p>
-            We use Stripe for web subscriptions. Stripe handles your payment information directly;
-            we never see or store your card details. You can review{" "}
-            <a href="https://stripe.com/privacy" target="_blank" rel="noopener noreferrer" className="text-gold hover:underline">
-              Stripe's privacy policy
+            Web subscriptions are handled by our payment provider, which processes your payment
+            information directly; we never see or store your card details. Questions about billing
+            data can be sent to{" "}
+            <a href="mailto:privacy@dabarbible.com" className="text-gold hover:underline">
+              privacy@dabarbible.com
             </a>.
           </p>
         )}
