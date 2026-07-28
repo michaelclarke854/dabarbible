@@ -1,6 +1,6 @@
 // Paddle.js v2 loader + checkout wrapper. Dormant until VITE_PADDLE_CLIENT_TOKEN is set.
 // When the token is absent, isPaddleEnabled() returns false and the app falls back
-// to the existing Stripe path. Default environment is 'sandbox'.
+// to the create-checkout web path. Default environment is 'sandbox'.
 
 type PaddleCheckoutItem = { priceId: string; quantity: number };
 
