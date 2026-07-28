@@ -280,11 +280,7 @@ const PricingPage = () => {
         {[
           isNativeIOS ? "No card required" : "30-day free trial — no card required",
           isNativeIOS ? "Free iOS access" : "Cancel any time from Settings",
-          isNativeIOS
-            ? "Core reflection tools included"
-            : paddleActive
-              ? "Secure payments via Paddle"
-              : "Secure payments via Stripe",
+          isNativeIOS ? "Core reflection tools included" : "Secure checkout",
         ].map((item) => (
           <div key={item} className="flex items-center gap-2">
             <span className="text-gold text-xs">✦</span>
