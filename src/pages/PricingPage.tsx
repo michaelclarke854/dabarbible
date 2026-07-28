@@ -192,29 +192,6 @@ const PricingPage = () => {
     }
   };
 
-  const openPortal = async () => {
-    if (isNativeIOS) {
-      toast.info("This iOS version uses the free access path.");
-      return;
-    }
-    if (paddleActive) {
-      toast.info("To manage your subscription, use the link in your Paddle receipt email.");
-      return;
-    }
-
-    setPortalLoading(true);
-    try {
-      const { data, error } = await supabase.functions.invoke("customer-portal");
-      if (error) throw error;
-      if (data?.error) throw new Error(data.error);
-      if (data?.url) window.location.href = data.url;
-    } catch (err: any) {
-      toast.error(err.message || "Could not open billing portal.");
-    } finally {
-      setPortalLoading(false);
-    }
-  };
-
   const getDisplayPrice = (tier: PricingTier): string => {
     if (tier.key === "free") return "Free";
     const annual = showAnnual[tier.key];
