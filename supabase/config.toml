@@ -51,3 +51,5 @@ project_id = "crkkimoblnrxpszehmkg"
     verify_jwt = false
   [functions.paddle-webhook]
     verify_jwt = false
+  [functions.growth-stats]
+    verify_jwt = false
