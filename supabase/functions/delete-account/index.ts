@@ -139,7 +139,16 @@ serve(async (req) => {
       return json({ error: `Auth deletion failed: ${authDelErr.message}` }, 500);
     }
 
-    return json({ success: true });
+    return json({
+      success: true,
+      billing: hadActiveSubscription
+        ? {
+            cancelled: false,
+            message:
+              "Automatic billing cancellation is not available. If you have an active subscription, cancel it through your app store subscriptions or contact support@dabarbible.com.",
+          }
+        : { cancelled: false, message: "No active subscription found." },
+    });
   } catch (e) {
     console.error("delete-account error:", e);
     return json({ error: e instanceof Error ? e.message : "Unknown error" }, 500);
