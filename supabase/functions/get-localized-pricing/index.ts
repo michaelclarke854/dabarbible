@@ -137,38 +137,16 @@ serve(async (req) => {
     );
   }
 
-  // Try Stripe FX Quotes — falls back to USD if not enabled
-  try {
-    const fxQuote = await (stripe as any).fx_quotes.create({
-      to_currency: "usd",
-      from_currencies: [currency],
-      lock_duration: "hour",
-    });
-
-    const rate = fxQuote.rates?.[currency]?.exchange_rate;
-    if (!rate) throw new Error(`No rate for ${currency}`);
-
-    const prices: Record<string, object> = {};
-    for (const [plan, usdCents] of Object.entries(USD_PRICES_CENTS)) {
-      const localMinor = ZERO_DECIMAL.has(currency)
-        ? Math.round((usdCents / 100) / rate)
-        : Math.round(((usdCents / 100) / rate) * 100);
-      prices[plan] = {
-        amount: localMinor,
-        currency,
-        formatted: formatCurrency(localMinor, currency),
-      };
-    }
-
-    return new Response(
-      JSON.stringify({ prices, currency, method, canOverride: !savedCurrency }),
-      { headers: { ...cors, "Content-Type": "application/json" } }
-    );
-  } catch {
-    // FX Quotes not enabled — silent USD fallback
-    return new Response(
-      JSON.stringify({ prices: buildUsdPrices(), currency: "usd", method: "fx_fallback", canOverride: true }),
-      { headers: { ...cors, "Content-Type": "application/json" } }
-    );
-  }
+  // Live FX conversion is not available (the card-processor FX quote source was
+  // retired). All plans are quoted and charged in USD.
+  return new Response(
+    JSON.stringify({
+      prices: buildUsdPrices(),
+      currency: "usd",
+      method: "usd_only",
+      canOverride: true,
+      notice: "Local-currency pricing is unavailable; prices are shown in USD.",
+    }),
+    { headers: { ...cors, "Content-Type": "application/json" } }
+  );
 });
