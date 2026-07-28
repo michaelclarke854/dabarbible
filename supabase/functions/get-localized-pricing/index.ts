@@ -1,11 +1,5 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-import Stripe from "https://esm.sh/stripe@13?target=deno";
-
-const stripe = new Stripe(Deno.env.get("STRIPE_SECRET_KEY")!, {
-  apiVersion: "2025-04-30.basil" as any,
-});
-
 const USD_PRICES_CENTS: Record<string, number> = {
   personal: 699,
   family: 1299,
