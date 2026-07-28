@@ -279,7 +279,7 @@ export default function UserEditDrawer({ userId, callerRole, onClose, onUpdated 
                 <span className="font-serif text-xs text-gold uppercase tracking-widest">Change Role</span>
               </div>
               <p className="text-muted-foreground text-xs leading-relaxed">
-                Warning: This overrides billing alignment. Stripe subscription plan remains unchanged.
+                Warning: This overrides billing alignment. The user's subscription plan remains unchanged.
               </p>
               <select
                 value={selectedRole}
