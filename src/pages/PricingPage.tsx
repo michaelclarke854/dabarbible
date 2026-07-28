@@ -257,13 +257,13 @@ const PricingPage = () => {
           <p className="font-body text-xs text-muted-foreground mb-2">
             You're on the <span className="text-gold capitalize">{plan}</span> plan.
           </p>
-          <button
-            onClick={openPortal}
-            disabled={portalLoading}
-            className="font-body text-xs text-gold hover:underline disabled:opacity-50"
-          >
-            {portalLoading ? "Opening…" : "Manage subscription →"}
-          </button>
+          <p className="font-body text-xs text-muted-foreground">
+            To change or cancel your subscription, email{" "}
+            <a href="mailto:support@dabarbible.com" className="text-gold hover:underline">
+              support@dabarbible.com
+            </a>
+            .
+          </p>
         </div>
       )}
       {isPaid && !isNativeIOS && paddleActive && (
