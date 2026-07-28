@@ -5,8 +5,6 @@ project_id = "crkkimoblnrxpszehmkg"
     verify_jwt = false
   [functions.create-checkout]
     verify_jwt = false
-  [functions.customer-portal]
-    verify_jwt = false
   [functions.delete-account]
     verify_jwt = false
   [functions.downgrade-plan]
@@ -16,8 +14,6 @@ project_id = "crkkimoblnrxpszehmkg"
   [functions.process-email-queue]
     verify_jwt = true
   [functions.seek-wisdom]
-    verify_jwt = false
-  [functions.stripe-webhook]
     verify_jwt = false
   [functions.update-user-role]
     verify_jwt = false
