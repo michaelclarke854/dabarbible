@@ -82,7 +82,7 @@ const PricingPage = () => {
   const [showAnnual, setShowAnnual] = useState<Record<string, boolean>>({});
   const [confirmPlan, setConfirmPlan] = useState<{ key: string; displayPrice: string } | null>(null);
   const [showCurrencyPicker, setShowCurrencyPicker] = useState(false);
-  const [portalLoading, setPortalLoading] = useState(false);
+
 
   const isPaid = plan !== "free" && plan !== "trial";
   const isNativeIOS = isIOSNative();
@@ -192,29 +192,6 @@ const PricingPage = () => {
     }
   };
 
-  const openPortal = async () => {
-    if (isNativeIOS) {
-      toast.info("This iOS version uses the free access path.");
-      return;
-    }
-    if (paddleActive) {
-      toast.info("To manage your subscription, use the link in your Paddle receipt email.");
-      return;
-    }
-
-    setPortalLoading(true);
-    try {
-      const { data, error } = await supabase.functions.invoke("customer-portal");
-      if (error) throw error;
-      if (data?.error) throw new Error(data.error);
-      if (data?.url) window.location.href = data.url;
-    } catch (err: any) {
-      toast.error(err.message || "Could not open billing portal.");
-    } finally {
-      setPortalLoading(false);
-    }
-  };
-
   const getDisplayPrice = (tier: PricingTier): string => {
     if (tier.key === "free") return "Free";
     const annual = showAnnual[tier.key];
@@ -280,13 +257,13 @@ const PricingPage = () => {
           <p className="font-body text-xs text-muted-foreground mb-2">
             You're on the <span className="text-gold capitalize">{plan}</span> plan.
           </p>
-          <button
-            onClick={openPortal}
-            disabled={portalLoading}
-            className="font-body text-xs text-gold hover:underline disabled:opacity-50"
-          >
-            {portalLoading ? "Opening…" : "Manage subscription →"}
-          </button>
+          <p className="font-body text-xs text-muted-foreground">
+            To change or cancel your subscription, email{" "}
+            <a href="mailto:support@dabarbible.com" className="text-gold hover:underline">
+              support@dabarbible.com
+            </a>
+            .
+          </p>
         </div>
       )}
       {isPaid && !isNativeIOS && paddleActive && (
@@ -303,11 +280,7 @@ const PricingPage = () => {
         {[
           isNativeIOS ? "No card required" : "30-day free trial — no card required",
           isNativeIOS ? "Free iOS access" : "Cancel any time from Settings",
-          isNativeIOS
-            ? "Core reflection tools included"
-            : paddleActive
-              ? "Secure payments via Paddle"
-              : "Secure payments via Stripe",
+          isNativeIOS ? "Core reflection tools included" : "Secure checkout",
         ].map((item) => (
           <div key={item} className="flex items-center gap-2">
             <span className="text-gold text-xs">✦</span>

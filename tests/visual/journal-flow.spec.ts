@@ -15,7 +15,7 @@ import { test, expect } from "@playwright/test";
  *    must NOT render journal content — the auth modal opens instead.
  *
  * Steps 1–3 use dev-only fixtures so the test is fully deterministic
- * (no auth, no network, no Stripe). Step 4 hits the real route.
+ * (no auth, no network, no billing). Step 4 hits the real route.
  */
 
 test.describe("Journal flow — end to end", () => {

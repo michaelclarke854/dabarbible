@@ -95,26 +95,18 @@ serve(async (req) => {
       trackError(table, error);
     }
 
-    // 4. Cancel Stripe subscription if active (use maybeSingle to handle 0 rows)
+    // 4. Billing cancellation is no longer handled here.
+    // Legacy web card billing is retired; active subscriptions are managed by the
+    // store (Apple/RevenueCat) or the external billing service. Deleting the account
+    // removes app data only — we surface this explicitly instead of silently no-oping.
     const { data: sub, error: subFetchErr } = await supabaseAdmin
       .from("subscriptions")
-      .select("stripe_subscription_id")
+      .select("status")
       .eq("user_id", userId)
       .maybeSingle();
     trackError("fetch subscription", subFetchErr);
 
-    if (sub?.stripe_subscription_id) {
-      const stripeKey = Deno.env.get("STRIPE_SECRET_KEY");
-      if (stripeKey) {
-        try {
-          const { default: Stripe } = await import("https://esm.sh/stripe@17.7.0?target=deno");
-          const stripe = new Stripe(stripeKey, { apiVersion: "2024-12-18.acacia" });
-          await stripe.subscriptions.cancel(sub.stripe_subscription_id);
-        } catch (e) {
-          trackError("stripe cancel", e);
-        }
-      }
-    }
+    const hadActiveSubscription = sub?.status === "active";
 
     // 5. Delete subscription, role, and profile
     const { error: subDelErr } = await supabaseAdmin.from("subscriptions").delete().eq("user_id", userId);
@@ -147,7 +139,16 @@ serve(async (req) => {
       return json({ error: `Auth deletion failed: ${authDelErr.message}` }, 500);
     }
 
-    return json({ success: true });
+    return json({
+      success: true,
+      billing: hadActiveSubscription
+        ? {
+            cancelled: false,
+            message:
+              "Automatic billing cancellation is not available. If you have an active subscription, cancel it through your app store subscriptions or contact support@dabarbible.com.",
+          }
+        : { cancelled: false, message: "No active subscription found." },
+    });
   } catch (e) {
     console.error("delete-account error:", e);
     return json({ error: e instanceof Error ? e.message : "Unknown error" }, 500);
