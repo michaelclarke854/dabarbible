@@ -16,7 +16,7 @@ import {
 } from "lucide-react";
 
 type AdminTab =
-  | "agent-health" | "ai-gateway" | "wisdom-health" | "stripe-health"
+  | "agent-health" | "ai-gateway" | "wisdom-health" | "billing-health"
   | "dashboard" | "users" | "subscriptions" | "trial-utilization" | "monitor"
   | "flagged" | "crisis" | "prompts" | "pastoral" | "settings";
 
@@ -24,7 +24,7 @@ const tabs: { id: AdminTab; label: string; icon: typeof LayoutDashboard }[] = [
   { id: "agent-health", label: "Agent Health", icon: Activity },
   { id: "ai-gateway", label: "AI Gateway", icon: Cpu },
   { id: "wisdom-health", label: "Seek-Wisdom", icon: Server },
-  { id: "stripe-health", label: "Stripe Health", icon: CreditCard },
+  { id: "billing-health", label: "Billing Health", icon: CreditCard },
   { id: "dashboard", label: "Overview", icon: LayoutDashboard },
   { id: "users", label: "Users", icon: Users },
   { id: "subscriptions", label: "Subscriptions", icon: CreditCard },
@@ -373,9 +373,9 @@ function WisdomHealthTab() {
 }
 
 // ═══════════════════════════════════════════
-// SECTION 3 — STRIPE & SUBSCRIPTION HEALTH
+// SECTION 3 — BILLING & SUBSCRIPTION HEALTH
 // ═══════════════════════════════════════════
-function StripeHealthTab() {
+function BillingHealthTab() {
   const [metrics, setMetrics] = useState({ paid: 0, trials: 0, converted: 0, churned: 0 });
   const [funnel, setFunnel] = useState({ signups30d: 0, trialsStarted: 0, converted: 0 });
 
@@ -1411,7 +1411,7 @@ export default function AdminDashboard() {
     "agent-health": <AgentHealthTab />,
     "ai-gateway": <AIGatewayTab />,
     "wisdom-health": <WisdomHealthTab />,
-    "stripe-health": <StripeHealthTab />,
+    "billing-health": <BillingHealthTab />,
     dashboard: <DashboardTab />,
     users: <UsersTab callerRole={role} onEditUser={id => setEditingUserId(id)} />,
     subscriptions: <SubscriptionsTab />,
