@@ -82,7 +82,7 @@ const PricingPage = () => {
   const [showAnnual, setShowAnnual] = useState<Record<string, boolean>>({});
   const [confirmPlan, setConfirmPlan] = useState<{ key: string; displayPrice: string } | null>(null);
   const [showCurrencyPicker, setShowCurrencyPicker] = useState(false);
-  const [portalLoading, setPortalLoading] = useState(false);
+
 
   const isPaid = plan !== "free" && plan !== "trial";
   const isNativeIOS = isIOSNative();
