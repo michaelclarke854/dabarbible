@@ -135,6 +135,20 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setIsPastor((profile as any).is_pastor || false);
         setPastoralCommunityId((profile as any).pastoral_community_id || null);
         setNeedsOnboardingIntent(!(profile as any).onboarding_completed_at);
+
+        // Web-only: sync real Freemius entitlement into this profile if it
+        // doesn't already show full access. Safe no-op for iOS native users
+        // and for users who already have full access. Never downgrades —
+        // only upgrades when the shared billing service confirms an active
+        // subscription that this profile hasn't recorded yet.
+        if (!nativeIOS && !FULL_ACCESS_ROLES.includes(profileRole)) {
+          supabase.functions.invoke("check-entitlement").then(({ data: syncResult }) => {
+            if (syncResult?.synced) {
+              isFetchingRef.current = false;
+              fetchProfile(userId);
+            }
+          }).catch((err) => console.error("check-entitlement sync error:", err));
+        }
       }
     } catch (error) {
       console.error("fetchProfile error:", error);
