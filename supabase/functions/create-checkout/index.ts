@@ -37,12 +37,24 @@ Deno.serve(async (req) => {
     return json({ error: "Invalid JSON body" }, 400);
   }
 
-  const plan_id = typeof body.plan_id === "string" ? body.plan_id.trim() : "";
+  const raw_plan_id = typeof body.plan_id === "string" ? body.plan_id.trim() : "";
   const customer_email =
     typeof body.customer_email === "string" ? body.customer_email.trim() : "";
 
-  if (!plan_id) return json({ error: "plan_id is required" }, 400);
+  if (!raw_plan_id) return json({ error: "plan_id is required" }, 400);
   if (!customer_email) return json({ error: "customer_email is required" }, 400);
+
+  const baseTier = raw_plan_id.split("_")[0];
+  const freemiusPlanIds: Record<string, number> = {
+    free: 59622,
+    personal: 59623,
+    family: 59624,
+    community: 59625,
+  };
+  const plan_id = freemiusPlanIds[baseTier];
+  if (!plan_id) {
+    return json({ error: "Unknown plan_id" }, 400);
+  }
 
   try {
     const upstream = await fetch(BILLING_ENDPOINT, {
