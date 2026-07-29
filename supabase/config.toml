@@ -5,6 +5,8 @@ project_id = "crkkimoblnrxpszehmkg"
     verify_jwt = false
   [functions.create-checkout]
     verify_jwt = false
+  [functions.check-entitlement]
+    verify_jwt = false
   [functions.delete-account]
     verify_jwt = false
   [functions.downgrade-plan]

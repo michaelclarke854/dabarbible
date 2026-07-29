@@ -27,6 +27,11 @@ const PaymentSuccessPage = () => {
     const poll = async () => {
       while (!cancelled && attempts < MAX_ATTEMPTS) {
         attempts++;
+        try {
+          await supabase.functions.invoke("check-entitlement");
+        } catch {
+          // best-effort — fall through to check local profile state regardless
+        }
         const { data } = await supabase
           .from("profiles")
           .select("plan")
