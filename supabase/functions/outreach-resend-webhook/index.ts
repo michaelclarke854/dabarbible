@@ -7,6 +7,75 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, svix-id, svix-signature, svix-timestamp',
 };
 
+// ── New: admin inbox forwarding (added alongside the pastoral-reply pipeline below) ──
+// Mail to this address is NOT a pastoral outreach reply — skip classification entirely
+// and just forward the real message to Mike's real inbox.
+const ADMIN_INBOUND_ADDRESS = 'admin@inbound.dabarbible.com';
+const ADMIN_FORWARD_TO = 'michaelclarke854@gmail.com';
+const ADMIN_FORWARD_FROM = 'DABAR <mike@dabarbible.com>';
+
+function escapeHtml(s: string) {
+  return s.replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]!));
+}
+
+// email.received webhooks only carry metadata (from/to/subject/email_id) — the body
+// has to be fetched separately via the Received Emails API.
+async function fetchFullReceivedEmail(emailId: string, resendKey: string) {
+  const res = await fetch(`https://api.resend.com/emails/receiving/${emailId}`, {
+    headers: { Authorization: `Bearer ${resendKey}` },
+  });
+  if (!res.ok) throw new Error(`fetch_full_email_failed:${res.status}:${await res.text()}`);
+  return res.json() as Promise<Record<string, unknown>>;
+}
+
+async function forwardAdminEmail(
+  emailId: string,
+  resendKey: string | undefined,
+  corsHeaders: Record<string, string>,
+): Promise<Response> {
+  if (!resendKey) {
+    console.error('[admin-forward] RESEND_API_KEY missing');
+    return new Response('Server misconfigured', { status: 500, headers: corsHeaders });
+  }
+
+  try {
+    const full = await fetchFullReceivedEmail(emailId, resendKey);
+    const from = String(full.from ?? 'unknown sender');
+    const to = Array.isArray(full.to) ? full.to.join(', ') : String(full.to ?? '');
+    const subject = String(full.subject ?? '(no subject)');
+    const bodyHtml = (full.html as string) ?? `<pre>${escapeHtml(String(full.text ?? '(no content)'))}</pre>`;
+
+    const forwardHtml = `<div style="font-family:-apple-system,Segoe UI,Roboto,Arial,sans-serif;color:#1a1a1a">
+<p style="font-size:13px;color:#666;margin:0 0 4px 0">Forwarded from ${ADMIN_INBOUND_ADDRESS}</p>
+<p style="font-size:13px;color:#666;margin:0 0 16px 0">From: ${escapeHtml(from)} &nbsp;·&nbsp; To: ${escapeHtml(to)}</p>
+<hr style="border:none;border-top:1px solid #e5e5e5;margin:0 0 16px 0" />
+${bodyHtml}
+</div>`;
+
+    const res = await fetch('https://api.resend.com/emails', {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${resendKey}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        from: ADMIN_FORWARD_FROM,
+        to: ADMIN_FORWARD_TO,
+        reply_to: from,
+        subject: `Fwd: ${subject}`,
+        html: forwardHtml,
+      }),
+    });
+
+    if (!res.ok) {
+      console.error('[admin-forward] forward send failed:', await res.text());
+      return new Response('Forward failed', { status: 502, headers: corsHeaders });
+    }
+
+    return new Response('Forwarded', { status: 200, headers: corsHeaders });
+  } catch (err) {
+    console.error('[admin-forward] error:', err);
+    return new Response('Internal error', { status: 500, headers: corsHeaders });
+  }
+}
+
 serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response(null, { headers: corsHeaders });
 
@@ -63,6 +132,15 @@ serve(async (req) => {
   }
 
   if (eventType === 'email.received') {
+    const toField = data.to;
+    const toList = (Array.isArray(toField) ? toField : [toField]).map((t) => String(t ?? '').toLowerCase());
+
+    if (toList.includes(ADMIN_INBOUND_ADDRESS)) {
+      const emailId = String(data.email_id ?? '');
+      if (!emailId) return new Response('No email_id', { status: 400, headers: corsHeaders });
+      return await forwardAdminEmail(emailId, resendKey, corsHeaders);
+    }
+
     return await handleInboundReply(
       supabase, data, resendKey, lovableKey, anthropicKey, corsHeaders,
     );
@@ -146,7 +224,7 @@ async function handleInboundReply(
 
   const fromRaw     = (data.from ?? '') as string;
   const fromEmail   = fromRaw.includes('<')
-    ? fromRaw.match(/<([^>]+)>/)?.[1]?.toLowerCase().trim() ?? fromRaw.toLowerCase().trim()
+    ? fromRaw.match(/<([^>]+)>/u)?.[1]?.toLowerCase().trim() ?? fromRaw.toLowerCase().trim()
     : fromRaw.toLowerCase().trim();
   const fromName    = fromRaw.includes('<')
     ? fromRaw.split('<')[0].trim()
