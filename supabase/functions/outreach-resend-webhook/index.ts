@@ -7,9 +7,7 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, svix-id, svix-signature, svix-timestamp',
 };
 
-// ── New: admin inbox forwarding (added alongside the pastoral-reply pipeline below) ──
-// Mail to this address is NOT a pastoral outreach reply — skip classification entirely
-// and just forward the real message to Mike's real inbox.
+// ── Admin inbox forwarding ──
 const ADMIN_INBOUND_ADDRESS = 'admin@inbound.dabarbible.com';
 const ADMIN_FORWARD_TO = 'michaelclarke854@gmail.com';
 const ADMIN_FORWARD_FROM = 'DABAR <mike@dabarbible.com>';
@@ -18,14 +16,36 @@ function escapeHtml(s: string) {
   return s.replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]!));
 }
 
+// Rough HTML→text fallback for emails that only sent an html body (no text part).
+// Good enough for keyword/intent classification — not meant to be a full renderer.
+function stripHtml(html: string): string {
+  return html
+    .replace(/<(script|style)[^>]*>[\s\S]*?<\/\1>/gi, ' ')
+    .replace(/<br\s*\/?>/gi, '\n')
+    .replace(/<\/p>/gi, '\n')
+    .replace(/<[^>]+>/g, ' ')
+    .replace(/&nbsp;/g, ' ')
+    .replace(/&amp;/g, '&')
+    .replace(/&lt;/g, '<')
+    .replace(/&gt;/g, '>')
+    .replace(/&#39;/g, "'")
+    .replace(/&quot;/g, '"')
+    .replace(/[ \t]+/g, ' ')
+    .replace(/\n{3,}/g, '\n\n')
+    .trim();
+}
+
 // email.received webhooks only carry metadata (from/to/subject/email_id) — the body
 // has to be fetched separately via the Received Emails API.
-async function fetchFullReceivedEmail(emailId: string, resendKey: string) {
+async function fetchFullReceivedEmail(emailId: string, resendKey: string): Promise<Record<string, unknown>> {
   const res = await fetch(`https://api.resend.com/emails/receiving/${emailId}`, {
     headers: { Authorization: `Bearer ${resendKey}` },
   });
-  if (!res.ok) throw new Error(`fetch_full_email_failed:${res.status}:${await res.text()}`);
-  return res.json() as Promise<Record<string, unknown>>;
+  if (!res.ok) {
+    const body = await res.text();
+    throw new Error(`Resend receiving API ${res.status}: ${body.substring(0, 300)}`);
+  }
+  return res.json();
 }
 
 async function forwardAdminEmail(
@@ -230,7 +250,28 @@ async function handleInboundReply(
     ? fromRaw.split('<')[0].trim()
     : '';
   const subject     = String(data.subject ?? '');
-  const rawBodyText = String(data.text ?? data.html ?? '').substring(0, 500);
+
+  // ── BUG FIX: email.received webhooks carry metadata only — `data.text`/`data.html`
+  // are never present on the event itself (confirmed against Resend's docs AND against
+  // real rows in outreach_reply_log, which all had body_preview = '' before this fix).
+  // Fetch the real body via the Received Emails API before classifying anything.
+  const emailId = String(data.email_id ?? '');
+  let rawBodyText = '';
+  if (emailId && resendKey) {
+    try {
+      const full = await fetchFullReceivedEmail(emailId, resendKey);
+      const text = full.text as string | null | undefined;
+      const html = full.html as string | null | undefined;
+      rawBodyText = (text && text.trim()) ? text : (html ? stripHtml(html) : '');
+    } catch (err) {
+      // Don't crash the pipeline on a transient fetch failure — but this must be
+      // visible in logs, not swallowed (see codex-edge-debugger Rule 10).
+      console.error(`[inbound] Failed to fetch full body for email_id=${emailId}:`, err);
+    }
+  } else if (!emailId) {
+    console.warn('[inbound] No email_id on event — cannot fetch body, classifying on subject only');
+  }
+  rawBodyText = rawBodyText.substring(0, 500);
 
   if (!fromEmail) {
     return new Response('No sender email', { status: 400, headers: corsHeaders });
@@ -255,7 +296,7 @@ async function handleInboundReply(
     intent = await classifyIntent(rawBodyText, subject, lovableKey, anthropicKey);
   }
 
-  console.log(`[inbound] From: ${fromEmail} | Intent: ${intent}`);
+  console.log(`[inbound] From: ${fromEmail} | Intent: ${intent} | Body chars: ${rawBodyText.length}`);
 
   const { data: replyRow } = await supabase
     .from('outreach_reply_log')
