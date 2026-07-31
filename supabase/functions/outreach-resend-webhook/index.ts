@@ -161,6 +161,18 @@ serve(async (req) => {
       return await forwardAdminEmail(emailId, resendKey, corsHeaders);
     }
 
+    // Resend webhooks are account-wide — this endpoint receives email.received events
+    // for EVERY domain on this Resend account (CodeCity, path-foundry, fetchaipal, etc),
+    // not just DABAR. Without this check, unrelated inbound mail (watchdog alerts,
+    // newsletters, spam) gets AI-classified and written into outreach_reply_log as if
+    // it were a pastor reply. Confirmed via DB audit: 94/94 existing rows were
+    // cross-account noise with zero match to a real pastor_leads row.
+    const isDabarRecipient = toList.some((t) => t.endsWith('@dabarbible.com') || t.endsWith('.dabarbible.com'));
+    if (!isDabarRecipient) {
+      console.log(`[outreach-resend-webhook] Ignoring email.received for non-DABAR recipient(s): ${toList.join(', ')}`);
+      return new Response('Ignored — not a DABAR recipient', { status: 200, headers: corsHeaders });
+    }
+
     return await handleInboundReply(
       supabase, data, resendKey, lovableKey, anthropicKey, corsHeaders,
     );
