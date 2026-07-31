@@ -51,5 +51,3 @@ project_id = "crkkimoblnrxpszehmkg"
     verify_jwt = false
   [functions.growth-stats]
     verify_jwt = false
-  [functions.admin-inbound]
-    verify_jwt = false
