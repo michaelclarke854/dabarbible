@@ -9,6 +9,7 @@
 
 type UmamiTrack = (
   eventOrProps?:
+  eventOrProps?:
     | string
     | Record<string, unknown>
     | ((props: Record<string, unknown>) => Record<string, unknown>)
