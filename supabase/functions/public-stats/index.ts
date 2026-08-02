@@ -37,6 +37,31 @@ Deno.serve(async (req) => {
     ]);
     const { count: ww } = await supabase.from("wisdom_sessions").select("*", { count: "exact", head: true }).gte("created_at", weekAgo);
     const activeSubs = subs.count ?? 0;
+
+    // Bounce rate for today: a session bounced if it viewed only one screen
+    // OR lasted under 10 seconds. Read from public.app_sessions.
+    let bounceRate: number | null = null;
+    try {
+      const { data: sessions, error: sessErr } = await supabase
+        .from("app_sessions")
+        .select("screen_count, started_at, last_seen_at")
+        .gte("started_at", today);
+      if (sessErr) throw sessErr;
+      const total = sessions?.length ?? 0;
+      if (total > 0) {
+        const bounced = (sessions ?? []).filter((s) => {
+          const durationMs =
+            new Date(s.last_seen_at as string).getTime() -
+            new Date(s.started_at as string).getTime();
+          return (s.screen_count ?? 1) <= 1 || durationMs < 10_000;
+        }).length;
+        bounceRate = parseFloat((bounced / total).toFixed(4));
+      }
+    } catch (e) {
+      console.error("bounce_rate computation failed:", e);
+      bounceRate = null;
+    }
+
     return json({
       product: "dabar",
       pulled_at: new Date().toISOString(),
@@ -59,6 +84,9 @@ Deno.serve(async (req) => {
         sessions_this_week: ww ?? 0,
         total_reflections: ref.count ?? 0,
         questions_asked_today: q.count ?? 0,
+      },
+      custom_metrics: {
+        ...(bounceRate !== null ? { bounce_rate: bounceRate } : {}),
       },
     });
   } catch (err) {
