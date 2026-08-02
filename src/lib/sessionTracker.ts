@@ -8,7 +8,7 @@ const KEY = "dabar_session";
 const IDLE_MS = 30 * 60 * 1000; // a new session after 30 min of inactivity
 const HEARTBEAT_THROTTLE_MS = 5000;
 
-type StoredSession = { id: string; lastSeen: number };
+type StoredSession = { id: string; lastSeen: number; screens: number };
 
 let currentId: string | null = null;
 let screenCount = 0;
@@ -80,16 +80,18 @@ export function trackScreenView() {
 
   if (!currentId) {
     if (stored && now - stored.lastSeen < IDLE_MS) {
-      // Resuming an existing session (e.g. page reload).
+      // Resuming an existing session (e.g. page reload) — keep its screen count.
       currentId = stored.id;
-      screenCount = 1;
-      void createSession(currentId).then(() => scheduleFlush());
-    } else {
-      currentId = crypto.randomUUID();
-      screenCount = 1;
-      void createSession(currentId);
+      screenCount = (stored.screens ?? 1) + 1;
+      write({ id: currentId, lastSeen: now, screens: screenCount });
+      lastFlush = 0;
+      scheduleFlush();
+      return;
     }
-    write({ id: currentId, lastSeen: now });
+    currentId = crypto.randomUUID();
+    screenCount = 1;
+    write({ id: currentId, lastSeen: now, screens: screenCount });
+    void createSession(currentId);
     lastFlush = now;
     return;
   }
@@ -98,14 +100,14 @@ export function trackScreenView() {
     // Idle gap — start a fresh session.
     currentId = crypto.randomUUID();
     screenCount = 1;
-    write({ id: currentId, lastSeen: now });
+    write({ id: currentId, lastSeen: now, screens: screenCount });
     void createSession(currentId);
     lastFlush = now;
     return;
   }
 
   screenCount += 1;
-  write({ id: currentId, lastSeen: now });
+  write({ id: currentId, lastSeen: now, screens: screenCount });
   scheduleFlush();
 }
 
