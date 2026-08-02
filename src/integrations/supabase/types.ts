@@ -1589,6 +1589,51 @@ export type Database = {
           },
         ]
       }
+      revenuecat_events: {
+        Row: {
+          app_user_id: string | null
+          created_at: string
+          environment: string | null
+          error_message: string | null
+          event_id: string | null
+          event_type: string
+          expiration_at: string | null
+          id: string
+          processed: boolean
+          product_id: string | null
+          raw: Json
+          updated_at: string
+        }
+        Insert: {
+          app_user_id?: string | null
+          created_at?: string
+          environment?: string | null
+          error_message?: string | null
+          event_id?: string | null
+          event_type: string
+          expiration_at?: string | null
+          id?: string
+          processed?: boolean
+          product_id?: string | null
+          raw: Json
+          updated_at?: string
+        }
+        Update: {
+          app_user_id?: string | null
+          created_at?: string
+          environment?: string | null
+          error_message?: string | null
+          event_id?: string | null
+          event_type?: string
+          expiration_at?: string | null
+          id?: string
+          processed?: boolean
+          product_id?: string | null
+          raw?: Json
+          updated_at?: string
+        }
+        Relationships: []
+      }
       role_change_log: {
         Row: {
           changed_at: string
