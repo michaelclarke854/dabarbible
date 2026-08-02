@@ -9,7 +9,6 @@
 
 type UmamiTrack = (
   eventOrProps?:
-  eventOrProps?:
     | string
     | Record<string, unknown>
     | ((props: Record<string, unknown>) => Record<string, unknown>)
@@ -21,6 +20,8 @@ declare global {
   }
 }
 
+import { trackScreenView } from "@/lib/sessionTracker";
+
 let lastPath: string | null = null;
 
 export function trackVirtualPageview(path: string, title?: string) {
@@ -28,6 +29,9 @@ export function trackVirtualPageview(path: string, title?: string) {
   if (!path.startsWith("/")) path = `/${path}`;
   if (path === lastPath) return;
   lastPath = path;
+
+  // Anonymous session/screen-count tracking (used for bounce rate).
+  trackScreenView();
 
   try {
     window.umami?.track((props) => ({
