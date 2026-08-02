@@ -32,6 +32,39 @@ export type Database = {
         }
         Relationships: []
       }
+      app_sessions: {
+        Row: {
+          created_at: string
+          id: string
+          last_seen_at: string
+          screen_count: number
+          session_id: string
+          started_at: string
+          updated_at: string
+          user_id: string | null
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          last_seen_at?: string
+          screen_count?: number
+          session_id: string
+          started_at?: string
+          updated_at?: string
+          user_id?: string | null
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          last_seen_at?: string
+          screen_count?: number
+          session_id?: string
+          started_at?: string
+          updated_at?: string
+          user_id?: string | null
+        }
+        Relationships: []
+      }
       beta_feedback: {
         Row: {
           created_at: string
