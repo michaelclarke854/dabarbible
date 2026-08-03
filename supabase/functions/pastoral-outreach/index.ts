@@ -17,6 +17,10 @@ type Lead = {
   name: string;
   email: string;
   church_name?: string | null;
+  city?: string | null;
+  state?: string | null;
+  denomination?: string | null;
+  church_size?: string | null;
   status: string;
   reply_received?: boolean | null;
 };
@@ -27,14 +31,15 @@ function unsubLink(email: string) {
 
 const EMAIL_TEMPLATES = {
   initial_outreach: (lead: Lead) => ({
-    subject: "Free tool for your congregation's scripture reflection — honest ask",
+    subject: "A question-answering tool for your flock, grounded in KJV scripture — honest ask",
     html: `<p>Hi ${lead.name},</p>
-<p>I built DABAR (<a href="${PUBLIC_BASE}">dabarbible.com</a>) — a scripture reflection app that helps people bring their hardest questions to the Bible and receive responses grounded in the Word.</p>
+<p>I built DABAR (<a href="${PUBLIC_BASE}">dabarbible.com</a>) — a question-answering tool that takes a specific question someone is carrying and answers it in the unified voice of the prophets, the disciples, and Jesus, grounded in the King James Version of scripture.</p>
+<p>That is the differentiator: it is not a Bible-reading plan, a verse-of-the-day app, or a devotional feed. It is a place to bring one hard question and hear the chorus of scripture speak back.</p>
 <p>I'm reaching out to a small group of pastors before any broader launch. Not selling anything. Looking for honest feedback from someone who knows their flock.</p>
 <p>Two things I'm asking:</p>
-<ol><li>Try it yourself for 5 minutes — ask it something you'd expect a congregant to ask</li>
-<li>Tell me if it's theologically trustworthy enough to recommend</li></ol>
-<p>If you want, I can set up your whole congregation with free access. You'd see what themes they're exploring — without seeing individual questions — via a pastor dashboard built for exactly this.</p>
+<ol><li>Try it yourself for 5 minutes — ask it something you'd expect a congregant to ask.</li>
+<li>Tell me if it's theologically trustworthy enough to recommend.</li></ol>
+<p>If you want, I can set up ${lead.church_name ? `your congregation at ${lead.church_name}` : "your whole congregation"} with free access. You'd see what themes they're exploring — without seeing individual questions — via a pastor dashboard built for exactly this.</p>
 <p>Straight link: <a href="${PUBLIC_BASE}">dabarbible.com</a><br/>
 Doctrinal statement: <a href="${PUBLIC_BASE}/doctrine">dabarbible.com/doctrine</a></p>
 <p>No pitch deck. No follow-up sequence if you're not interested. Just honest feedback.</p>
@@ -46,8 +51,9 @@ Doctrinal statement: <a href="${PUBLIC_BASE}/doctrine">dabarbible.com/doctrine</
   follow_up_1: (lead: Lead) => ({
     subject: "Re: DABAR — quick follow-up",
     html: `<p>Hi ${lead.name},</p>
-<p>Following up on my note from last week about DABAR.</p>
-<p>One thing I wanted to add: the pastor dashboard shows you the top themes your congregation is exploring in scripture — grief, forgiveness, purpose, doubt — without surfacing individual questions. It's designed to help you see what your flock is sitting with spiritually.</p>
+<p>Following up on my note from last week.</p>
+<p>One thing I wanted to add: when a congregant asks DABAR a question, the response they get is not a reading plan or a verse-of-the-day. It is a single answer shaped from the prophets, the disciples, and Jesus, with KJV scripture quoted in full.</p>
+<p>The pastor dashboard then shows you the top themes your congregation is exploring — grief, forgiveness, purpose, doubt — without surfacing individual questions. It's designed to help you see what your flock is sitting with spiritually.</p>
 <p>If now isn't a good time, no worries at all. But if you'd like to try it or have a quick conversation, I'm easy to reach.</p>
 <p>Mike<br/><a href="${PUBLIC_BASE}">dabarbible.com</a></p>
 <hr/>
@@ -58,8 +64,8 @@ Doctrinal statement: <a href="${PUBLIC_BASE}/doctrine">dabarbible.com/doctrine</
     subject: "DABAR — last note",
     html: `<p>Hi ${lead.name},</p>
 <p>Last note from me on this.</p>
-<p>If DABAR isn't a fit for your congregation right now, completely understood. I'll stop here.</p>
-<p>If you ever want to revisit, <a href="${PUBLIC_BASE}">dabarbible.com</a> is always there. The doctrinal statement is at <a href="${PUBLIC_BASE}/doctrine">dabarbible.com/doctrine</a>.</p>
+<p>If DABAR isn't a fit for ${lead.church_name ?? "your congregation"} right now, completely understood. I'll stop here.</p>
+<p>If you ever want to revisit, DABAR is at <a href="${PUBLIC_BASE}">dabarbible.com</a> — a place to bring one hard question and hear the unified voice of scripture answer it. The doctrinal statement is at <a href="${PUBLIC_BASE}/doctrine">dabarbible.com/doctrine</a>.</p>
 <p>God bless your ministry.</p>
 <p>Mike</p>
 <hr/>
