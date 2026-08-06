@@ -279,9 +279,98 @@ const LANGUAGE_INSTRUCTIONS: Record<string, string> = {
   en: "Respond entirely in English.",
   es: "Responde completamente en español. Usa un tono poético y reverente similar al castellano clásico.",
   pt: "Responda completamente em português. Use um tom poético e reverente.",
-  ko: "전체 응답을 한국어로 작성하세요. 경건하고 시적인 어조를 사용하세요.",
-  fr: "Répondez entièrement en français. Utilisez un ton poétique et révérencieux.",
 };
+
+// ── Scripture citation verification ──────────────────
+
+type VerifiedBlock = { reference: string; text: string; valid: boolean; reason: string };
+
+async function verifyScriptureBlock(
+  // deno-lint-ignore no-explicit-any
+  supabase: any,
+  version: string,
+  reference: string,
+  verseText: string,
+): Promise<VerifiedBlock> {
+  try {
+    const { data, error } = await supabase.rpc("verify_citation", {
+      p_version: "KJV",
+      p_ref: reference,
+      p_text: version === "KJV" ? verseText : "",
+    });
+    if (error) {
+      // Fail OPEN on infrastructure error: a DB outage must not strip scripture
+      // from every response. The row is still logged as unverified.
+      console.error("verify_citation rpc failed:", error.message);
+      return { reference, text: verseText, valid: true, reason: "verifier_unavailable" };
+    }
+    return {
+      reference,
+      text: verseText,
+      valid: Boolean(data?.valid),
+      reason: String(data?.reason ?? "unknown"),
+    };
+  } catch (err) {
+    console.error("verify_citation threw:", err);
+    return { reference, text: verseText, valid: true, reason: "verifier_unavailable" };
+  }
+}
+
+const SCRIPTURE_BLOCK_RE =
+  /\[SCRIPTURE\]\s*\nreference:\s*(.+)\ntext:\s*(.+)\n\[\/SCRIPTURE\]/g;
+
+async function verifyAndCleanResponse(
+  // deno-lint-ignore no-explicit-any
+  supabase: any,
+  responseText: string,
+  version: string,
+): Promise<{ cleaned: string; scriptures: string[]; audit: VerifiedBlock[] }> {
+  const blocks: { whole: string; reference: string; text: string }[] = [];
+  let m: RegExpExecArray | null;
+  SCRIPTURE_BLOCK_RE.lastIndex = 0;
+  while ((m = SCRIPTURE_BLOCK_RE.exec(responseText)) !== null) {
+    blocks.push({ whole: m[0], reference: m[1].trim(), text: m[2].trim() });
+  }
+
+  const audit = await Promise.all(
+    blocks.map((b) => verifyScriptureBlock(supabase, version, b.reference, b.text)),
+  );
+
+  let cleaned = responseText;
+  const scriptures: string[] = [];
+  blocks.forEach((b, i) => {
+    if (audit[i].valid) {
+      scriptures.push(b.reference);
+    } else {
+      // Never surface an unverifiable citation. Remove the block entirely; the
+      // surrounding pastoral text stands on its own.
+      cleaned = cleaned.replace(b.whole, "");
+    }
+  });
+  cleaned = cleaned.replace(/\n{3,}/g, "\n\n").trim();
+  return { cleaned, scriptures, audit };
+}
+
+function logCitations(
+  // deno-lint-ignore no-explicit-any
+  supabase: any,
+  sessionId: string | null,
+  version: string,
+  audit: VerifiedBlock[],
+): void {
+  if (audit.length === 0) return;
+  supabase.from("scripture_citations").insert(
+    audit.map((a) => ({
+      session_id: sessionId,
+      reference: a.reference,
+      emitted_text: a.text,
+      version,
+      valid: a.valid,
+      reason: a.reason,
+      suppressed: !a.valid,
+    })),
+  ).then(() => {}, (err: unknown) => console.error("scripture_citations insert failed:", err));
+}
 
 function getSystemPrompt(
   ageGroup: string | null, patternContext: string,
@@ -428,7 +517,7 @@ serve(async (req) => {
       );
     }
 
-    const ALLOWED_LANGUAGES = ["en", "es", "pt", "ko", "fr"];
+    const ALLOWED_LANGUAGES = ["en", "es", "pt"];
     const ALLOWED_VERSIONS = ["KJV", "RV1960", "ARA"];
     const safeLang = ALLOWED_LANGUAGES.includes(language) ? language : "en";
     const safeVersion = ALLOWED_VERSIONS.includes(scriptureVersion) ? scriptureVersion : "KJV";
@@ -591,23 +680,17 @@ serve(async (req) => {
         }
       }
 
-      const responseText = iosText.trim();
-      const scriptureBlocks: { reference: string; text: string }[] = [];
-      const scriptureRegex = /\[SCRIPTURE\]\s*\nreference:\s*(.+)\ntext:\s*(.+)\n\[\/SCRIPTURE\]/g;
-      let m;
-      while ((m = scriptureRegex.exec(responseText)) !== null) {
-        scriptureBlocks.push({ reference: m[1].trim(), text: m[2].trim() });
-      }
-      const scriptures = scriptureBlocks.map((s) => s.reference);
+      const rawText = iosText.trim();
+      const { cleaned, scriptures, audit } = await verifyAndCleanResponse(supabase, rawText, safeVersion);
+      const responseText = cleaned;
       const iosSessionId = await logSession(supabase, userId, question, responseText, scriptures, streamResult.provider);
+      logCitations(supabase, iosSessionId, safeVersion, audit);
 
-      if (crisisResult.detected && crisisResult.keyword && iosSessionId && crisisLogPromise) {
+      if (crisisLogPromise) {
         try {
-          const { data: clRow } = await crisisLogPromise!;
-          if (clRow?.id) {
-            await supabase.from("crisis_log")
-              .update({ session_id: iosSessionId })
-              .eq("id", clRow.id);
+          const { data: clRow } = await crisisLogPromise;
+          if (clRow?.id && iosSessionId) {
+            await supabase.from("crisis_log").update({ session_id: iosSessionId }).eq("id", clRow.id);
           }
         } catch (err) {
           console.error("crisis_log session link failed:", err);
@@ -646,6 +729,57 @@ serve(async (req) => {
           const reader = streamResult.stream.getReader();
           let buffer = "";
 
+          const OPEN = "[SCRIPTURE]";
+          const CLOSE = "[/SCRIPTURE]";
+          let carry = "";          // not yet emitted
+          let inBlock = false;     // inside a scripture block
+          let blockBuf = "";       // raw text of the current block
+          const pendingAudit: VerifiedBlock[] = [];
+
+          const drain = async (flush: boolean) => {
+            for (;;) {
+              if (!inBlock) {
+                const i = carry.indexOf(OPEN);
+                if (i === -1) {
+                  // Emit everything except a possible partial OPEN marker at the tail.
+                  const keep = flush ? 0 : OPEN.length - 1;
+                  if (carry.length > keep) {
+                    const out = carry.slice(0, carry.length - keep);
+                    if (out) { fullText += out; controller.enqueue(encoder.encode(out)); }
+                    carry = carry.slice(carry.length - keep);
+                  }
+                  return;
+                }
+                const out = carry.slice(0, i);
+                if (out) { fullText += out; controller.enqueue(encoder.encode(out)); }
+                carry = carry.slice(i);
+                inBlock = true;
+                blockBuf = "";
+              }
+              const j = carry.indexOf(CLOSE);
+              if (j === -1) {
+                if (!flush) return;      // wait for more data
+                // Stream ended mid-block: drop the incomplete block entirely.
+                carry = ""; inBlock = false; return;
+              }
+              blockBuf = carry.slice(0, j + CLOSE.length);
+              carry = carry.slice(j + CLOSE.length);
+              inBlock = false;
+
+              const bm = /\[SCRIPTURE\]\s*\nreference:\s*(.+)\ntext:\s*(.+)\n\[\/SCRIPTURE\]/.exec(blockBuf);
+              if (bm) {
+                const v = await verifyScriptureBlock(supabase, safeVersion, bm[1].trim(), bm[2].trim());
+                pendingAudit.push(v);
+                if (v.valid) {
+                  fullText += blockBuf;
+                  controller.enqueue(encoder.encode(blockBuf));
+                }
+                // invalid -> emit nothing, block is suppressed
+              }
+              // malformed block -> emit nothing
+            }
+          };
+
           while (true) {
             const { done, value } = await reader.read();
             if (done) break;
@@ -661,9 +795,10 @@ serve(async (req) => {
               try {
                 const parsed = JSON.parse(payload);
                 const text = parsed.choices?.[0]?.delta?.content ?? "";
-                if (text) { fullText += text; controller.enqueue(encoder.encode(text)); }
+                if (text) { carry += text; }
               } catch { /* skip malformed */ }
             }
+            await drain(false);
           }
 
           if (buffer.trim()) {
@@ -672,33 +807,26 @@ serve(async (req) => {
               try {
                 const parsed = JSON.parse(trimmed.slice(6));
                 const text = parsed.choices?.[0]?.delta?.content ?? "";
-                if (text) { fullText += text; controller.enqueue(encoder.encode(text)); }
+                if (text) { carry += text; }
               } catch { /* skip */ }
             }
           }
 
+          await drain(true);
           closeStream();
 
           // ── Post-processing ──
           const responseText = fullText.trim();
-          const scriptureBlocks: { reference: string; text: string }[] = [];
-          const scriptureRegex = /\[SCRIPTURE\]\s*\nreference:\s*(.+)\ntext:\s*(.+)\n\[\/SCRIPTURE\]/g;
-          let match;
-          while ((match = scriptureRegex.exec(responseText)) !== null) {
-            scriptureBlocks.push({ reference: match[1].trim(), text: match[2].trim() });
-          }
-          const scriptures = scriptureBlocks.map((s) => s.reference);
-
+          const scriptures = pendingAudit.filter((a) => a.valid).map((a) => a.reference);
           const sessionId = await logSession(supabase, userId, question, responseText, scriptures, streamResult.provider);
+          logCitations(supabase, sessionId, safeVersion, pendingAudit);
 
           // Update crisis_log with session_id
-          if (crisisResult.detected && crisisResult.keyword && sessionId && crisisLogPromise) {
+          if (crisisLogPromise) {
             try {
-              const { data: clRow } = await crisisLogPromise!;
-              if (clRow?.id) {
-                await supabase.from("crisis_log")
-                  .update({ session_id: sessionId })
-                  .eq("id", clRow.id);
+              const { data: clRow } = await crisisLogPromise;
+              if (clRow?.id && sessionId) {
+                await supabase.from("crisis_log").update({ session_id: sessionId }).eq("id", clRow.id);
               }
             } catch (err) {
               console.error("crisis_log session link failed:", err);
