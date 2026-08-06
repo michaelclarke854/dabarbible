@@ -1777,6 +1777,42 @@ export type Database = {
           },
         ]
       }
+      scripture_citations: {
+        Row: {
+          created_at: string
+          emitted_text: string | null
+          id: string
+          reason: string
+          reference: string
+          session_id: string | null
+          suppressed: boolean
+          valid: boolean
+          version: string
+        }
+        Insert: {
+          created_at?: string
+          emitted_text?: string | null
+          id?: string
+          reason: string
+          reference: string
+          session_id?: string | null
+          suppressed?: boolean
+          valid: boolean
+          version?: string
+        }
+        Update: {
+          created_at?: string
+          emitted_text?: string | null
+          id?: string
+          reason?: string
+          reference?: string
+          session_id?: string | null
+          suppressed?: boolean
+          valid?: boolean
+          version?: string
+        }
+        Relationships: []
+      }
       session_themes: {
         Row: {
           confidence: number
@@ -2224,6 +2260,26 @@ export type Database = {
           },
         ]
       }
+      v_scripture_integrity: {
+        Row: {
+          citations: number | null
+          day: string | null
+          failed: number | null
+          failure_pct: number | null
+        }
+        Relationships: []
+      }
+      v_wisdom_conformance: {
+        Row: {
+          day: string | null
+          fallback_provider_runs: number | null
+          pct_missing_scripture: number | null
+          sessions: number | null
+          with_scripture: number | null
+          without_scripture: number | null
+        }
+        Relationships: []
+      }
     }
     Functions: {
       calculate_age_group: { Args: { dob: string }; Returns: string }
@@ -2296,6 +2352,7 @@ export type Database = {
         }
         Returns: number
       }
+      normalize_verse: { Args: { p: string }; Returns: string }
       read_email_batch: {
         Args: { batch_size: number; queue_name: string; vt: number }
         Returns: {
@@ -2303,6 +2360,10 @@ export type Database = {
           msg_id: number
           read_ct: number
         }[]
+      }
+      verify_citation: {
+        Args: { p_ref: string; p_text: string; p_version: string }
+        Returns: Json
       }
     }
     Enums: {
