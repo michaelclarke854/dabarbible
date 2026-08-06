@@ -122,11 +122,18 @@ function detectCrisis(text: string, ageGroup: string | null): CrisisResult {
     return { detected: true, severity: "crisis", keyword: matchedKeyword, reason: "clinical_keyword" };
   }
 
-  // Spiritual / youth keywords may downgrade, but only inside a scriptural frame.
-  const eschatological = THEOLOGICAL_FALSE_POSITIVES.some(fp => lower.includes(fp));
+  // Spiritual / youth keywords may downgrade to "watch", but only when the
+  // message is genuinely discussing scripture (lament is a biblical category).
+  // Clinical phrasing already returned above and is never downgraded.
   const scripturalFrame = LAMENT_CONTEXT_SIGNALS.some(re => re.test(lower));
-  if (eschatological && scripturalFrame) {
-    return { detected: true, severity: "watch", keyword: matchedKeyword, reason: "eschatological_in_scriptural_frame" };
+  if (scripturalFrame) {
+    const eschatological = THEOLOGICAL_FALSE_POSITIVES.some(fp => lower.includes(fp));
+    return {
+      detected: true,
+      severity: "watch",
+      keyword: matchedKeyword,
+      reason: eschatological ? "eschatological_in_scriptural_frame" : "scriptural_frame",
+    };
   }
 
   return { detected: true, severity: "crisis", keyword: matchedKeyword, reason: "no_downgrade_applied" };
