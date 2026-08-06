@@ -213,6 +213,7 @@ export type Database = {
           keyword_matched: string
           session_id: string | null
           severity: string
+          severity_reason: string | null
           triggered_at: string | null
         }
         Insert: {
@@ -220,6 +221,7 @@ export type Database = {
           keyword_matched: string
           session_id?: string | null
           severity?: string
+          severity_reason?: string | null
           triggered_at?: string | null
         }
         Update: {
@@ -227,6 +229,7 @@ export type Database = {
           keyword_matched?: string
           session_id?: string | null
           severity?: string
+          severity_reason?: string | null
           triggered_at?: string | null
         }
         Relationships: []
@@ -2116,6 +2119,7 @@ export type Database = {
       }
       wisdom_sessions: {
         Row: {
+          ai_provider: string | null
           created_at: string
           crisis_marker: boolean
           expires_at: string | null
@@ -2129,6 +2133,7 @@ export type Database = {
           user_id: string | null
         }
         Insert: {
+          ai_provider?: string | null
           created_at?: string
           crisis_marker?: boolean
           expires_at?: string | null
@@ -2142,6 +2147,7 @@ export type Database = {
           user_id?: string | null
         }
         Update: {
+          ai_provider?: string | null
           created_at?: string
           crisis_marker?: boolean
           expires_at?: string | null
