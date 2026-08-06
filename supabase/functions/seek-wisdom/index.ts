@@ -40,6 +40,14 @@ const THEOLOGICAL_FALSE_POSITIVES = [
   "glorified", "resurrection", "eschatology", "tribulation", "millennium",
 ];
 
+// A crisis keyword only downgrades to "watch" when the message is genuinely
+// discussing scripture. An eschatological word on its own is not enough.
+const LAMENT_CONTEXT_SIGNALS: RegExp[] = [
+  /\bpsalm\b/i, /\blament\b/i, /\bjob \d/i, /\bscripture\b/i, /\bverse\b/i,
+  /\bbible\b/i, /\bdevotional\b/i, /\bchapter\b/i, /\bcharacter in\b/i,
+  /\bsermon\b/i, /\bstudying\b/i, /\bwhat does .{0,40}\bmean\b/i,
+];
+
 // ── Intent personalisation context (module-level constant) ──────────────────
 // Defined outside the handler so it is constructed once at module load,
 // not on every invocation.
@@ -89,6 +97,7 @@ interface CrisisResult {
   detected: boolean;
   severity: "crisis" | "watch" | null;
   keyword: string | null;
+  reason: string | null;
 }
 
 function detectCrisis(text: string, ageGroup: string | null): CrisisResult {
@@ -105,13 +114,22 @@ function detectCrisis(text: string, ageGroup: string | null): CrisisResult {
     }
   }
 
-  if (!matchedKeyword) return { detected: false, severity: null, keyword: null };
+  if (!matchedKeyword) return { detected: false, severity: null, keyword: null, reason: null };
 
-  // Check for theological false positives
-  const hasFalsePositive = THEOLOGICAL_FALSE_POSITIVES.some(fp => lower.includes(fp));
-  const severity = hasFalsePositive ? "watch" : "crisis";
+  // Clinical self-harm phrasing is NEVER downgraded, regardless of context.
+  const isClinical = CLINICAL_CRISIS_KEYWORDS.some(kw => lower.includes(kw));
+  if (isClinical) {
+    return { detected: true, severity: "crisis", keyword: matchedKeyword, reason: "clinical_keyword" };
+  }
 
-  return { detected: true, severity, keyword: matchedKeyword };
+  // Spiritual / youth keywords may downgrade, but only inside a scriptural frame.
+  const eschatological = THEOLOGICAL_FALSE_POSITIVES.some(fp => lower.includes(fp));
+  const scripturalFrame = LAMENT_CONTEXT_SIGNALS.some(re => re.test(lower));
+  if (eschatological && scripturalFrame) {
+    return { detected: true, severity: "watch", keyword: matchedKeyword, reason: "eschatological_in_scriptural_frame" };
+  }
+
+  return { detected: true, severity: "crisis", keyword: matchedKeyword, reason: "no_downgrade_applied" };
 }
 
 // ── Crisis prompt injection ──────────────────
@@ -474,14 +492,17 @@ serve(async (req) => {
 
     // ── Crisis detection ──
     const crisisResult = detectCrisis(question, validatedAgeGroup);
+    // deno-lint-ignore no-explicit-any
+    let crisisLogPromise: Promise<any> | null = null;
 
     if (crisisResult.detected && crisisResult.keyword) {
-      // Log to crisis_log (no user identity, no message content) — fire-and-forget.
-      supabase.from("crisis_log").insert({
+      // Log to crisis_log (no user identity, no message content).
+      crisisLogPromise = supabase.from("crisis_log").insert({
         keyword_matched: crisisResult.keyword,
         severity: crisisResult.severity,
-        session_id: null, // will update after session is created
-      }).then(() => {}, (err: unknown) => console.error("crisis_log insert failed:", err));
+        severity_reason: crisisResult.reason,
+        session_id: null,
+      }).select("id").single();
 
       if (crisisResult.severity === "crisis") {
         // Set pending_checkin on user profile
@@ -571,15 +592,19 @@ serve(async (req) => {
         scriptureBlocks.push({ reference: m[1].trim(), text: m[2].trim() });
       }
       const scriptures = scriptureBlocks.map((s) => s.reference);
-      const iosSessionId = await logSession(supabase, userId, question, responseText, scriptures);
+      const iosSessionId = await logSession(supabase, userId, question, responseText, scriptures, streamResult.provider);
 
-      if (crisisResult.detected && crisisResult.keyword && iosSessionId) {
-        await supabase.from("crisis_log")
-          .update({ session_id: iosSessionId })
-          .eq("keyword_matched", crisisResult.keyword)
-          .is("session_id", null)
-          .order("triggered_at", { ascending: false })
-          .limit(1);
+      if (crisisResult.detected && crisisResult.keyword && iosSessionId && crisisLogPromise) {
+        try {
+          const { data: clRow } = await crisisLogPromise!;
+          if (clRow?.id) {
+            await supabase.from("crisis_log")
+              .update({ session_id: iosSessionId })
+              .eq("id", clRow.id);
+          }
+        } catch (err) {
+          console.error("crisis_log session link failed:", err);
+        }
       }
 
       classifyAndStoreCategory(supabase, iosSessionId, userId, question, crisisResult.detected);
@@ -657,16 +682,20 @@ serve(async (req) => {
           }
           const scriptures = scriptureBlocks.map((s) => s.reference);
 
-          const sessionId = await logSession(supabase, userId, question, responseText, scriptures);
+          const sessionId = await logSession(supabase, userId, question, responseText, scriptures, streamResult.provider);
 
           // Update crisis_log with session_id
-          if (crisisResult.detected && crisisResult.keyword && sessionId) {
-            await supabase.from("crisis_log")
-              .update({ session_id: sessionId })
-              .eq("keyword_matched", crisisResult.keyword)
-              .is("session_id", null)
-              .order("triggered_at", { ascending: false })
-              .limit(1);
+          if (crisisResult.detected && crisisResult.keyword && sessionId && crisisLogPromise) {
+            try {
+              const { data: clRow } = await crisisLogPromise!;
+              if (clRow?.id) {
+                await supabase.from("crisis_log")
+                  .update({ session_id: sessionId })
+                  .eq("id", clRow.id);
+              }
+            } catch (err) {
+              console.error("crisis_log session link failed:", err);
+            }
           }
 
           // Fire-and-forget category classification — never awaited, never blocks
@@ -736,12 +765,13 @@ async function logSession(
   // deno-lint-ignore no-explicit-any
   supabase: any,
   userId: string | null, question: string,
-  response: string, scriptures: string[]
+  response: string, scriptures: string[],
+  aiProvider: string | null
 ): Promise<string | null> {
   try {
     const { data } = await supabase
       .from("wisdom_sessions")
-      .insert({ user_id: userId || null, question, response, scripture_refs: scriptures })
+      .insert({ user_id: userId || null, question, response, scripture_refs: scriptures, ai_provider: aiProvider })
       .select("id").single();
     return data?.id || null;
   } catch (err) {
