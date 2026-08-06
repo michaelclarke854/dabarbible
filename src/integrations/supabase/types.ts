@@ -89,6 +89,39 @@ export type Database = {
         }
         Relationships: []
       }
+      bible_verses: {
+        Row: {
+          book_name: string
+          book_order: number
+          book_slug: string
+          chapter: number
+          text: string
+          text_norm: string
+          verse: number
+          version: string
+        }
+        Insert: {
+          book_name: string
+          book_order: number
+          book_slug: string
+          chapter: number
+          text: string
+          text_norm: string
+          verse: number
+          version: string
+        }
+        Update: {
+          book_name?: string
+          book_order?: number
+          book_slug?: string
+          chapter?: number
+          text?: string
+          text_norm?: string
+          verse?: number
+          version?: string
+        }
+        Relationships: []
+      }
       community_members: {
         Row: {
           community_id: string
