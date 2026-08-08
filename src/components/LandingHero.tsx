@@ -370,6 +370,10 @@ export function LandingHero({ onSeekWisdom, isLoading, onSignIn }: LandingHeroPr
 
         <TrustStrip />
 
+        <div className="flex justify-center mt-4">
+          <KjvIntegrityBadge />
+        </div>
+
         <p className="font-body text-[11px] text-muted-foreground/80 mt-3 text-center leading-relaxed">
           Scripture-grounded reflection ·{" "}
           <Link to="/doctrine" className="text-gold hover:underline">
