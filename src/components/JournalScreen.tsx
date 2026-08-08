@@ -40,7 +40,7 @@ const JournalScreen = ({
   onUpgrade?: () => void;
   onSignIn?: () => void;
 }) => {
-  const { user } = useAuth();
+  const { user, hasFullAccess } = useAuth();
 
   // Gate: guests see a sign-in prompt instead of the journal
   if (!user) {
