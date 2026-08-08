@@ -1,3 +1,6 @@
+const CERTIFICATION_STATEMENT =
+  "Every verse verified against the 1769 Cambridge KJV.";
+
 import jsPDF from "jspdf";
 
 export interface JournalPdfEntry {
@@ -46,7 +49,72 @@ export function exportJournalToPdf({ entries, searchTerm }: ExportOptions): void
     }
   };
 
-  // ── Title page header ──
+  // ── Certified cover page ──
+  doc.setDrawColor(196, 151, 58);
+  doc.setLineWidth(1);
+  doc.rect(margin - 18, margin - 28, maxWidth + 36, pageHeight - margin * 2 + 56);
+
+  y = pageHeight / 2 - 150;
+  doc.setFont("times", "bold");
+  doc.setFontSize(30);
+  doc.setTextColor(15);
+  doc.text("DABAR", pageWidth / 2, y, { align: "center" });
+  y += 26;
+  doc.setFont("times", "italic");
+  doc.setFontSize(16);
+  doc.setTextColor(80);
+  doc.text("A Devotional Journal", pageWidth / 2, y, { align: "center" });
+  y += 46;
+
+  doc.setDrawColor(196, 151, 58);
+  doc.setLineWidth(0.5);
+  doc.line(pageWidth / 2 - 70, y, pageWidth / 2 + 70, y);
+  y += 40;
+
+  // Certification seal
+  doc.setDrawColor(196, 151, 58);
+  doc.setLineWidth(0.8);
+  doc.circle(pageWidth / 2, y + 26, 30);
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(8);
+  doc.setTextColor(160, 120, 50);
+  doc.text("KJV", pageWidth / 2, y + 22, { align: "center" });
+  doc.text("CERTIFIED", pageWidth / 2, y + 33, { align: "center" });
+  y += 86;
+
+  doc.setFont("helvetica", "normal");
+  doc.setFontSize(9);
+  doc.setTextColor(160, 120, 50);
+  doc.text("KJV INTEGRITY CERTIFIED", pageWidth / 2, y, { align: "center" });
+  y += 18;
+  doc.setFont("times", "italic");
+  doc.setFontSize(11);
+  doc.setTextColor(70);
+  doc.text(CERTIFICATION_STATEMENT, pageWidth / 2, y, { align: "center" });
+  y += 16;
+  doc.setFont("helvetica", "normal");
+  doc.setFontSize(9);
+  doc.setTextColor(120);
+  doc.text(
+    "No paraphrase. No substituted translation. No AI-invented scripture.",
+    pageWidth / 2,
+    y,
+    { align: "center" },
+  );
+  y += 30;
+  doc.setFontSize(9);
+  doc.setTextColor(140);
+  const coverMeta = [
+    `${entries.length} entr${entries.length === 1 ? "y" : "ies"}`,
+    `Exported ${new Date().toLocaleDateString()}`,
+  ];
+  if (searchTerm) coverMeta.push(`Filter: "${searchTerm}"`);
+  doc.text(coverMeta.join("  ·  "), pageWidth / 2, y, { align: "center" });
+
+  doc.addPage();
+  y = margin;
+
+  // ── Entries header ──
   doc.setFont("times", "bold");
   doc.setFontSize(22);
   doc.setTextColor(15);
@@ -138,11 +206,12 @@ export function exportJournalToPdf({ entries, searchTerm }: ExportOptions): void
   const pageCount = doc.getNumberOfPages();
   for (let i = 1; i <= pageCount; i++) {
     doc.setPage(i);
+    if (i === 1) continue; // cover page stays clean
     doc.setFont("helvetica", "normal");
     doc.setFontSize(8);
     doc.setTextColor(150);
     doc.text(
-      `DABAR Journal · Page ${i} of ${pageCount}`,
+      `DABAR Journal · ${CERTIFICATION_STATEMENT} · Page ${i} of ${pageCount}`,
       pageWidth / 2,
       pageHeight - 24,
       { align: "center" }
