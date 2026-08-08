@@ -89,6 +89,24 @@ export type Database = {
         }
         Relationships: []
       }
+      bible_book_aliases: {
+        Row: {
+          alias_slug: string
+          book_slug: string
+          lang: string
+        }
+        Insert: {
+          alias_slug: string
+          book_slug: string
+          lang: string
+        }
+        Update: {
+          alias_slug?: string
+          book_slug?: string
+          lang?: string
+        }
+        Relationships: []
+      }
       bible_verses: {
         Row: {
           book_name: string
@@ -2361,6 +2379,7 @@ export type Database = {
           read_ct: number
         }[]
       }
+      unaccent_simple: { Args: { p: string }; Returns: string }
       verify_citation: {
         Args: { p_ref: string; p_text: string; p_version: string }
         Returns: Json
