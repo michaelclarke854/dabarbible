@@ -4,6 +4,7 @@ import { motion, useReducedMotion } from "framer-motion";
 import { fadeUp } from "@/lib/motionVariants";
 import { trackEvent } from "@/lib/trackEvent";
 import { TrustStrip } from "@/components/ask/TrustStrip";
+import { KjvIntegrityBadge } from "@/components/KjvIntegrityBadge";
 import { SEO } from "@/components/SEO";
 import { PillarCard } from "@/components/PillarCard";
 import { GoldDivider } from "@/components/GoldDivider";
