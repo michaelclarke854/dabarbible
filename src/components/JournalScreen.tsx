@@ -11,6 +11,7 @@ import { exportJournalToPdf } from "@/utils/exportJournalPdf";
 import { Download } from "lucide-react";
 import { BookOpen } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
+import { KjvIntegrityBadge } from "@/components/KjvIntegrityBadge";
 
 interface WisdomEntry {
   id: string;
@@ -39,7 +40,7 @@ const JournalScreen = ({
   onUpgrade?: () => void;
   onSignIn?: () => void;
 }) => {
-  const { user } = useAuth();
+  const { user, hasFullAccess } = useAuth();
 
   // Gate: guests see a sign-in prompt instead of the journal
   if (!user) {
@@ -200,9 +201,12 @@ const JournalScreen = ({
 
   return (
     <div className="min-h-[calc(100vh-80px)] px-6 py-8 max-w-2xl mx-auto">
-      <h2 className="font-serif text-2xl text-foreground tracking-wide mb-6">
-        Journal
-      </h2>
+      <div className="flex items-center justify-between gap-3 mb-6">
+        <h2 className="font-serif text-2xl text-foreground tracking-wide">
+          Journal
+        </h2>
+        <KjvIntegrityBadge />
+      </div>
 
       {/* Segmented Control */}
       <div className="flex mb-8 border-b border-border">
@@ -320,6 +324,11 @@ const JournalScreen = ({
               <button
                 type="button"
                 onClick={() => {
+                  if (!hasFullAccess) {
+                    toast.info("The printable KJV-certified journal is a paid feature.");
+                    onUpgrade?.();
+                    return;
+                  }
                   try {
                     exportJournalToPdf({
                       entries: filteredEntries,
@@ -332,10 +341,10 @@ const JournalScreen = ({
                   }
                 }}
                 className="inline-flex items-center gap-1.5 font-body text-xs tracking-wide text-gold hover:text-gold/80 transition-colors"
-                aria-label="Export journal to PDF"
+                aria-label="Export KJV-certified journal to PDF"
               >
                 <Download size={12} />
-                Export PDF
+                {hasFullAccess ? "Export PDF" : "Export PDF · Paid"}
               </button>
             )}
           </div>

@@ -4,6 +4,7 @@ import { motion, useReducedMotion } from "framer-motion";
 import { fadeUp } from "@/lib/motionVariants";
 import { trackEvent } from "@/lib/trackEvent";
 import { TrustStrip } from "@/components/ask/TrustStrip";
+import { KjvIntegrityBadge } from "@/components/KjvIntegrityBadge";
 import { SEO } from "@/components/SEO";
 import { PillarCard } from "@/components/PillarCard";
 import { GoldDivider } from "@/components/GoldDivider";
@@ -369,6 +370,10 @@ export function LandingHero({ onSeekWisdom, isLoading, onSignIn }: LandingHeroPr
         </button>
 
         <TrustStrip />
+
+        <div className="flex justify-center mt-4">
+          <KjvIntegrityBadge />
+        </div>
 
         <p className="font-body text-[11px] text-muted-foreground/80 mt-3 text-center leading-relaxed">
           Scripture-grounded reflection ·{" "}
