@@ -55,3 +55,5 @@ project_id = "crkkimoblnrxpszehmkg"
     verify_jwt = false
   [functions.bible-seed]
     verify_jwt = false
+  [functions.onboarding-prompts]
+    verify_jwt = false

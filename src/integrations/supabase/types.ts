@@ -740,6 +740,30 @@ export type Database = {
         }
         Relationships: []
       }
+      onboarding_prompt_log: {
+        Row: {
+          day: number
+          id: string
+          sent_at: string
+          user_id: string
+          verse_ref: string | null
+        }
+        Insert: {
+          day: number
+          id?: string
+          sent_at?: string
+          user_id: string
+          verse_ref?: string | null
+        }
+        Update: {
+          day?: number
+          id?: string
+          sent_at?: string
+          user_id?: string
+          verse_ref?: string | null
+        }
+        Relationships: []
+      }
       outreach_config: {
         Row: {
           key: string
