@@ -137,6 +137,21 @@ const Index = () => {
 
   // Track initial Ask page_view for anonymous visitors so the engagement-rate
   // denominator captures all landers (not just those who already engaged).
+  // One-click "resume reflection" arrivals from the win-back check-in email.
+  useEffect(() => {
+    if (searchParams.get("src") !== "winback") return;
+    trackEvent("winback_resume_clicked", {
+      screen: "ask",
+      metadata: { winback_id: searchParams.get("w") ?? null },
+    });
+    const url = new URL(window.location.href);
+    url.searchParams.delete("resume");
+    url.searchParams.delete("src");
+    url.searchParams.delete("w");
+    window.history.replaceState({}, "", url.pathname + url.search + url.hash);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   // Fires once per mount when an unauthenticated visitor lands on the ask tab.
   useEffect(() => {
     if (isHydrating || authLoading) return;

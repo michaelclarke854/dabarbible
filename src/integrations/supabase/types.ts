@@ -2228,6 +2228,42 @@ export type Database = {
         }
         Relationships: []
       }
+      winback_log: {
+        Row: {
+          days_silent: number
+          id: string
+          replied_at: string | null
+          returned_at: string | null
+          sent_at: string
+          subject: string
+          user_id: string
+          variant: string
+          verse_ref: string | null
+        }
+        Insert: {
+          days_silent?: number
+          id?: string
+          replied_at?: string | null
+          returned_at?: string | null
+          sent_at?: string
+          subject: string
+          user_id: string
+          variant: string
+          verse_ref?: string | null
+        }
+        Update: {
+          days_silent?: number
+          id?: string
+          replied_at?: string | null
+          returned_at?: string | null
+          sent_at?: string
+          subject?: string
+          user_id?: string
+          variant?: string
+          verse_ref?: string | null
+        }
+        Relationships: []
+      }
       wisdom_sessions: {
         Row: {
           ai_provider: string | null
