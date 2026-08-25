@@ -59,3 +59,6 @@ project_id = "crkkimoblnrxpszehmkg"
     verify_jwt = false
   [functions.winback-checkin]
     verify_jwt = false
+  [functions.reflection-recall]
+    verify_jwt = false
+
