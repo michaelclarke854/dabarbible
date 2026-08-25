@@ -1659,6 +1659,48 @@ export type Database = {
         }
         Relationships: []
       }
+      reflection_recall_log: {
+        Row: {
+          days_silent: number | null
+          id: string
+          replied_at: string | null
+          returned_at: string | null
+          sent_at: string
+          source_id: string | null
+          source_kind: string
+          step: number
+          subject: string
+          user_id: string
+          variant: string
+        }
+        Insert: {
+          days_silent?: number | null
+          id?: string
+          replied_at?: string | null
+          returned_at?: string | null
+          sent_at?: string
+          source_id?: string | null
+          source_kind: string
+          step: number
+          subject: string
+          user_id: string
+          variant: string
+        }
+        Update: {
+          days_silent?: number | null
+          id?: string
+          replied_at?: string | null
+          returned_at?: string | null
+          sent_at?: string
+          source_id?: string | null
+          source_kind?: string
+          step?: number
+          subject?: string
+          user_id?: string
+          variant?: string
+        }
+        Relationships: []
+      }
       response_flags: {
         Row: {
           created_at: string
