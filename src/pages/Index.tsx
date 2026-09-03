@@ -872,6 +872,21 @@ const Index = () => {
         />
       )}
 
+      {/* Depth milestone card (day 7 / 14 / 21 / 30 of reflection streak) */}
+      {user && pendingMilestone && !showInterstitial && !showPaywall && (
+        <StreakMilestoneCard
+          day={pendingMilestone}
+          streak={streak}
+          stats={streakStats}
+          onDismiss={() => {
+            dismissMilestone(pendingMilestone);
+            trackEvent("streak_milestone_viewed", { metadata: { day: pendingMilestone, streak } });
+          }}
+        />
+      )}
+
+
+
       <main className={`flex-1 pb-20 ${(showDay14Banner || showDay28Banner) && (hasOnboarded || user) ? "pt-10" : ""}`}>
         {showLanguageSettings && user ? (
           <Suspense fallback={<PageSpinner />}>
