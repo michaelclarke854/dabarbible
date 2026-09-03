@@ -1926,6 +1926,36 @@ export type Database = {
           },
         ]
       }
+      streak_milestones: {
+        Row: {
+          achieved_at: string
+          id: string
+          milestone_day: number
+          seen_at: string | null
+          stats: Json
+          streak_length: number
+          user_id: string
+        }
+        Insert: {
+          achieved_at?: string
+          id?: string
+          milestone_day: number
+          seen_at?: string | null
+          stats?: Json
+          streak_length?: number
+          user_id: string
+        }
+        Update: {
+          achieved_at?: string
+          id?: string
+          milestone_day?: number
+          seen_at?: string | null
+          stats?: Json
+          streak_length?: number
+          user_id?: string
+        }
+        Relationships: []
+      }
       subscriptions: {
         Row: {
           apple_product_id: string | null
