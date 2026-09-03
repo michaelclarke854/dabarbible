@@ -31,6 +31,9 @@ import { trackVirtualPageview } from "@/lib/virtualPageview";
 import { isIOSNative } from "@/lib/platform";
 import { extractScriptureRefs } from "@/lib/scriptureParser";
 import Paywall from "@/components/Paywall";
+import StreakFlame from "@/components/StreakFlame";
+import StreakMilestoneCard from "@/components/StreakMilestoneCard";
+import { useReflectionStreak } from "@/hooks/useReflectionStreak";
 
 const JournalScreen = lazy(() => import("@/components/JournalScreen"));
 const ScriptureScreen = lazy(() => import("@/components/ScriptureScreen"));
@@ -73,6 +76,7 @@ const Index = () => {
   const nativeIOS = isIOSNative();
   const effectiveHasFullAccess = hasFullAccess;
   const [showPaywall, setShowPaywall] = useState(false);
+  const { streak, stats: streakStats, pendingMilestone, dismissMilestone } = useReflectionStreak(user?.id);
 
   
   
@@ -1113,6 +1117,7 @@ const Index = () => {
           )}
         </div>
         <div className="flex items-center gap-3">
+          {user && <StreakFlame streak={streak} />}
           {!nativeIOS && trial.isOnTrial && trial.trialEndsAt && (
             <TrialBadge trialEndsAt={trial.trialEndsAt} />
           )}
