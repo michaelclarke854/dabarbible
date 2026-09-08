@@ -35,6 +35,7 @@ const OutreachDashboard = lazy(() => import("./pages/admin/OutreachDashboard.tsx
 const SupportPage = lazy(() => import("./pages/Support.tsx"));
 const AuthCallback = lazy(() => import("./pages/AuthCallback.tsx"));
 const PrayerLogPage = lazy(() => import("./pages/PrayerLogPage.tsx"));
+const ContributorPage = lazy(() => import("./pages/ContributorPage.tsx"));
 
 // Dev-only visual regression fixtures (tree-shaken in production builds).
 const VisualAskFixture = import.meta.env.DEV
