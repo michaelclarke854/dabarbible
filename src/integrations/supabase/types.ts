@@ -590,6 +590,110 @@ export type Database = {
         }
         Relationships: []
       }
+      guest_contributors: {
+        Row: {
+          bio: string
+          church: string | null
+          created_at: string
+          id: string
+          instagram_url: string | null
+          is_active: boolean
+          location: string | null
+          name: string
+          photo_url: string | null
+          slug: string
+          sort_order: number
+          title: string | null
+          updated_at: string
+          website_url: string | null
+          youtube_url: string | null
+        }
+        Insert: {
+          bio: string
+          church?: string | null
+          created_at?: string
+          id?: string
+          instagram_url?: string | null
+          is_active?: boolean
+          location?: string | null
+          name: string
+          photo_url?: string | null
+          slug: string
+          sort_order?: number
+          title?: string | null
+          updated_at?: string
+          website_url?: string | null
+          youtube_url?: string | null
+        }
+        Update: {
+          bio?: string
+          church?: string | null
+          created_at?: string
+          id?: string
+          instagram_url?: string | null
+          is_active?: boolean
+          location?: string | null
+          name?: string
+          photo_url?: string | null
+          slug?: string
+          sort_order?: number
+          title?: string | null
+          updated_at?: string
+          website_url?: string | null
+          youtube_url?: string | null
+        }
+        Relationships: []
+      }
+      guest_prompts: {
+        Row: {
+          contributor_id: string
+          created_at: string
+          id: string
+          pastoral_note: string | null
+          prompt_body: string
+          published: boolean
+          scripture_ref: string
+          scripture_text: string
+          title: string
+          updated_at: string
+          week_start: string
+        }
+        Insert: {
+          contributor_id: string
+          created_at?: string
+          id?: string
+          pastoral_note?: string | null
+          prompt_body: string
+          published?: boolean
+          scripture_ref: string
+          scripture_text: string
+          title: string
+          updated_at?: string
+          week_start: string
+        }
+        Update: {
+          contributor_id?: string
+          created_at?: string
+          id?: string
+          pastoral_note?: string | null
+          prompt_body?: string
+          published?: boolean
+          scripture_ref?: string
+          scripture_text?: string
+          title?: string
+          updated_at?: string
+          week_start?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "guest_prompts_contributor_id_fkey"
+            columns: ["contributor_id"]
+            isOneToOne: false
+            referencedRelation: "guest_contributors"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       journal_agent_runs: {
         Row: {
           created_at: string
