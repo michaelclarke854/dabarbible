@@ -258,7 +258,10 @@ const App = () => (
                 <Route path="/__visual/gate/subscribed" element={<SubscribedUserUnlockedNavFixture />} />
               )}
               {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
+              {/* Co-branded contributor pages: dabarbible.com/pastor-name (falls back to 404) */}
+              <Route path="/:slug" element={<ContributorPage />} />
               <Route path="*" element={<NotFound />} />
+
             </Routes>
           </Suspense>
           </div>
