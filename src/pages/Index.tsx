@@ -931,6 +931,8 @@ const Index = () => {
                 <ContinuePrompt
                   onContinue={(q) => seekWisdom(q)}
                 />
+                <GuestPromptCard onReflect={(p) => seekWisdom(p)} />
+
                 <AskScreen
                   onSeekWisdom={seekWisdom}
                   isLoading={isLoading}
