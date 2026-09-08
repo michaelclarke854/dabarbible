@@ -33,6 +33,7 @@ import { extractScriptureRefs } from "@/lib/scriptureParser";
 import Paywall from "@/components/Paywall";
 import StreakFlame from "@/components/StreakFlame";
 import StreakMilestoneCard from "@/components/StreakMilestoneCard";
+import GuestPromptCard from "@/components/GuestPromptCard";
 import { useReflectionStreak } from "@/hooks/useReflectionStreak";
 
 const JournalScreen = lazy(() => import("@/components/JournalScreen"));
