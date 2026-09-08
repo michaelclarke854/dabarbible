@@ -225,6 +225,8 @@ const App = () => (
               <Route path="/support" element={<SupportPage />} />
               <Route path="/auth/callback" element={<AuthCallback />} />
               <Route path="/prayers" element={<PrayerLogPage />} />
+              <Route path="/voices/:slug" element={<ContributorPage />} />
+
               {import.meta.env.DEV && VisualAskFixture && (
                 <Route path="/__visual/ask" element={<VisualAskFixture />} />
               )}
