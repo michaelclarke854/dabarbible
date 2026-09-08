@@ -35,6 +35,7 @@ const OutreachDashboard = lazy(() => import("./pages/admin/OutreachDashboard.tsx
 const SupportPage = lazy(() => import("./pages/Support.tsx"));
 const AuthCallback = lazy(() => import("./pages/AuthCallback.tsx"));
 const PrayerLogPage = lazy(() => import("./pages/PrayerLogPage.tsx"));
+const ContributorPage = lazy(() => import("./pages/ContributorPage.tsx"));
 
 // Dev-only visual regression fixtures (tree-shaken in production builds).
 const VisualAskFixture = import.meta.env.DEV
@@ -224,6 +225,8 @@ const App = () => (
               <Route path="/support" element={<SupportPage />} />
               <Route path="/auth/callback" element={<AuthCallback />} />
               <Route path="/prayers" element={<PrayerLogPage />} />
+              <Route path="/voices/:slug" element={<ContributorPage />} />
+
               {import.meta.env.DEV && VisualAskFixture && (
                 <Route path="/__visual/ask" element={<VisualAskFixture />} />
               )}
@@ -255,7 +258,10 @@ const App = () => (
                 <Route path="/__visual/gate/subscribed" element={<SubscribedUserUnlockedNavFixture />} />
               )}
               {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
+              {/* Co-branded contributor pages: dabarbible.com/pastor-name (falls back to 404) */}
+              <Route path="/:slug" element={<ContributorPage />} />
               <Route path="*" element={<NotFound />} />
+
             </Routes>
           </Suspense>
           </div>
