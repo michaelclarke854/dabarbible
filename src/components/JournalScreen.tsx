@@ -325,7 +325,7 @@ const JournalScreen = ({
                 type="button"
                 onClick={() => {
                   if (!hasFullAccess) {
-                    toast.info("The printable KJV-certified journal is a paid feature.");
+                    toast.info("The printable KJV journal is a paid feature.");
                     onUpgrade?.();
                     return;
                   }
@@ -341,7 +341,7 @@ const JournalScreen = ({
                   }
                 }}
                 className="inline-flex items-center gap-1.5 font-body text-xs tracking-wide text-gold hover:text-gold/80 transition-colors"
-                aria-label="Export KJV-certified journal to PDF"
+                aria-label="Export KJV journal to PDF"
               >
                 <Download size={12} />
                 {hasFullAccess ? "Export PDF" : "Export PDF · Paid"}

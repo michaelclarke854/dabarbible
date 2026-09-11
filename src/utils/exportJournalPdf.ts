@@ -1,5 +1,5 @@
 const CERTIFICATION_STATEMENT =
-  "Every verse verified against the 1769 Cambridge KJV.";
+  "Scripture is quoted from the public-domain King James Version (1769).";
 
 import jsPDF from "jspdf";
 
@@ -49,7 +49,7 @@ export function exportJournalToPdf({ entries, searchTerm }: ExportOptions): void
     }
   };
 
-  // ── Certified cover page ──
+  // ── Cover page ──
   doc.setDrawColor(196, 151, 58);
   doc.setLineWidth(1);
   doc.rect(margin - 18, margin - 28, maxWidth + 36, pageHeight - margin * 2 + 56);
@@ -71,7 +71,7 @@ export function exportJournalToPdf({ entries, searchTerm }: ExportOptions): void
   doc.line(pageWidth / 2 - 70, y, pageWidth / 2 + 70, y);
   y += 40;
 
-  // Certification seal
+  // Scripture source mark
   doc.setDrawColor(196, 151, 58);
   doc.setLineWidth(0.8);
   doc.circle(pageWidth / 2, y + 26, 30);
@@ -79,28 +79,18 @@ export function exportJournalToPdf({ entries, searchTerm }: ExportOptions): void
   doc.setFontSize(8);
   doc.setTextColor(160, 120, 50);
   doc.text("KJV", pageWidth / 2, y + 22, { align: "center" });
-  doc.text("CERTIFIED", pageWidth / 2, y + 33, { align: "center" });
+  doc.text("1769", pageWidth / 2, y + 33, { align: "center" });
   y += 86;
 
   doc.setFont("helvetica", "normal");
   doc.setFontSize(9);
   doc.setTextColor(160, 120, 50);
-  doc.text("KJV INTEGRITY CERTIFIED", pageWidth / 2, y, { align: "center" });
+  doc.text("KING JAMES VERSION", pageWidth / 2, y, { align: "center" });
   y += 18;
   doc.setFont("times", "italic");
   doc.setFontSize(11);
   doc.setTextColor(70);
   doc.text(CERTIFICATION_STATEMENT, pageWidth / 2, y, { align: "center" });
-  y += 16;
-  doc.setFont("helvetica", "normal");
-  doc.setFontSize(9);
-  doc.setTextColor(120);
-  doc.text(
-    "No paraphrase. No substituted translation. No AI-invented scripture.",
-    pageWidth / 2,
-    y,
-    { align: "center" },
-  );
   y += 30;
   doc.setFontSize(9);
   doc.setTextColor(140);
