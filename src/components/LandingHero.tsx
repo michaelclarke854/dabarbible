@@ -136,7 +136,7 @@ export function LandingHero({ onSeekWisdom, isLoading, onSignIn }: LandingHeroPr
   const faqs = [
     {
       q: "Is Dabar Bible free?",
-      a: "Yes. Dabar is free for 30 days with no card required, then $4.99/month for unlimited spiritual questions, daily devotionals, and scripture search.",
+      a: "Yes. Dabar is free for 30 days with no card required, then $6.99/month for unlimited spiritual questions, daily devotionals, and scripture search.",
     },
     {
       q: "Which Bible translation does Dabar use?",
@@ -144,15 +144,11 @@ export function LandingHero({ onSeekWisdom, isLoading, onSignIn }: LandingHeroPr
     },
     {
       q: "How is Dabar different from YouVersion or Bible Gateway?",
-      a: "Dabar is the only Bible app with a built-in AI companion — ask any spiritual question and receive a scripture-grounded answer, not just a verse list.",
+      a: "Dabar lets you ask spiritual questions and receive reflective answers grounded in KJV scripture, rather than only presenting a verse list.",
     },
     {
       q: "Does Dabar offer a daily devotional?",
       a: "Yes. Dabar delivers a fresh daily devotional shaped by your questions, spiritual season, and KJV scripture journey.",
-    },
-    {
-      q: "Can I use Dabar for a Bible reading plan?",
-      a: "Yes. Dabar supports structured KJV Bible reading plans to guide you systematically through scripture.",
     },
   ];
 
@@ -188,8 +184,8 @@ export function LandingHero({ onSeekWisdom, isLoading, onSignIn }: LandingHeroPr
       )}
       <SEO
         title="Dabar Bible — Ask the Bible Anything | AI Devotionals & Scripture Search"
-        description="The first AI Bible companion. Ask any spiritual question, get scripture-backed answers, explore daily devotionals, KJV Bible reading plans, and personalized wisdom — powered by AI."
-        keywords="bible app, free bible, ask the bible, AI bible study, daily devotional, bible reading plan, KJV bible, online bible, bible verses, scripture search, Christian devotional app"
+        description="Ask spiritual questions, receive scripture-grounded answers, and explore daily devotionals and personalized wisdom rooted in the KJV."
+        keywords="bible app, free bible, ask the bible, AI bible study, daily devotional, KJV bible, online bible, bible verses, scripture search, Christian devotional app"
         canonical="https://dabarbible.com"
         structuredData={{
           "@context": "https://schema.org",
@@ -280,7 +276,7 @@ export function LandingHero({ onSeekWisdom, isLoading, onSignIn }: LandingHeroPr
         className="font-body text-muted-foreground/50 mt-2 text-center"
         style={{ fontSize: "10px", letterSpacing: "0.04em" }}
       >
-        Free for 30 days · $4.99/month after · Cancel anytime
+        Free for 30 days · $6.99/month after · Cancel anytime
       </motion.p>
 
       <div className="w-12 h-px bg-gold my-6" />
@@ -534,35 +530,6 @@ function LandingSections({ onFocusAsk }: { onFocusAsk: () => void }) {
 
       <GoldDivider />
 
-      {/* ── Testimonial ─────────────────────────────────────── */}
-      <FadeSection className="px-2 py-8">
-        <div className="max-w-md mx-auto flex flex-col gap-8">
-          <p className="font-body text-gold text-xs tracking-[0.3em] uppercase text-center">
-            A Sample of the Journey
-          </p>
-          <figure className="bg-gold/[0.08] border border-gold/25 rounded-sm p-6 flex flex-col gap-4">
-            <blockquote className="scripture-italic text-foreground text-xl leading-relaxed">
-              "Dabar gave me back the Bible. I had been a Christian for 20 years and never
-              felt like I truly understood what I was reading — until I started asking it questions."
-            </blockquote>
-            <figcaption className="flex items-center gap-3 mt-2">
-              <div
-                aria-hidden="true"
-                className="w-8 h-8 rounded-full bg-gold/20 flex items-center justify-center font-body text-gold text-sm font-semibold"
-              >
-                T
-              </div>
-              <div>
-                <p className="font-body text-foreground text-sm font-semibold">Tanya M.</p>
-                <p className="font-body text-foreground/40 text-xs">Member since 2024</p>
-              </div>
-            </figcaption>
-          </figure>
-        </div>
-      </FadeSection>
-
-      <GoldDivider />
-
       {/* ── CTA — focuses the inline ask above ───────────────── */}
       <FadeSection className="px-2 py-10">
         <div className="max-w-md mx-auto flex flex-col items-center gap-6 text-center">
@@ -570,7 +537,7 @@ function LandingSections({ onFocusAsk }: { onFocusAsk: () => void }) {
             Start your free<br />daily devotional.
           </h2>
           <p className="font-body text-foreground/60 text-sm leading-relaxed max-w-xs">
-            Join thousands of believers who start each morning with a living word.
+            Begin each morning with a living word.
             Free to begin. No credit card required.
           </p>
           <div className="flex items-center gap-2 text-gold/70">
