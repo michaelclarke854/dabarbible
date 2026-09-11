@@ -1,5 +1,5 @@
 const CERTIFICATION_STATEMENT =
-  "Every verse verified against the 1769 Cambridge KJV.";
+  "Scripture is quoted from the public-domain King James Version (1769).";
 
 import jsPDF from "jspdf";
 
