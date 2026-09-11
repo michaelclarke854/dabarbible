@@ -38,6 +38,37 @@ Deno.serve(async (req) => {
     const { count: ww } = await supabase.from("wisdom_sessions").select("*", { count: "exact", head: true }).gte("created_at", weekAgo);
     const activeSubs = subs.count ?? 0;
 
+    // Real paying-customer figures. The subscriptions query above already
+    // filters to status='active'; here we fetch the full rows to classify
+    // them as PAID (excluding free plans, trials, the reviewer account, and
+    // sandbox/test environments).
+    const { data: subRows, error: subErr } = await supabase
+      .from("subscriptions")
+      .select("user_id, plan_type, tier, provider, environment, status")
+      .eq("status", "active");
+    if (subErr) throw subErr;
+
+    const isPaidRow = (r: {
+      plan_type: string | null;
+      provider: string | null;
+      environment: string | null;
+    }) =>
+      r.plan_type !== "free" &&
+      r.plan_type !== "trial" &&
+      r.provider !== "reviewer" &&
+      (r.environment === null || !["sandbox", "test"].includes(r.environment));
+
+    const payingUserIds = new Set<string>();
+    for (const r of subRows ?? []) {
+      if (isPaidRow(r) && r.user_id) payingUserIds.add(r.user_id as string);
+    }
+    const payingCustomers = payingUserIds.size;
+
+    const { count: trialsActive } = await supabase
+      .from("profiles")
+      .select("*", { count: "exact", head: true })
+      .gt("trial_ends_at", new Date().toISOString());
+
     // Bounce rate for today: a session bounced if it viewed only one screen
     // OR lasted under 10 seconds. Read from public.app_sessions.
     let bounceRate: number | null = null;
@@ -74,9 +105,12 @@ Deno.serve(async (req) => {
         subscribed: activeSubs,
       },
       revenue: {
-        mrr_cents: activeSubs * 999,
-        mrr_dollars: parseFloat((activeSubs * 9.99).toFixed(2)),
+        contract: "b2c-v1",
+        paying_customers: payingCustomers,
+        trials_active: trialsActive ?? 0,
+        mrr_cents: null,
         active_subs: activeSubs,
+        definition: "paying_customers = distinct users with an active subscription whose plan_type is not free/trial, provider is not reviewer, environment not sandbox/test; mrr_cents is null because per-subscription price is not stored",
       },
       engagement: {
         total_wisdom_sessions: ws.count ?? 0,
