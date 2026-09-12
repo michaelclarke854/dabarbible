@@ -98,6 +98,8 @@ export default function Paywall({ onClose }: PaywallProps) {
     }
   };
 
+  const hasPackages = !loading && !!offering && offering.availablePackages.length > 0;
+
   const fadeIn = prefersReducedMotion
     ? { initial: false, animate: { opacity: 1 } }
     : { initial: { opacity: 0, y: 8 }, animate: { opacity: 1, y: 0 }, transition: { duration: 0.4, ease: "easeOut" as const } };
@@ -111,7 +113,9 @@ export default function Paywall({ onClose }: PaywallProps) {
             Unlimited scripture reflection
           </h1>
           <p className="font-body text-sm text-muted-foreground leading-relaxed">
-            You've reached today's free reflections. Subscribe to continue without limits.
+            {hasPackages
+              ? "You've reached today's free reflections. Subscribe to continue without limits."
+              : "You've reached today's free reflections."}
           </p>
         </header>
 
@@ -165,11 +169,14 @@ export default function Paywall({ onClose }: PaywallProps) {
         </section>
 
         <footer className="pt-8 pb-2 space-y-4">
-          <p className="font-body text-[11px] leading-relaxed text-muted-foreground text-center px-2">
-            Auto-renewing subscription. Your subscription renews automatically at the price and
-            billing period shown above unless cancelled at least 24 hours before the end of the
-            current period. Manage or cancel anytime in your Apple ID settings.
-          </p>
+          {hasPackages && (
+            <p className="font-body text-[11px] leading-relaxed text-muted-foreground text-center px-2">
+              Auto-renewing subscription. Your subscription renews automatically at the price and
+              billing period shown above unless cancelled at least 24 hours before the end of the
+              current period. Manage or cancel anytime in your Apple ID settings.
+            </p>
+          )}
+
 
           <div className="flex items-center justify-center gap-6 text-xs font-body">
             <Link to="/terms" className="text-gold hover:underline min-h-[44px] flex items-center">
