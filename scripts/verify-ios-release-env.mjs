@@ -43,7 +43,15 @@ if (revenueCatKey && !/^appl_[A-Za-z0-9_-]+$/.test(revenueCatKey)) {
   process.exit(1);
 }
 
+const isCI = process.env.CI === "true";
+
 if (!revenueCatKey) {
+  if (isCI) {
+    console.error(
+      "VITE_REVENUECAT_IOS_KEY is missing or empty. This is the iOS public SDK key from RevenueCat (starts with appl_), supplied as a GitHub Actions secret named VITE_REVENUECAT_IOS_KEY. A release build without it ships silently as free-access, which is not allowed in CI.",
+    );
+    process.exit(1);
+  }
   console.log("iOS release environment verified. Paid subscriptions are disabled in this iOS build.");
 } else {
   console.log("iOS release environment verified with RevenueCat iOS key.");

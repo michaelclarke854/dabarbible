@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { motion } from "framer-motion";
 import { toast } from "sonner";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { rcGetCurrentOffering, rcPurchasePackage, rcRestore } from "@/lib/revenuecat";
 
@@ -49,12 +49,14 @@ function formatPeriod(period?: string, packageType?: string): string {
 
 export default function Paywall({ onClose }: PaywallProps) {
   const { refreshEntitlement } = useAuth();
+  const navigate = useNavigate();
   const [offering, setOffering] = useState<RcOffering | null>(null);
   const [loading, setLoading] = useState(true);
   const [purchasingId, setPurchasingId] = useState<string | null>(null);
   const [restoring, setRestoring] = useState(false);
   const prefersReducedMotion = typeof window !== "undefined"
     && window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
+  const dismiss = onClose ?? (() => navigate("/"));
 
   useEffect(() => {
     let cancelled = false;
@@ -121,9 +123,12 @@ export default function Paywall({ onClose }: PaywallProps) {
           )}
 
           {!loading && (!offering || offering.availablePackages.length === 0) && (
-            <div className="text-center py-8">
-              <p className="font-body text-sm text-muted-foreground">
-                Subscriptions aren't available right now. Please try again later.
+            <div className="text-center py-8 px-2">
+              <p className="font-serif text-lg text-foreground leading-snug mb-2">
+                In-app subscriptions aren't available in this version
+              </p>
+              <p className="font-body text-sm text-muted-foreground leading-relaxed">
+                Your access continues on the free tier: three reflections per day, resetting daily.
               </p>
             </div>
           )}
@@ -183,14 +188,12 @@ export default function Paywall({ onClose }: PaywallProps) {
             >
               {restoring ? "Restoring…" : "Restore Purchases"}
             </button>
-            {onClose && (
-              <button
-                onClick={onClose}
-                className="min-h-[44px] w-full font-body text-xs tracking-widest uppercase text-muted-foreground hover:text-foreground transition-colors"
-              >
-                Not now
-              </button>
-            )}
+            <button
+              onClick={dismiss}
+              className="min-h-[44px] w-full font-body text-xs tracking-widest uppercase text-muted-foreground hover:text-foreground transition-colors"
+            >
+              Not now
+            </button>
           </div>
         </footer>
       </motion.div>
