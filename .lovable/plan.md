@@ -1,115 +1,37 @@
-# Pastoral Outreach Email Copy Refresh
+# Public KJV passage and question pages
 
-## Goal
+Two new public routes that search visitors can land on, each ending in the existing guest "ask the Bible anything" flow.
 
-Rewrite the three cold-outreach templates in `supabase/functions/pastoral-outreach/index.ts` so the first sentence and the value proposition name the actual DABAR differentiator: the unified voice of prophets, disciples, and Jesus answering a specific question, grounded in KJV scripture. Keep the same honest, low-pressure tone because the sender is a founder, not a marketer, and the recipients are clergy.
+## What gets built
 
-## Current templates and the gaps
+**1. Scripture pages — `/scripture/:book/:chapter`**
+- Full KJV 1769 chapter text, fetched through the existing scripture fetch path (KJV only).
+- Chapter title, previous/next chapter links, and a link back to the book list.
+- Launch set: Psalms 1–150 (hand-checked, listed in the sitemap). Other valid KJV books/chapters still render if visited, but only Psalms is submitted for indexing at first.
 
-| Template | Current subject | Current lead | Gap |
-|---|---|---|---|
-| `initial_outreach` | "Free tool for your congregation's scripture reflection — honest ask" | "a scripture reflection app that helps people bring their hardest questions to the Bible and receive responses grounded in the Word" | Never names the unified-voice mechanism or the specific question/answer format. Could describe YouVersion, a devotional app, or any Bible-study tool. |
-| `follow_up_1` | "Re: DABAR — quick follow-up" | Adds the pastor dashboard / themes | Good, but assumes the first email landed. Should briefly restate the differentiated hook for pastors who skim. |
-| `follow_up_2` | "DABAR — last note" | Soft close | Fine structurally, but misses a final chance to state the unique benefit in one line. |
+**2. Question pages — `/questions/:slug`**
+- ~20 hand-written question pages matching what people actually search ("what does the Bible say about anxiety", grief, fear, loneliness, forgiveness, purpose, doubt, money worry, waiting on God, and so on).
+- Each page: the question as the single H1, 4–6 KJV passages quoted in full with references, and short reflection framing in the product's existing voice. All copy is hand-written — no generated text on the page, no invented numbers, ratings or testimonials.
+- Each question page links to the scripture chapters it quotes, and to related questions.
 
-## What we'll change
+**3. Mandatory safety block on every public page**
+A shared block rendered at the foot of every scripture and question page, because a search visitor arrives with no onboarding:
+- Crisis routing: call or text **988** (Suicide & Crisis Lifeline), text **HOME to 741741** (Crisis Text Line), as real `tel:`/`sms:` links.
+- Framing: this is not pastoral counsel, and not medical, legal or financial advice.
+- Note that scripture is quoted from the public-domain King James Version (1769), reusing the existing KJV badge.
 
-### 1. `initial_outreach`
+**4. Activation**
+Each page ends with one warm invitation that hands off to the existing guest ask flow on the home screen with the question pre-filled — the same `guest_question_asked` path guests already use, and the same guarded `seek-wisdom` pipeline. No new ask entry point, no second pipeline. No countdowns, no urgency, no "last chance".
 
-Lead with the product mechanism, not the category. Proposed arc:
+**5. Discovery**
+- `public/sitemap.xml` and the `dabar-sitemap` function gain the Psalms chapters and the question slugs.
+- Question pages are linked from the existing articles footer area so they are crawlable from anywhere on the site.
 
-1. One-sentence mechanism statement: DABAR answers a specific question in the unified voice of the prophets, disciples, and Jesus, grounded in KJV scripture. (Not "a Bible app.")
-2. The ask: 5 minutes, ask it a question you'd expect from your flock, then tell me if it's theologically trustworthy enough to recommend.
-3. Optional congregation offer: free access + pastor dashboard showing themes, not individual questions.
-4. Links: app, doctrinal statement, unsubscribe.
-5. Signature: Mike Clarke, Founder, DABAR, mike@dabarbible.com.
+## Technical notes
 
-Subject line options to test (keep one):
-
-- "A question-answering tool for your flock, grounded in KJV scripture — honest ask"
-- "Not a Bible-reading app — a tool that answers questions in the voice of scripture"
-
-Recommendation: use the first subject because it is concrete and avoids negation; keep the second as a fallback if open rates are low.
-
-### 2. `follow_up_1`
-
-Keep the pastor-dashboard detail, but add one sentence at the top that re-anchors the differentiated value: e.g., "The response your congregant gets is not a reading plan or a verse-of-the-day; it's a single answer shaped from the prophets, disciples, and Jesus, with KJV scripture quoted in full." Then the dashboard paragraph. Keep the soft opt-out.
-
-### 3. `follow_up_2`
-
-Keep the final-note framing. Add one short closing line: "If you ever want to revisit, DABAR is at dabarbible.com — a place to bring one hard question and hear the unified voice of scripture answer it." Then doctrinal link and sign-off.
-
-## Static vs. dynamic: recommendation
-
-### Keep it static, but with verified-variable insertion only.
-
-Reasoning:
-
-- **Fabrication risk is real.** A pastor receiving an email that claims something false about their church, city, or congregation is a credibility destroyer. AI can easily hallucinate a denomination stance, a recent sermon theme, or a local event.
-- **Volume is small.** The function only contacts leads in `pastoral_leads` and caps at 20 per run. Manual review is feasible if volume grows, we can add a human approval queue later.
-- **Clergy have low tolerance for synthetic tone.** A generic AI-cold email is recognizable and damages the "honest ask" positioning.
-- **What we can safely personalize** is only the fields already captured in `pastoral_leads` and verified by a human: `name`, `church_name`, `city`, `state`, `denomination`, `church_size`. These can be interpolated into the static templates, e.g., "Hi {name}," or "I noticed {church_name} is in {city}."
-
-### Optional future path: AI-assisted drafting with mandatory human approval.
-
-If the user later wants more personalization, the safe architecture is:
-
-- AI generates a draft from a strict prompt that explicitly forbids inventing facts.
-- The draft is stored in a `pending_outreach_drafts` table.
-- A human approves each draft before the `run_cadence` action sends it.
-- Out of scope for this plan.
-
-## Implementation approach
-
-### Option A (recommended): rewrite the existing string literals in place.
-
-- Edit `supabase/functions/pastoral-outreach/index.ts` only.
-- Keep the `EMAIL_TEMPLATES` object structure.
-- Interpolate only verified `Lead` fields (`name`, `church_name`, `city`, `state`, `denomination`, `church_size`).
-- No new dependencies or tables.
-- Deploy the function.
-- Send a test via the admin "Run cadence now" button or a direct function invocation with a test lead first.
-
-### Option B (longer-term hygiene): move templates to the `email_templates` table.
-
-- The project already uses `email_templates` for `send-pastoral-approval`.
-- Pros: non-engineers can edit copy, versioned in the DB, consistent with existing pastoral email flow.
-- Cons: adds a migration + DB read on every send, requires a small refactor of the cadence loop, and needs a manual row insert for each template before deployment.
-- Recommendation: defer unless the user wants marketing to own copy going forward.
-
-### Styling note (optional)
-
-The current templates are bare HTML `<p>` tags. The auth emails and pastoral approval email use the DABAR brand (parchment, gold, Cinzel). For consistency, we could optionally convert the outreach templates to the same React Email components or at least add inline brand styles. This is a polish step, not required for the copy rewrite.
-
-## Risks and mitigations
-
-| Risk | Mitigation |
-|---|---|
-| Fabrication about a pastor's church | Use static copy + only verified fields. No AI generation in this phase. |
-| Subject line hurts deliverability | Keep subject under 60 chars, no spammy words, include "honest ask" or founder framing. Test one variant at a time. |
-| Tone becomes too salesy | Preserve the founder-to-pastor voice: short sentences, one ask, explicit opt-out. |
-| Theological claim oversteps | Avoid saying DABAR "teaches" or "preaches"; keep it as "a reflection tool" and link to the doctrinal statement. |
-| Spam/ unsubscribe complaints | The templates already include an unsubscribe link and a reason for contact. Keep both. |
-| Brand mismatch | Align the new copy with the in-app system prompt: "unified voice of biblical wisdom — prophets, disciples, and Jesus." |
-
-## Validation
-
-1. Read the new templates aloud to confirm they sound like Mike Clarke, not marketing copy.
-2. Run the function against a test lead with a real email address the team owns.
-3. Check deliverability/rendering in Gmail and Outlook.
-4. After the first batch of ~20 real pastors, check the reply rate and adjust the subject line if reply rate drops.
-
-## Out of scope
-
-- Adding AI-generated per-lead personalization in this phase.
-- Moving templates to `email_templates` table or React Email unless explicitly requested.
-- Changing the cadence timing (7 days between sends), the `run_cadence` logic, or the lead status machine.
-- Modifying the unsubscribe flow or the public `unsubscribe` action.
-
-## Files I would touch
-
-```text
-supabase/functions/pastoral-outreach/index.ts   (template strings only)
-```
-
-No other files unless we choose Option B (table-backed templates) or the optional styling pass.
+- Routes added in `src/App.tsx` above the `/:slug` contributor catch-all: `/scripture/:book/:chapter` and `/questions/:slug`.
+- New files: `src/pages/ScripturePage.tsx`, `src/pages/QuestionPage.tsx`, `src/data/questionPages.ts` (hand-written content), `src/components/PublicSafetyFooter.tsx`.
+- Scripture text comes from the existing `fetchScripture` + `bible-proxy` path with `kjv` fixed; no other translation is reachable from these routes.
+- Per-page `<title>`, meta description, canonical and JSON-LD via the existing `SEO`/Helmet setup.
+- One small change in `src/pages/Index.tsx`: read a `?q=` parameter on arrival and pre-fill the guest ask box with it. Nothing else in the ask, trial, journal, auth, billing or pricing logic changes.
+- Honest limitation: this app is a client-rendered single-page app, so these pages are not server-rendered. Google renders JavaScript and will index them, but other crawlers and social previews see less. True server rendering would need the TanStack Start upgrade — [what the upgrade gives you](https://lovable.dev/blog/building-apps-using-tanstack-start) — say the word and I can look at that separately.
