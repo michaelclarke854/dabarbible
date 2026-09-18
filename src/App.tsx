@@ -36,6 +36,8 @@ const SupportPage = lazy(() => import("./pages/Support.tsx"));
 const AuthCallback = lazy(() => import("./pages/AuthCallback.tsx"));
 const PrayerLogPage = lazy(() => import("./pages/PrayerLogPage.tsx"));
 const ContributorPage = lazy(() => import("./pages/ContributorPage.tsx"));
+const ScripturePage = lazy(() => import("./pages/ScripturePage.tsx"));
+const QuestionPage = lazy(() => import("./pages/QuestionPage.tsx"));
 
 // Dev-only visual regression fixtures (tree-shaken in production builds).
 const VisualAskFixture = import.meta.env.DEV
@@ -226,6 +228,8 @@ const App = () => (
               <Route path="/auth/callback" element={<AuthCallback />} />
               <Route path="/prayers" element={<PrayerLogPage />} />
               <Route path="/voices/:slug" element={<ContributorPage />} />
+              <Route path="/scripture/:book/:chapter" element={<ScripturePage />} />
+              <Route path="/questions/:slug" element={<QuestionPage />} />
 
               {import.meta.env.DEV && VisualAskFixture && (
                 <Route path="/__visual/ask" element={<VisualAskFixture />} />
