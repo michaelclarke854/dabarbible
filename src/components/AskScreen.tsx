@@ -15,6 +15,8 @@ interface AskScreenProps {
   guestLimit?: number;
   onScriptureRef?: (ref: string) => void;
   onBackToResponse?: () => void;
+  /** Pre-fills the box (used by ?q= arrivals from public scripture pages). */
+  initialQuestion?: string;
 }
 
 const SOUL_PROMPTS = [
