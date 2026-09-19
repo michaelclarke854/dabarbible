@@ -162,6 +162,16 @@ const Index = () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  // Arrivals from the public scripture / question pages carry ?q=… so the
+  // existing guest ask box opens pre-filled with their question.
+  const [prefillQuestion] = useState(() => searchParams.get("q") ?? "");
+  useEffect(() => {
+    if (!prefillQuestion) return;
+    const url = new URL(window.location.href);
+    url.searchParams.delete("q");
+    window.history.replaceState({}, "", url.pathname + url.search + url.hash);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // Fires once per mount when an unauthenticated visitor lands on the ask tab.
   useEffect(() => {
@@ -935,6 +945,7 @@ const Index = () => {
                 <GuestPromptCard onReflect={(p) => seekWisdom(p)} />
 
                 <AskScreen
+                  initialQuestion={prefillQuestion}
                   onSeekWisdom={seekWisdom}
                   isLoading={isLoading}
                   guestQuestionsUsed={!user ? getGuestQuestionsUsed() : undefined}
