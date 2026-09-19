@@ -45,8 +45,8 @@ const isCapacitor =
   !!(window as any).Capacitor?.isNativePlatform?.();
 const isDev = (import.meta as any)?.env?.DEV || false;
 
-const AskScreen = forwardRef<HTMLDivElement, AskScreenProps>(({ onSeekWisdom, isLoading, guestQuestionsUsed, guestLimit, onScriptureRef, onBackToResponse }, ref) => {
-  const [question, setQuestion] = useState("");
+const AskScreen = forwardRef<HTMLDivElement, AskScreenProps>(({ onSeekWisdom, isLoading, guestQuestionsUsed, guestLimit, onScriptureRef, onBackToResponse, initialQuestion }, ref) => {
+  const [question, setQuestion] = useState(initialQuestion ?? "");
   const [scriptureHint, setScriptureHint] = useState<ScriptureParseResult | null>(null);
   const [promptIndex, setPromptIndex] = useState(() =>
     Math.floor(Math.random() * SOUL_PROMPTS.length)

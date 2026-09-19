@@ -945,6 +945,7 @@ const Index = () => {
                 <GuestPromptCard onReflect={(p) => seekWisdom(p)} />
 
                 <AskScreen
+                  initialQuestion={prefillQuestion}
                   onSeekWisdom={seekWisdom}
                   isLoading={isLoading}
                   guestQuestionsUsed={!user ? getGuestQuestionsUsed() : undefined}
