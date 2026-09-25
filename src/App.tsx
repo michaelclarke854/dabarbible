@@ -38,6 +38,7 @@ const PrayerLogPage = lazy(() => import("./pages/PrayerLogPage.tsx"));
 const ContributorPage = lazy(() => import("./pages/ContributorPage.tsx"));
 const ScripturePage = lazy(() => import("./pages/ScripturePage.tsx"));
 const QuestionPage = lazy(() => import("./pages/QuestionPage.tsx"));
+const MuseConnectorPage = lazy(() => import("./pages/MuseConnectorPage.tsx"));
 
 // Dev-only visual regression fixtures (tree-shaken in production builds).
 const VisualAskFixture = import.meta.env.DEV
@@ -230,6 +231,7 @@ const App = () => (
               <Route path="/voices/:slug" element={<ContributorPage />} />
               <Route path="/scripture/:book/:chapter" element={<ScripturePage />} />
               <Route path="/questions/:slug" element={<QuestionPage />} />
+              <Route path="/muse" element={<MuseConnectorPage />} />
 
               {import.meta.env.DEV && VisualAskFixture && (
                 <Route path="/__visual/ask" element={<VisualAskFixture />} />
