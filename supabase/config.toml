@@ -61,4 +61,6 @@ project_id = "crkkimoblnrxpszehmkg"
     verify_jwt = false
   [functions.reflection-recall]
     verify_jwt = false
+  [functions.muse-verses]
+    verify_jwt = false
 
