@@ -14,7 +14,7 @@ const PrivacyPage = () => {
 
     <h1 className="font-serif text-3xl text-foreground tracking-wide mb-2">Privacy Policy</h1>
     <p className="font-body text-xs text-muted-foreground uppercase tracking-wider mb-8">
-      Last updated: April 2026
+      Last updated: September 25, 2026
     </p>
     <div className="w-12 h-px bg-gold mb-8" />
 
@@ -82,6 +82,17 @@ const PrivacyPage = () => {
             </a>.
           </p>
         )}
+      </section>
+
+      <section>
+        <h2 className="font-serif text-lg text-foreground tracking-wide mb-3">DaBarBible Connector for Muse</h2>
+        <p>
+          If you ask Meta's Muse AI agent for a Bible verse through the DaBarBible connector, Muse sends us only the
+          theme you asked for (for example, 'hope'). We do not receive your name, account, messages or any other
+          personal information through the connector. We record only the theme and the time of each request to count
+          usage. Muse's own handling of your conversations is governed by Meta's Muse Privacy Policy. Technical details:
+          <a href="/muse" className="text-gold hover:underline">dabarbible.com/muse</a>.
+        </p>
       </section>
 
       <section>
