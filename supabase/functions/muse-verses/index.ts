@@ -1,5 +1,6 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-import dailyVerses from "../daily-verse/daily-verses.json" with { type: "json" };
+import dailyVerses from "./daily-verses.json" with { type: "json" };
+// Mirror of daily-verse/daily-verses.json (functions cannot import across folders). Only `ref` is used.
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const ANON_KEY = Deno.env.get("SUPABASE_ANON_KEY")!;
