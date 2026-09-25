@@ -820,6 +820,42 @@ export type Database = {
         }
         Relationships: []
       }
+      muse_connector_settings: {
+        Row: {
+          enabled: boolean
+          id: number
+          updated_at: string | null
+        }
+        Insert: {
+          enabled?: boolean
+          id?: number
+          updated_at?: string | null
+        }
+        Update: {
+          enabled?: boolean
+          id?: number
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
+      muse_verse_calls: {
+        Row: {
+          called_at: string
+          id: number
+          theme: string | null
+        }
+        Insert: {
+          called_at?: string
+          id?: number
+          theme?: string | null
+        }
+        Update: {
+          called_at?: string
+          id?: number
+          theme?: string | null
+        }
+        Relationships: []
+      }
       onboarding_intent: {
         Row: {
           created_at: string | null
