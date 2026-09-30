@@ -1,3 +1,4 @@
+import { GUEST_LIMIT, GUEST_STORAGE_KEY, getGuestQuestionsUsed } from "@/lib/guestQuota";
 import { useState, useEffect, useCallback, useRef, lazy, Suspense } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
@@ -48,14 +49,10 @@ const NativeDailyPractice = lazy(() => import("@/components/NativeDailyPractice"
 type Tab = "ask" | "scripture" | "history" | "journal";
 type Screen = "ask" | "response";
 
-const GUEST_LIMIT = 3;
 const FREE_DAILY_LIMIT = 3;
-const STORAGE_KEY = "dabar-questions-used";
+const STORAGE_KEY = GUEST_STORAGE_KEY;
 const ONBOARDING_KEY = "dabar-onboarded";
 
-const getGuestQuestionsUsed = (): number => {
-  try { return parseInt(localStorage.getItem(STORAGE_KEY) || "0", 10); } catch { return 0; }
-};
 const incrementGuestQuestions = () => {
   try { localStorage.setItem(STORAGE_KEY, String(getGuestQuestionsUsed() + 1)); } catch {}
 };
