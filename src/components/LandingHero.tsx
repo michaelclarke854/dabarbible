@@ -55,6 +55,7 @@ export function LandingHero({ onSeekWisdom, isLoading, onSignIn }: LandingHeroPr
   const shouldReduceMotion = useReducedMotion();
   const inputRef = useRef<HTMLTextAreaElement | null>(null);
   const [question, setQuestion] = useState("");
+  const [emptyHint, setEmptyHint] = useState(false);
   const [searchParams] = useSearchParams();
   const landingContext = searchParams.get("context");
   const isGrief = landingContext === "grief";
@@ -119,7 +120,13 @@ export function LandingHero({ onSeekWisdom, isLoading, onSignIn }: LandingHeroPr
 
   const handleSubmit = () => {
     const trimmed = question.trim();
-    if (!trimmed || isLoading) return;
+    if (isLoading) return;
+    if (!trimmed) {
+      setEmptyHint(true);
+      inputRef.current?.focus();
+      return;
+    }
+    setEmptyHint(false);
     trackEvent("landing_hero_cta_clicked", {
       screen: "landing_hero",
       metadata: { used_chip: chips.includes(trimmed), question_length: trimmed.length },
@@ -343,7 +350,9 @@ export function LandingHero({ onSeekWisdom, isLoading, onSignIn }: LandingHeroPr
         <button
           type="button"
           onClick={handleSubmit}
-          disabled={!question.trim() || isLoading}
+          disabled={isLoading}
+          aria-busy={isLoading}
+          className="inline-flex items-center justify-center gap-2"
           style={{
             width: "100%",
             height: 54,
@@ -356,14 +365,27 @@ export function LandingHero({ onSeekWisdom, isLoading, onSignIn }: LandingHeroPr
             fontStyle: "italic",
             fontWeight: 500,
             letterSpacing: "0.06em",
-            cursor: !question.trim() || isLoading ? "not-allowed" : "pointer",
-            opacity: !question.trim() || isLoading ? 0.4 : 1,
+            cursor: isLoading ? "not-allowed" : "pointer",
+            opacity: isLoading ? 0.7 : !question.trim() ? 0.75 : 1,
             transition: "all 0.3s ease",
             animation: !question.trim() && !isLoading ? "dabar-pulse-cta 3s ease-in-out infinite" : "none",
           }}
         >
+          {isLoading && (
+            <span className="inline-block w-4 h-4 border-2 border-current border-t-transparent rounded-full animate-spin" aria-hidden="true" />
+          )}
           {isLoading ? "Seeking…" : "Seek Wisdom"}
         </button>
+        {emptyHint && !question.trim() && (
+          <p className="mt-3 text-xs font-body text-gold text-center" role="status">
+            Write a question first, or tap one of the suggestions above.
+          </p>
+        )}
+        {isLoading && (
+          <p className="mt-3 text-center font-['Cormorant_Garamond'] italic text-gold" role="status" aria-live="polite">
+            Dabar is listening…
+          </p>
+        )}
 
         <TrustStrip />
 
@@ -377,8 +399,11 @@ export function LandingHero({ onSeekWisdom, isLoading, onSignIn }: LandingHeroPr
             not pastoral counsel
           </Link>
         </p>
-        <p className="font-body text-xs text-muted-foreground mt-1 text-center tracking-wide">
-          Free · No card required
+        <p className="font-body text-xs text-muted-foreground mt-2 text-center tracking-wide">
+          Guest: 0 of 3 free questions — no account needed
+        </p>
+        <p className="font-body text-xs text-gold/80 mt-1 text-center tracking-wide">
+          Want unlimited? Start a 30-day free trial — no card required.
         </p>
       </motion.div>
 
@@ -423,6 +448,10 @@ export function LandingHero({ onSeekWisdom, isLoading, onSignIn }: LandingHeroPr
         <span className="text-muted-foreground/30" aria-hidden="true">·</span>
         <Link to="/doctrine" className="text-muted-foreground hover:text-gold transition-colors">
           Our Beliefs
+        </Link>
+        <span className="text-muted-foreground/30" aria-hidden="true">·</span>
+        <Link to="/about" className="text-muted-foreground hover:text-gold transition-colors">
+          About
         </Link>
         <span className="text-muted-foreground/30" aria-hidden="true">·</span>
         <Link to="/terms" className="text-muted-foreground hover:text-gold transition-colors">

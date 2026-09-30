@@ -37,6 +37,15 @@ const THEOLOGICAL_FALSE_POSITIVES = [
   "glorified", "resurrection", "eschatology", "tribulation", "millennium",
 ];
 
+// A crisis keyword only downgrades to "watch" when the message is genuinely
+// discussing scripture. An eschatological word on its own is not enough.
+// (Ported verbatim from seek-wisdom.)
+const LAMENT_CONTEXT_SIGNALS: RegExp[] = [
+  /\bpsalm\b/i, /\blament\b/i, /\bjob \d/i, /\bscripture\b/i, /\bverse\b/i,
+  /\bbible\b/i, /\bdevotional\b/i, /\bchapter\b/i, /\bcharacter in\b/i,
+  /\bsermon\b/i, /\bstudying\b/i, /\bwhat does .{0,40}\bmean\b/i,
+];
+
 // ── Intent personalisation context (module-level constant) ──────────────────
 const INTENT_CONTEXT: Record<string, { registered: string; firstSession: string }> = {
   grief: {
@@ -70,6 +79,7 @@ interface CrisisResult {
   detected: boolean;
   severity: "crisis" | "watch" | null;
   keyword: string | null;
+  reason: string | null;
 }
 
 function detectCrisis(text: string, ageGroup: string | null): CrisisResult {
@@ -80,12 +90,34 @@ function detectCrisis(text: string, ageGroup: string | null): CrisisResult {
 
   let matchedKeyword: string | null = null;
   for (const kw of keywords) {
-    if (lower.includes(kw)) { matchedKeyword = kw; break; }
+    if (lower.includes(kw)) {
+      matchedKeyword = kw;
+      break;
+    }
   }
-  if (!matchedKeyword) return { detected: false, severity: null, keyword: null };
 
-  const hasFalsePositive = THEOLOGICAL_FALSE_POSITIVES.some(fp => lower.includes(fp));
-  return { detected: true, severity: hasFalsePositive ? "watch" : "crisis", keyword: matchedKeyword };
+  if (!matchedKeyword) return { detected: false, severity: null, keyword: null, reason: null };
+
+  // Clinical self-harm phrasing is NEVER downgraded, regardless of context.
+  const isClinical = CLINICAL_CRISIS_KEYWORDS.some(kw => lower.includes(kw));
+  if (isClinical) {
+    return { detected: true, severity: "crisis", keyword: matchedKeyword, reason: "clinical_keyword" };
+  }
+
+  // Spiritual / youth keywords may downgrade to "watch", but only when the
+  // message is genuinely discussing scripture (lament is a biblical category).
+  const scripturalFrame = LAMENT_CONTEXT_SIGNALS.some(re => re.test(lower));
+  if (scripturalFrame) {
+    const eschatological = THEOLOGICAL_FALSE_POSITIVES.some(fp => lower.includes(fp));
+    return {
+      detected: true,
+      severity: "watch",
+      keyword: matchedKeyword,
+      reason: eschatological ? "eschatological_in_scriptural_frame" : "scriptural_frame",
+    };
+  }
+
+  return { detected: true, severity: "crisis", keyword: matchedKeyword, reason: "no_downgrade_applied" };
 }
 
 const CRISIS_PROMPT_ADDENDUM = `
@@ -275,6 +307,7 @@ serve(async (req) => {
         keyword_matched: crisisResult.keyword,
         session_id: null,
         severity: crisisResult.severity,
+        severity_reason: crisisResult.reason,
       });
 
       if (crisisResult.severity === "crisis") {
@@ -528,6 +561,7 @@ async function createSession(
   try {
     const { data } = await supabase.from("wisdom_sessions").insert({
       user_id: userId || null, question, response: "", scripture_refs: scriptures,
+      ai_provider: "lovable",
     }).select("id").single();
     return (data as any)?.id || null;
   } catch (err) {

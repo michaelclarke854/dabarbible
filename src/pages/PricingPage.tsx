@@ -404,6 +404,13 @@ const PricingPage = () => {
           >
             Beliefs &amp; AI Disclosure
           </button>
+          <span className="mx-2 text-muted-foreground/40">·</span>
+          <button
+            onClick={() => navigate("/about")}
+            className="hover:text-gold transition-colors underline-offset-2 hover:underline"
+          >
+            About
+          </button>
         </p>
       </div>
 

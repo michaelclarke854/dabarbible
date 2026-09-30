@@ -1,6 +1,8 @@
 import { useState, useEffect, useCallback, useRef, lazy, Suspense } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import { AskErrorCard } from "@/components/AskErrorCard";
+import { looksLikeCrisis } from "@/lib/relatedReading";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { Flame, BookOpen, Globe, BookText, Lock, Settings, Clock, Heart } from "lucide-react";
 import AskScreen from "@/components/AskScreen";
@@ -203,6 +205,9 @@ const Index = () => {
   // Crisis check-in state — true if user just said "still struggling"
   const [crisisActive, setCrisisActive] = useState(false);
 
+  // Inline failure card for the ask flow (replaces the old bare toast)
+  const [askError, setAskError] = useState<{ question: string } | null>(null);
+
   // Centralized AuthModal opener — fires analytics in one place
   const openAuthModal = useCallback((trigger: string, message?: string) => {
     trackEvent('auth_modal_opened', {
@@ -325,6 +330,7 @@ const Index = () => {
       if (isSubmittingRef.current) return;
       if (!question.trim()) return;
       isSubmittingRef.current = true;
+      setAskError(null);
       setPreviousResponse(null);
       console.time('[DABAR] seek-wisdom:request');
       const slowWarn = setTimeout(() => {
@@ -563,7 +569,12 @@ const Index = () => {
           // User navigated away or started a new request — silent
           return;
         }
-        toast.error(err.message || "Could not seek wisdom at this time.");
+        console.error("[DABAR] seek-wisdom failed:", err);
+        // Guest counter is only incremented after a successful response above,
+        // so a failure never uses up a free question.
+        setCurrentResponse(null);
+        setScreen("ask");
+        setAskError({ question });
       } finally {
         clearTimeout(t1);
         clearTimeout(t2);
@@ -913,7 +924,17 @@ const Index = () => {
           </Suspense>
         ) : tab === "ask" ? (
           screen === "ask" ? (
-            pendingCheckin && user ? (
+            <>
+            {askError && (
+              <AskErrorCard
+                question={askError.question}
+                showCrisis={crisisActive || looksLikeCrisis(askError.question)}
+                retrying={isLoading}
+                onRetry={() => seekWisdom(askError.question)}
+                onDismiss={() => setAskError(null)}
+              />
+            )}
+            {pendingCheckin && user ? (
               <CrisisCheckinCard
                 userId={user.id}
                 onDismiss={() => refreshProfile()}
@@ -959,6 +980,7 @@ const Index = () => {
                 />
               </>
             )
+            }</>
           ) : currentResponse ? (
             <>
               <ResponseScreen
