@@ -31,7 +31,7 @@ export function relatedReadingFor(question: string): { href: string; label: stri
     if (!re.test(question)) continue;
     const slug = `what-does-the-bible-say-about-${topic}`;
     const page = questionPages.find((p) => p.slug === slug);
-    if (page) return { href: `/questions/${slug}`, label: page.title ?? "Related reading" };
+    if (page) return { href: `/questions/${slug}`, label: page.question };
   }
   return { href: "/blog", label: "Browse our articles" };
 }
