@@ -203,6 +203,9 @@ const Index = () => {
   // Crisis check-in state — true if user just said "still struggling"
   const [crisisActive, setCrisisActive] = useState(false);
 
+  // Inline failure card for the ask flow (replaces the old bare toast)
+  const [askError, setAskError] = useState<{ question: string } | null>(null);
+
   // Centralized AuthModal opener — fires analytics in one place
   const openAuthModal = useCallback((trigger: string, message?: string) => {
     trackEvent('auth_modal_opened', {
@@ -325,6 +328,7 @@ const Index = () => {
       if (isSubmittingRef.current) return;
       if (!question.trim()) return;
       isSubmittingRef.current = true;
+      setAskError(null);
       setPreviousResponse(null);
       console.time('[DABAR] seek-wisdom:request');
       const slowWarn = setTimeout(() => {
@@ -563,7 +567,12 @@ const Index = () => {
           // User navigated away or started a new request — silent
           return;
         }
-        toast.error(err.message || "Could not seek wisdom at this time.");
+        console.error("[DABAR] seek-wisdom failed:", err);
+        // Guest counter is only incremented after a successful response above,
+        // so a failure never uses up a free question.
+        setCurrentResponse(null);
+        setScreen("ask");
+        setAskError({ question });
       } finally {
         clearTimeout(t1);
         clearTimeout(t2);
