@@ -54,6 +54,7 @@ const SEED_QUESTIONS = [
 ];
 
 export function LandingHero({ onSeekWisdom, isLoading, onSignIn }: LandingHeroProps) {
+  const { user } = useAuth();
   const shouldReduceMotion = useReducedMotion();
   const inputRef = useRef<HTMLTextAreaElement | null>(null);
   const [question, setQuestion] = useState("");
