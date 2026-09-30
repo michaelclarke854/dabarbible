@@ -166,17 +166,13 @@ export async function chatWithFallback(req: AIRequest): Promise<AIResult | null>
       const json = await resp.json();
       return { provider: "claude", body: anthropicToOpenAI(json) };
     }
-    if (resp && !shouldFallback(resp.status)) {
-      // Non-recoverable (e.g. 400 bad request) — surface as a failure so
-      // we don't silently hide a real bug behind the fallback.
-      console.error("Claude error (no fallback):", resp.status, await resp.text());
-      return null;
+    if (resp) {
+      let text = "";
+      try { text = await resp.text(); } catch { /* ignore */ }
+      console.error(`Claude error ${resp.status} — falling back to Lovable AI:`, text);
+    } else {
+      console.error("Claude network failure after retries — falling back to Lovable AI");
     }
-    console.warn(
-      resp
-        ? `Claude ${resp.status} after retries — falling back to Lovable AI`
-        : "Claude network failure after retries — falling back to Lovable AI",
-    );
   }
 
   // ── Fallback: Lovable AI Gateway ──────────────────────────────────────
@@ -245,19 +241,18 @@ export async function streamChatWithFallback(req: AIRequest): Promise<{
     if (resp?.ok && resp.body) {
       return { provider: "claude", stream: claudeSSEToOpenAISSE(resp.body) };
     }
-    if (resp && !shouldFallback(resp.status)) {
-      console.error("Claude stream error (no fallback):", resp.status);
-      return { provider: "error", status: resp.status };
+    if (resp) {
+      let text = "";
+      try { text = await resp.text(); } catch { /* ignore */ }
+      console.error(`Claude stream error ${resp.status} — falling back to Lovable AI:`, text);
+    } else {
+      console.error("Claude stream network failure after retries — falling back to Lovable AI");
     }
-    console.warn(
-      resp
-        ? `Claude stream ${resp.status} after retries — falling back to Lovable AI`
-        : "Claude stream network failure after retries — falling back to Lovable AI",
-    );
   }
 
   // ── Fallback: Lovable AI Gateway streaming ────────────────────────────
   if (!lovableKey) {
+    console.error("Lovable fallback unavailable: LOVABLE_API_KEY missing");
     return { provider: "error", status: 500 };
   }
 
@@ -276,6 +271,9 @@ export async function streamChatWithFallback(req: AIRequest): Promise<{
   });
 
   if (!resp.ok || !resp.body) {
+    let text = "";
+    try { text = await resp.text(); } catch { /* ignore */ }
+    console.error("Lovable AI stream error:", resp.status, text);
     return { provider: "error", status: resp.status || 500 };
   }
   return { provider: "lovable", stream: resp.body };
