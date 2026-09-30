@@ -425,6 +425,10 @@ export function LandingHero({ onSeekWisdom, isLoading, onSignIn }: LandingHeroPr
           Our Beliefs
         </Link>
         <span className="text-muted-foreground/30" aria-hidden="true">·</span>
+        <Link to="/about" className="text-muted-foreground hover:text-gold transition-colors">
+          About
+        </Link>
+        <span className="text-muted-foreground/30" aria-hidden="true">·</span>
         <Link to="/terms" className="text-muted-foreground hover:text-gold transition-colors">
           Terms
         </Link>

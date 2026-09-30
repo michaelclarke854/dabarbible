@@ -27,6 +27,7 @@ const PastorSetup = lazy(() => import("./pages/PastorSetup.tsx"));
 const JoinCommunity = lazy(() => import("./pages/JoinCommunity.tsx"));
 const SharedDraftView = lazy(() => import("./pages/SharedDraftView.tsx"));
 const DoctrinePage = lazy(() => import("./pages/DoctrinePage.tsx"));
+const AboutPage = lazy(() => import("./pages/AboutPage.tsx"));
 const UnsubscribePage = lazy(() => import("./pages/UnsubscribePage.tsx"));
 const UnsubscribeVersePage = lazy(() => import("./pages/UnsubscribeVersePage.tsx"));
 const NotFound = lazy(() => import("./pages/NotFound.tsx"));
@@ -221,6 +222,7 @@ const App = () => (
               <Route path="/join/:inviteCode" element={<JoinCommunity />} />
               <Route path="/share/draft/:token" element={<SharedDraftView />} />
               <Route path="/doctrine" element={<DoctrinePage />} />
+              <Route path="/about" element={<AboutPage />} />
               <Route path="/unsubscribe" element={<UnsubscribePage />} />
               <Route path="/unsubscribe-verse" element={<UnsubscribeVersePage />} />
               <Route path="/pastor-access" element={<PastoralAccessPage />} />
