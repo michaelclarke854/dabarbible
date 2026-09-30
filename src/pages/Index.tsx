@@ -1,6 +1,8 @@
 import { useState, useEffect, useCallback, useRef, lazy, Suspense } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import { AskErrorCard } from "@/components/AskErrorCard";
+import { looksLikeCrisis } from "@/lib/relatedReading";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { Flame, BookOpen, Globe, BookText, Lock, Settings, Clock, Heart } from "lucide-react";
 import AskScreen from "@/components/AskScreen";
@@ -922,7 +924,17 @@ const Index = () => {
           </Suspense>
         ) : tab === "ask" ? (
           screen === "ask" ? (
-            pendingCheckin && user ? (
+            <>
+            {askError && (
+              <AskErrorCard
+                question={askError.question}
+                showCrisis={crisisActive || looksLikeCrisis(askError.question)}
+                retrying={isLoading}
+                onRetry={() => seekWisdom(askError.question)}
+                onDismiss={() => setAskError(null)}
+              />
+            )}
+            {pendingCheckin && user ? (
               <CrisisCheckinCard
                 userId={user.id}
                 onDismiss={() => refreshProfile()}
@@ -968,6 +980,7 @@ const Index = () => {
                 />
               </>
             )
+            }</>
           ) : currentResponse ? (
             <>
               <ResponseScreen
