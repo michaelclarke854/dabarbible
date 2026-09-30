@@ -58,6 +58,8 @@ const AskScreen = forwardRef<HTMLDivElement, AskScreenProps>(({ onSeekWisdom, is
     Math.floor(Math.random() * QUESTION_PLACEHOLDERS.length)
   );
   const [hardModeOpen, setHardModeOpen] = useState(false);
+  const [emptyHint, setEmptyHint] = useState(false);
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
 
   // Track latest "has input" without re-subscribing the interval on every
   // keystroke (which caused input lag on Android WebView).
@@ -118,7 +120,13 @@ const AskScreen = forwardRef<HTMLDivElement, AskScreenProps>(({ onSeekWisdom, is
 
   const handleSubmit = () => {
     const text = question.trim();
-    if (!text || isLoading) return;
+    if (isLoading) return;
+    if (!text) {
+      setEmptyHint(true);
+      textareaRef.current?.focus();
+      return;
+    }
+    setEmptyHint(false);
 
     // Only treat input as a scripture reference if it looks like one.
     // Long-form wisdom questions ("Why does God allow suffering?") fall through.
@@ -219,6 +227,7 @@ const AskScreen = forwardRef<HTMLDivElement, AskScreenProps>(({ onSeekWisdom, is
           </button>
         )}
         <textarea
+          ref={textareaRef}
           data-ask-input=""
           value={question}
           onChange={(e) => {
@@ -322,9 +331,10 @@ const AskScreen = forwardRef<HTMLDivElement, AskScreenProps>(({ onSeekWisdom, is
 
       <button
         onClick={handleSubmit}
-        disabled={!question.trim() || isLoading}
+        disabled={isLoading}
+        aria-busy={isLoading}
         aria-label="Seek wisdom — submit your question"
-        className="active:scale-[0.98]"
+        className="active:scale-[0.98] inline-flex items-center justify-center gap-2"
         style={{
           minHeight: 54,
           minWidth: 44,
@@ -337,15 +347,23 @@ const AskScreen = forwardRef<HTMLDivElement, AskScreenProps>(({ onSeekWisdom, is
           fontStyle: "italic",
           fontWeight: 500,
           letterSpacing: "0.06em",
-          cursor: !question.trim() || isLoading ? "not-allowed" : "pointer",
-          opacity: !question.trim() || isLoading ? 0.4 : 1,
+          cursor: isLoading ? "not-allowed" : "pointer",
+          opacity: isLoading ? 0.7 : !question.trim() ? 0.75 : 1,
           transition: "all 0.3s ease",
           animation: !question.trim() && !isLoading ? "dabar-pulse-cta 3s ease-in-out infinite" : "none",
           padding: "0 40px",
         }}
       >
+        {isLoading && (
+          <span className="inline-block w-4 h-4 border-2 border-current border-t-transparent rounded-full animate-spin" aria-hidden="true" />
+        )}
         {isLoading ? "Seeking…" : "Seek Wisdom"}
       </button>
+      {emptyHint && !question.trim() && (
+        <p className="mt-3 text-xs font-body text-gold text-center" role="status">
+          Write a question first, or tap one of the suggestions above.
+        </p>
+      )}
 
       {!isLoading && (
         <button
@@ -381,13 +399,16 @@ const AskScreen = forwardRef<HTMLDivElement, AskScreenProps>(({ onSeekWisdom, is
         </div>
       )}
 
-      {/* Guest free-questions counter */}
-      {guestLimit != null && guestQuestionsUsed != null && guestQuestionsUsed < guestLimit && (
-        <p className="mt-6 text-center font-body text-[10px] tracking-wider uppercase text-muted-foreground">
-          {guestQuestionsUsed === guestLimit - 1
-            ? "Last free question — start your free trial for unlimited access"
-            : `Question ${guestQuestionsUsed + 1} of ${guestLimit} — free`}
-        </p>
+      {/* Guest vs trial tiers — made explicit */}
+      {guestLimit != null && guestQuestionsUsed != null && (
+        <div className="mt-6 text-center font-body space-y-1">
+          <p className="text-[11px] tracking-wide text-muted-foreground">
+            Guest: {Math.min(guestQuestionsUsed, guestLimit)} of {guestLimit} free questions — no account needed
+          </p>
+          <p className="text-[11px] tracking-wide text-gold/80">
+            Want unlimited? Start a 30-day free trial — no card required.
+          </p>
+        </div>
       )}
     </div>
   );
