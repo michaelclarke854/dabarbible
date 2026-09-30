@@ -10,6 +10,8 @@ import { PillarCard } from "@/components/PillarCard";
 import { GoldDivider } from "@/components/GoldDivider";
 import { ArticlesFooter } from "@/components/ArticlesFooter";
 import { useFadeInOnScroll } from "@/hooks/useFadeInOnScroll";
+import { useAuth } from "@/contexts/AuthContext";
+import { GUEST_LIMIT, getGuestQuestionsUsed } from "@/lib/guestQuota";
 
 interface LandingHeroProps {
   /** Submit a question directly from the landing screen. */
@@ -52,6 +54,7 @@ const SEED_QUESTIONS = [
 ];
 
 export function LandingHero({ onSeekWisdom, isLoading, onSignIn }: LandingHeroProps) {
+  const { user } = useAuth();
   const shouldReduceMotion = useReducedMotion();
   const inputRef = useRef<HTMLTextAreaElement | null>(null);
   const [question, setQuestion] = useState("");
@@ -399,9 +402,11 @@ export function LandingHero({ onSeekWisdom, isLoading, onSignIn }: LandingHeroPr
             not pastoral counsel
           </Link>
         </p>
-        <p className="font-body text-xs text-muted-foreground mt-2 text-center tracking-wide">
-          Guest: 0 of 3 free questions — no account needed
-        </p>
+        {!user && (
+          <p className="font-body text-xs text-muted-foreground mt-2 text-center tracking-wide">
+            Guest: {Math.min(getGuestQuestionsUsed(), GUEST_LIMIT)} of {GUEST_LIMIT} free questions — no account needed
+          </p>
+        )}
         <p className="font-body text-xs text-gold/80 mt-1 text-center tracking-wide">
           Want unlimited? Start a 30-day free trial — no card required.
         </p>
@@ -570,7 +575,7 @@ function LandingSections({ onFocusAsk }: { onFocusAsk: () => void }) {
             Free to begin. No credit card required.
           </p>
           <div className="flex items-center gap-2 text-gold/70">
-            <span className="text-xs font-body">✦ 3 free questions/day</span>
+            <span className="text-xs font-body">✦ 3 free questions — no account needed</span>
             <span className="text-gold/30">|</span>
             <span className="text-xs font-body">✦ Cancel anytime</span>
           </div>
