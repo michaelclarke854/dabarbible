@@ -1,3 +1,5 @@
+import { Link } from "react-router-dom";
+
 interface BillingConfirmModalProps {
   price: string;
   onConfirm: () => void;
@@ -19,16 +21,17 @@ const BillingConfirmModal = ({ price, onConfirm, onCancel, loading, trialEndsAt 
         <p className="font-body text-sm text-foreground/80 leading-relaxed mb-6">
           {onTrial ? (
             <>
-              Your trial continues free until <span className="text-gold font-serif">{formatDate(trialEndsAt!)}</span>.
-              Then <span className="text-gold font-serif">{price}</span> — cancel any time from Settings.
+              Your separate free trial ends <span className="text-gold font-serif">{formatDate(trialEndsAt!)}</span>.
+              This paid plan is <span className="text-gold font-serif">{price}</span>; check the payment page for when its first charge begins. To cancel a web plan, email support@dabarbible.com.
             </>
           ) : (
             <>
               You'll be charged <span className="text-gold font-serif">{price}</span>, starting today.
-              Cancel any time from Settings. No hidden fees.
+              To cancel a web plan, email support@dabarbible.com. It renews automatically at the selected interval until cancelled.
             </>
           )}
         </p>
+        <p className="font-body text-xs text-muted-foreground mb-4"><Link to="/terms" className="text-gold underline">Terms of Use</Link> · <Link to="/privacy" className="text-gold underline">Privacy Policy</Link></p>
         <button
           onClick={onConfirm}
           disabled={loading}

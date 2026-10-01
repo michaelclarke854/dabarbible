@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useLocalizedPrice } from "@/hooks/useLocalizedPrice";
 import { trackEvent } from "@/lib/trackEvent";
+import { Link } from "react-router-dom";
 
 interface TrialPaywallProps {
   questionCount: number;
@@ -55,7 +56,7 @@ const TrialPaywall = ({ questionCount, onUpgrade, onFreePlan }: TrialPaywallProp
             <li className="flex items-start gap-1.5"><span className="text-gold">✓</span> Full journal access</li>
             <li className="flex items-start gap-1.5"><span className="text-gold">✓</span> Personalized responses</li>
             <li className="flex items-start gap-1.5"><span className="text-gold">✓</span> History & patterns</li>
-            <li className="flex items-start gap-1.5"><span className="text-gold">✓</span> All Bible versions</li>
+            <li className="flex items-start gap-1.5"><span className="text-gold">✓</span> KJV scripture</li>
           </ul>
         </div>
       </div>
@@ -63,6 +64,7 @@ const TrialPaywall = ({ questionCount, onUpgrade, onFreePlan }: TrialPaywallProp
       <p className="font-serif text-lg text-gold mb-6">
         {priceLoading ? "…" : `${formatPrice("personal")}/month`}
       </p>
+      <p className="font-body text-xs text-muted-foreground mb-4 max-w-xs">Your trial does not automatically become a paid plan. A paid subscription renews until cancelled; to cancel a web plan, email support@dabarbible.com.</p>
 
       <button
         onClick={() => {
@@ -83,6 +85,7 @@ const TrialPaywall = ({ questionCount, onUpgrade, onFreePlan }: TrialPaywallProp
       >
         {downgrading ? "Switching…" : "Continue on free plan →"}
       </button>
+      <p className="font-body text-xs text-muted-foreground mt-4"><Link to="/terms" className="text-gold underline">Terms of Use</Link> · <Link to="/privacy" className="text-gold underline">Privacy Policy</Link></p>
     </div>
   );
 };
