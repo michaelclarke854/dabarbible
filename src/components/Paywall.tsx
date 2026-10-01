@@ -14,6 +14,7 @@ type RcProduct = {
   title?: string;
   priceString?: string;
   subscriptionPeriod?: string;
+  introPrice?: { price?: number; priceString?: string; period?: string; cycles?: number };
 };
 type RcPackage = {
   identifier: string;
@@ -45,6 +46,14 @@ function formatPeriod(period?: string, packageType?: string): string {
     case "LIFETIME": return "one-time";
     default: return "";
   }
+}
+
+function introDetails(product: RcProduct): string | null {
+  const intro = product.introPrice;
+  if (!intro?.period) return null;
+  const period = formatPeriod(intro.period).replace(/^per /, "1 ");
+  const duration = intro.cycles && intro.cycles > 1 ? `${intro.cycles} × ${period}` : period;
+  return `${intro.price === 0 ? "Free" : (intro.priceString || "Introductory price")} for ${duration}, then ${product.priceString || "the displayed price"} ${formatPeriod(product.subscriptionPeriod)}`;
 }
 
 export default function Paywall({ onClose }: PaywallProps) {
@@ -155,6 +164,7 @@ export default function Paywall({ onClose }: PaywallProps) {
                   {periodLabel && (
                     <p className="font-body text-xs text-muted-foreground mt-0.5">{periodLabel}</p>
                   )}
+                  {introDetails(pkg.product) && <p className="font-body text-xs text-muted-foreground mt-1">{introDetails(pkg.product)}. Renews unless cancelled at least 24 hours before the offer ends.</p>}
                 </div>
                 <div className="font-serif text-lg text-gold whitespace-nowrap">
                   {isBusy ? (

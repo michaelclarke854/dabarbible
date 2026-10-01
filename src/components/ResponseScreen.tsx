@@ -127,6 +127,7 @@ const ResponseScreen = ({
         paddingBottom: "max(48px, env(safe-area-inset-bottom))",
       }}
     >
+      <p className="font-body text-xs text-muted-foreground mb-4">AI-generated — not a human or pastor.</p>
       <p
         className="mb-8"
         style={{

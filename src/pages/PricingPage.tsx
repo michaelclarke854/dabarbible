@@ -35,7 +35,7 @@ const tiers: PricingTier[] = [
     key: "free",
     name: "Free",
     planKey: "",
-    description: "Start with a 30-day free trial. After that, continue on the free plan.",
+    description: "Start with a 30-day free trial. No card required. Your trial ends after 30 days unless you choose a paid plan.",
     features: ["30-day free trial with full access", "After trial: 3 questions per day", "No journal persistence on free plan"],
     cta: "Get Started",
   },
@@ -249,7 +249,7 @@ const PricingPage = () => {
 
       {trial.isOnTrial && trial.trialEndsAt && (
         <p className="font-body text-xs text-gold text-center mb-10">
-          Your trial continues until {formatTrialDate(trial.trialEndsAt)}. No charge until then.
+          Your free trial ends {formatTrialDate(trial.trialEndsAt)} unless you choose a paid plan.
         </p>
       )}
       {isPaid && !isNativeIOS && !paddleActive && (
@@ -278,8 +278,8 @@ const PricingPage = () => {
       {/* Trust bar */}
       <div className="flex flex-col sm:flex-row items-center justify-center gap-3 sm:gap-6 mb-10 pb-6 border-b border-border/60">
         {[
-          isNativeIOS ? "No card required" : "30-day free trial — no card required",
-          isNativeIOS ? "Free iOS access" : "Cancel any time from Settings",
+           isNativeIOS ? "No card required" : "30-day free trial — no card required",
+           isNativeIOS ? "Free iOS access" : "Cancel web plans by email",
           isNativeIOS ? "Core reflection tools included" : "Secure checkout",
         ].map((item) => (
           <div key={item} className="flex items-center gap-2">
@@ -305,7 +305,7 @@ const PricingPage = () => {
             >
               {tier.highlighted && (
                 <span className="absolute -top-3 left-1/2 -translate-x-1/2 bg-gold text-primary-foreground font-serif text-[10px] tracking-[0.2em] uppercase px-3 py-1 rounded-sm">
-                  Most popular
+                  Personal
                 </span>
               )}
               <div className="flex items-baseline justify-between mb-2">
@@ -398,6 +398,10 @@ const PricingPage = () => {
           Gift a year of wisdom — <span className="text-muted-foreground/70 italic">coming soon</span>
         </p>
         <p className="font-body text-xs text-muted-foreground mt-4">
+          <button onClick={() => navigate("/terms")} className="hover:text-gold hover:underline">Terms of Use</button>
+          <span className="mx-2 text-muted-foreground/40">·</span>
+          <button onClick={() => navigate("/privacy")} className="hover:text-gold hover:underline">Privacy Policy</button>
+          <span className="mx-2 text-muted-foreground/40">·</span>
           <button
             onClick={() => navigate("/doctrine")}
             className="hover:text-gold transition-colors underline-offset-2 hover:underline"

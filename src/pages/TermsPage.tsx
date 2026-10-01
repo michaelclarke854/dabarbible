@@ -1,9 +1,9 @@
 import { Link } from "react-router-dom";
 import { Flame } from "lucide-react";
-import { isIOSNative } from "@/lib/platform";
+import { useLocalizedPrice } from "@/hooks/useLocalizedPrice";
 
 const TermsPage = () => {
-  const nativeIOS = isIOSNative();
+  const { formatPrice } = useLocalizedPrice();
 
   return (
     <div className="min-h-screen px-6 py-12 max-w-2xl mx-auto">
@@ -14,106 +14,22 @@ const TermsPage = () => {
 
     <h1 className="font-serif text-3xl text-foreground tracking-wide mb-2">Terms of Service</h1>
     <p className="font-body text-xs text-muted-foreground uppercase tracking-wider mb-8">
-      Last updated: April 2026
+      Effective: October 1, 2026
     </p>
     <div className="w-12 h-px bg-gold mb-8" />
 
     <div className="space-y-6 font-body text-sm text-foreground/90 leading-relaxed">
-      <section>
-        <h2 className="font-serif text-lg text-foreground tracking-wide mb-3">What Dabar is</h2>
-        <p>
-          Dabar is a personal spiritual guide that responds to your questions with wisdom drawn
-          entirely from the King James Version of the Bible. It is not a substitute for
-          professional counseling, medical advice, or pastoral care.
-        </p>
-      </section>
-
-      <section>
-        <h2 className="font-serif text-lg text-foreground tracking-wide mb-3">Using the service</h2>
-        <p>
-          You may use Dabar for personal, non-commercial purposes. You agree not to misuse the
-          service, attempt to extract or reverse-engineer the underlying models, or use Dabar
-          to generate content that misrepresents its origin.
-        </p>
-      </section>
-
-      <section>
-        <h2 className="font-serif text-lg text-foreground tracking-wide mb-3">
-          {nativeIOS ? "Accounts" : "Accounts and trials"}
-        </h2>
-        <p>
-          {nativeIOS
-            ? "Accounts in this iOS version provide access to the available reflection experience without payment. You are responsible for keeping your login credentials secure. One person per account — do not share access."
-            : "New accounts receive a 30-day free trial with full access. No credit card is required to start a trial. After 30 days, accounts continue with the free access available to them unless changed. You are responsible for keeping your login credentials secure. One person per account — do not share access."}
-        </p>
-      </section>
-
-      <section>
-        <h2 className="font-serif text-lg text-foreground tracking-wide mb-3">
-          {nativeIOS ? "iOS access" : "Subscriptions and billing"}
-        </h2>
-        {nativeIOS ? (
-          <ul className="space-y-2 list-none">
-            <li className="flex items-start gap-2"><span className="text-gold mt-0.5">·</span>This iOS version provides free access to the available reflection experience.</li>
-            <li className="flex items-start gap-2"><span className="text-gold mt-0.5">·</span>You can delete your account and associated data from Account &amp; Privacy settings.</li>
-          </ul>
-        ) : (
-          <ul className="space-y-2 list-none">
-            <li className="flex items-start gap-2"><span className="text-gold mt-0.5">·</span>Free tier: 3 questions per day, no journal persistence.</li>
-            <li className="flex items-start gap-2"><span className="text-gold mt-0.5">·</span>Paid plans renew automatically at the interval you chose (monthly or annual).</li>
-            <li className="flex items-start gap-2"><span className="text-gold mt-0.5">·</span>You may cancel at any time. Access continues until the end of the current billing period.</li>
-            <li className="flex items-start gap-2"><span className="text-gold mt-0.5">·</span>Refunds are handled on a case-by-case basis within 14 days of purchase.</li>
-          </ul>
-        )}
-      </section>
-
-      <section>
-        <h2 className="font-serif text-lg text-foreground tracking-wide mb-3">Content and accuracy</h2>
-        <p>
-          Dabar draws exclusively from KJV scripture and presents wisdom in a pastoral voice.
-          While we strive for scriptural accuracy, responses are generated with the aid of
-          language models and may occasionally contain errors. Verify all scripture references
-          independently.
-        </p>
-      </section>
-
-      <section>
-        <h2 className="font-serif text-lg text-foreground tracking-wide mb-3">Crisis and safety</h2>
-        <p>
-          Dabar is not equipped to handle mental health emergencies. If you or someone you know
-          is in crisis, please contact the{" "}
-          <a href="https://988lifeline.org" target="_blank" rel="noopener noreferrer" className="text-gold hover:underline">
-            988 Suicide & Crisis Lifeline
-          </a>{" "}
-          (call or text 988) or your local emergency services.
-        </p>
-      </section>
-
-      <section>
-        <h2 className="font-serif text-lg text-foreground tracking-wide mb-3">Your content</h2>
-        <p>
-          You retain full ownership of everything you write in your journal and reflections.
-          We claim no rights to your content. When you delete your account, your content is
-          permanently erased.
-        </p>
-      </section>
-
-      <section>
-        <h2 className="font-serif text-lg text-foreground tracking-wide mb-3">Changes to these terms</h2>
-        <p>
-          We may update these terms as the service evolves. Significant changes will be
-          communicated via email to registered users. Continued use after changes constitutes
-          acceptance.
-        </p>
-      </section>
-
-      <section>
-        <h2 className="font-serif text-lg text-foreground tracking-wide mb-3">Contact</h2>
-        <p>
-          Questions about these terms? Reach us at{" "}
-          <a href="mailto:support@dabarbible.com" className="text-gold hover:underline">support@dabarbible.com</a>.
-        </p>
-      </section>
+      <section><h2 className="font-serif text-lg mb-3">Who provides Dabar</h2><p>Dabar is operated by Elevare Digital LLC, a New Jersey limited liability company, North Brunswick, New Jersey, USA. Contact <a className="text-gold underline" href="mailto:support@dabarbible.com">support@dabarbible.com</a>.</p></section>
+      <section><h2 className="font-serif text-lg mb-3">Eligibility and accounts</h2><p>You must be at least 13 to use Dabar. If you are 13–17, you need permission from a parent or guardian. We do not knowingly collect information from children under 13; if we discover it, we will delete it. Keep your account credentials secure.</p></section>
+      <section><h2 className="font-serif text-lg mb-3">AI and scripture</h2><p>Responses are generated by AI models from Anthropic (Claude) and Google (Gemini), not a human. Dabar is not pastoral counseling, therapy, medical advice, or crisis care. AI may misquote or misattribute scripture: check quotations and references in your own Bible. English scripture is from the King James Version (1769). If you are in crisis, call or text 988 (Suicide &amp; Crisis Lifeline) or text HOME to 741741 (Crisis Text Line).</p></section>
+      <section><h2 className="font-serif text-lg mb-3">Using the service</h2><p>Use Dabar for lawful personal purposes. Do not abuse the service, interfere with other users, attempt unauthorized access, reverse-engineer the underlying models, or present AI output as human counsel. We may suspend or end access for misuse, with notice where practical. You can end your use and delete your account in Settings → Privacy &amp; Data.</p></section>
+      <section><h2 className="font-serif text-lg mb-3">Your words</h2><p>You keep ownership of the questions, reflections, and journal material you submit. You grant Elevare Digital LLC a limited license to process, store, transmit, and display that material solely to operate and provide Dabar, including sending questions to AI providers for answers. See our <Link to="/privacy" className="text-gold underline">Privacy Policy</Link>.</p></section>
+      <section><h2 className="font-serif text-lg mb-3">Web trial and free access</h2><p>New web accounts receive a 30-day free trial with full access. No card required. Your trial ends after 30 days unless you choose a paid plan. It does not automatically become a paid subscription. The signed-in free plan provides three questions per day; the guest allowance is three questions per browser in total.</p></section>
+      <section><h2 className="font-serif text-lg mb-3">Paid subscriptions</h2><p>Web plans shown on <Link to="/pricing" className="text-gold underline">Pricing</Link> start at Personal {formatPrice("personal")}/month, Family {formatPrice("family")}/month, and Community {formatPrice("community")}/month; annual and eligible student totals are displayed before checkout. Your selected paid plan renews automatically at the displayed price and interval until cancelled. A paid purchase during a web trial is a separate checkout; review its displayed charge date before confirming. We will give at least 7 days' notice before a price change and you may cancel before it applies.</p><p className="mt-2">For web purchases, request cancellation online by emailing <a href="mailto:support@dabarbible.com" className="text-gold underline">support@dabarbible.com</a> from your account email; there is currently no in-app web cancellation button. Cancellation takes effect at the end of your paid period. Deleting your account does not cancel billing.</p></section>
+      <section><h2 className="font-serif text-lg mb-3">iOS purchases</h2><p>The current iOS version offers free access when subscriptions are unavailable. If an in-app subscription is offered, its title, length, and price appear in the purchase screen. Apple handles billing and renewals. Cancel in iPhone Settings → your name (Apple ID) → Subscriptions; cancel at least 24 hours before the current period ends to avoid renewal. If Apple presents an introductory offer, its length and post-offer price are determined by the offer displayed in the Apple purchase confirmation; do not assume the separate 30-day web trial applies.</p></section>
+      <section><h2 className="font-serif text-lg mb-3">Refunds</h2><p>For web purchases, a full refund is available on request within 14 days of your first payment. After that, cancel anytime; access continues to the end of the paid period and no partial refunds are provided, except where the law gives you more. Request a web refund at <a href="mailto:support@dabarbible.com" className="text-gold underline">support@dabarbible.com</a>. For iOS purchases, refunds are handled by Apple under Apple's policies at <a href="https://reportaproblem.apple.com" className="text-gold underline" target="_blank" rel="noopener noreferrer">reportaproblem.apple.com</a>.</p></section>
+      <section><h2 className="font-serif text-lg mb-3">Copyright notices</h2><p>To report alleged copyright infringement, email a DMCA notice to <a href="mailto:support@dabarbible.com" className="text-gold underline">support@dabarbible.com</a> with the work claimed, the material and its location, your contact details, a good-faith statement that the use is unauthorized, a statement under penalty of perjury that your notice is accurate and you are authorized to act, and your signature. We may terminate repeat infringers' accounts.</p>{/* TODO: Register DMCA agent with U.S. Copyright Office ($6) — owner action. */}</section>
+      <section><h2 className="font-serif text-lg mb-3">Changes, liability, and disputes</h2><p>We will provide advance notice of material changes to these Terms by email or in-app notice. New Jersey law governs disputes; bring them in state or federal courts in Middlesex County, New Jersey. Small-claims court is always available. There is no arbitration requirement. Nothing in these Terms limits our liability for gross negligence, willful misconduct, or any right you have under the New Jersey Consumer Fraud Act or other law that cannot be waived.</p></section>
     </div>
 
     <div className="mt-16 text-center">
