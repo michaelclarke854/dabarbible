@@ -14,7 +14,7 @@ type RcProduct = {
   title?: string;
   priceString?: string;
   subscriptionPeriod?: string;
-  introductoryPrice?: { priceString?: string; period?: string; cycles?: number };
+  introPrice?: { price?: number; priceString?: string; period?: string; cycles?: number };
 };
 type RcPackage = {
   identifier: string;
@@ -49,11 +49,11 @@ function formatPeriod(period?: string, packageType?: string): string {
 }
 
 function introDetails(product: RcProduct): string | null {
-  const intro = product.introductoryPrice;
+  const intro = product.introPrice;
   if (!intro?.period) return null;
   const period = formatPeriod(intro.period).replace(/^per /, "1 ");
   const duration = intro.cycles && intro.cycles > 1 ? `${intro.cycles} × ${period}` : period;
-  return `${intro.priceString || "Free"} for ${duration}, then ${product.priceString || "the displayed price"} ${formatPeriod(product.subscriptionPeriod)}`;
+  return `${intro.price === 0 ? "Free" : (intro.priceString || "Introductory price")} for ${duration}, then ${product.priceString || "the displayed price"} ${formatPeriod(product.subscriptionPeriod)}`;
 }
 
 export default function Paywall({ onClose }: PaywallProps) {

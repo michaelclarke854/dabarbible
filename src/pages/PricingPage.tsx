@@ -305,7 +305,7 @@ const PricingPage = () => {
             >
               {tier.highlighted && (
                 <span className="absolute -top-3 left-1/2 -translate-x-1/2 bg-gold text-primary-foreground font-serif text-[10px] tracking-[0.2em] uppercase px-3 py-1 rounded-sm">
-                  Most popular
+                  Personal
                 </span>
               )}
               <div className="flex items-baseline justify-between mb-2">
