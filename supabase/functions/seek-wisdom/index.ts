@@ -705,7 +705,8 @@ serve(async (req) => {
           headers: {
             ...corsHeaders,
             "Content-Type": "application/json",
-            "Access-Control-Expose-Headers": "X-Crisis-Severity, X-Intent-Key",
+            "Access-Control-Expose-Headers": "X-Crisis-Severity, X-Intent-Key, X-AI-Provider",
+            "X-AI-Provider": streamResult.provider,
             "X-Crisis-Severity": crisisResult.severity || "",
             "X-Intent-Key": onboardingIntentKey || "",
           },
@@ -880,9 +881,10 @@ serve(async (req) => {
     return new Response(readableStream, {
       headers: {
         ...corsHeaders,
-        "Access-Control-Expose-Headers": "X-Crisis-Severity, X-Intent-Key",
+        "Access-Control-Expose-Headers": "X-Crisis-Severity, X-Intent-Key, X-AI-Provider",
         "Content-Type": "text/plain; charset=utf-8",
         "X-Content-Type-Options": "nosniff",
+        "X-AI-Provider": streamResult.provider,
         "X-Crisis-Severity": crisisResult.severity || "",
         "X-Intent-Key": onboardingIntentKey || "",
       },
