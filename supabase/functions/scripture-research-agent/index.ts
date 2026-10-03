@@ -199,7 +199,94 @@ const SEARCH_SCRIPTURE_TOOL = {
 
 const TOOL_SYSTEM = `You are a biblical research assistant. When given a question, use the search_scripture tool to find the most relevant Bible passage. Be precise — provide a specific book/chapter/verse reference.`;
 
-const SYNTHESIS_SYSTEM = `You are DABAR, a warm spiritual companion. Given a question and relevant scripture, write a personal reflection. Rules: speak directly (use "you"), be specific not generic, no lecturing, end with one reflective question. 2-4 short paragraphs.`;
+const SYNTHESIS_SYSTEM = `You are DABAR, a warm spiritual companion. Given a question and relevant scripture, write a personal reflection. Rules: speak directly (use "you"), be specific not generic, no lecturing, end with one reflective question. 2-4 short paragraphs. Never give medical, legal, or financial advice. Cite only scripture references from the provided Scripture list, quoted exactly as given.`;
+
+// ── Scripture citation verification (ported from seek-wisdom) ──────────────
+// Every sentence that cites a reference is checked against the stored KJV via
+// verify_citation before it reaches the user. Sentences with unverifiable
+// citations are suppressed; every check is logged to scripture_citations.
+type VerifiedBlock = { reference: string; text: string; valid: boolean; reason: string };
+
+async function verifyScriptureBlock(
+  // deno-lint-ignore no-explicit-any
+  supabase: any, reference: string, verseText: string,
+): Promise<VerifiedBlock> {
+  try {
+    const { data, error } = await supabase.rpc("verify_citation", {
+      p_version: "KJV", p_ref: reference, p_text: verseText,
+    });
+    if (error) {
+      console.error("verify_citation rpc failed:", error.message);
+      return { reference, text: verseText, valid: true, reason: "verifier_unavailable" };
+    }
+    const reason = String(data?.reason ?? "unknown");
+    // Not a real citation the parser understood — leave the sentence alone.
+    const valid = Boolean(data?.valid) || reason === "unparseable_reference";
+    return { reference, text: verseText, valid, reason };
+  } catch (err) {
+    console.error("verify_citation threw:", err);
+    return { reference, text: verseText, valid: true, reason: "verifier_unavailable" };
+  }
+}
+
+const REF_RE = /\b((?:[1-3]\s?)?(?:Song of Solomon|[A-Z][a-z]+))\s+(\d{1,3}):(\d{1,3}(?:\s*[-–]\s*\d{1,3})?(?:\s*,\s*\d{1,3})*)/g;
+const QUOTE_RE = /[“"]([^”"]{15,})[”"]/;
+
+// deno-lint-ignore no-explicit-any
+async function verifySegment(supabase: any, segment: string, audit: VerifiedBlock[]): Promise<boolean> {
+  const refs = [...segment.matchAll(REF_RE)].map((m) => `${m[1]} ${m[2]}:${m[3]}`);
+  if (refs.length === 0) return true;
+  const quote = refs.length === 1 ? QUOTE_RE.exec(segment)?.[1] ?? "" : "";
+  const results = await Promise.all(refs.map((r) => verifyScriptureBlock(supabase, r, quote)));
+  audit.push(...results);
+  return results.every((r) => r.valid);
+}
+
+const SEGMENT_END_RE = /[.!?]["”’)]?\s+|\n/g;
+
+/** Splits off complete sentences; returns [completeText, remainder]. */
+function splitComplete(carry: string): [string, string] {
+  let last = -1;
+  SEGMENT_END_RE.lastIndex = 0;
+  let m: RegExpExecArray | null;
+  while ((m = SEGMENT_END_RE.exec(carry)) !== null) last = m.index + m[0].length;
+  return last === -1 ? ["", carry] : [carry.slice(0, last), carry.slice(last)];
+}
+
+function splitSegments(text: string): string[] {
+  const out: string[] = [];
+  let lastIdx = 0;
+  SEGMENT_END_RE.lastIndex = 0;
+  let m: RegExpExecArray | null;
+  while ((m = SEGMENT_END_RE.exec(text)) !== null) {
+    out.push(text.slice(lastIdx, m.index + m[0].length));
+    lastIdx = m.index + m[0].length;
+  }
+  if (lastIdx < text.length) out.push(text.slice(lastIdx));
+  return out;
+}
+
+// deno-lint-ignore no-explicit-any
+async function verifyText(supabase: any, text: string, audit: VerifiedBlock[]): Promise<string> {
+  let out = "";
+  for (const seg of splitSegments(text)) {
+    if (await verifySegment(supabase, seg, audit)) out += seg;
+  }
+  return out;
+}
+
+function logCitations(
+  // deno-lint-ignore no-explicit-any
+  supabase: any, sessionId: string | null, audit: VerifiedBlock[],
+): void {
+  if (audit.length === 0) return;
+  supabase.from("scripture_citations").insert(
+    audit.map((a) => ({
+      session_id: sessionId, reference: a.reference, emitted_text: a.text,
+      version: "KJV", valid: a.valid, reason: a.reason, suppressed: !a.valid,
+    })),
+  ).then(() => {}, (err: unknown) => console.error("scripture_citations insert failed:", err));
+}
 
 serve(async (req) => {
   if (req.method === "OPTIONS") {
@@ -447,6 +534,9 @@ serve(async (req) => {
           try { iosText += JSON.parse(t.slice(6)).choices?.[0]?.delta?.content ?? ""; } catch { /* skip */ }
         }
       }
+      const iosAudit: VerifiedBlock[] = [];
+      iosText = (await verifyText(supabase, iosText, iosAudit)).replace(/\n{3,}/g, "\n\n");
+      logCitations(supabase, sessionId, iosAudit);
       if (sessionId) {
         await supabase.from("wisdom_sessions")
           .update({ response: iosText.trim() })
@@ -482,6 +572,21 @@ serve(async (req) => {
         try {
           const reader = call2Res.body!.getReader();
           let buffer = "";
+          const audit: VerifiedBlock[] = [];
+          let carry = "";
+          const emit = async (seg: string) => {
+            if (await verifySegment(supabase, seg, audit)) {
+              fullText += seg;
+              controller.enqueue(encoder.encode(seg));
+            }
+          };
+          // Hold text until a sentence completes, then verify its citations.
+          const push = async (text: string) => {
+            carry += text;
+            const [complete, rest] = splitComplete(carry);
+            carry = rest;
+            for (const seg of splitSegments(complete)) await emit(seg);
+          };
 
           while (true) {
             const { done, value } = await reader.read();
@@ -498,10 +603,7 @@ serve(async (req) => {
               try {
                 const parsed = JSON.parse(payload);
                 const text = parsed.choices?.[0]?.delta?.content ?? "";
-                if (text) {
-                  fullText += text;
-                  controller.enqueue(encoder.encode(text));
-                }
+                if (text) await push(text);
               } catch { /* skip malformed */ }
             }
           }
@@ -513,10 +615,15 @@ serve(async (req) => {
               try {
                 const parsed = JSON.parse(payload);
                 const text = parsed.choices?.[0]?.delta?.content ?? "";
-                if (text) { fullText += text; controller.enqueue(encoder.encode(text)); }
+                if (text) await push(text);
               } catch { /* skip */ }
             }
           }
+
+          // Verify and emit whatever is left in the sentence buffer.
+          if (carry) await emit(carry);
+          carry = "";
+          logCitations(supabase, sessionId, audit);
 
           closeStream();
 
