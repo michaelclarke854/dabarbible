@@ -199,11 +199,11 @@ const SEARCH_SCRIPTURE_TOOL = {
 
 const TOOL_SYSTEM = `You are a biblical research assistant. When given a question, use the search_scripture tool to find the most relevant Bible passage. Be precise — provide a specific book/chapter/verse reference.`;
 
-const SYNTHESIS_SYSTEM = `You are DABAR, a warm spiritual companion. Given a question and relevant scripture, write a personal reflection. Rules: speak directly (use "you"), be specific not generic, no lecturing, end with one reflective question. 2-4 short paragraphs. Never give medical, legal, or financial advice. Cite only scripture references from the provided Scripture list, quoted exactly as given.`;
+const SYNTHESIS_SYSTEM = `You are DABAR, a warm spiritual companion. Given a question and relevant scripture, write a personal reflection. Rules: speak directly (use "you"), be specific not generic, no lecturing, end with one reflective question. 2-4 short paragraphs. Never give medical, legal, or financial advice. Quote scripture only in King James Version wording; prefer the provided Scripture list, quoted exactly as given.`;
 
 // ── Scripture citation verification (ported from seek-wisdom) ──────────────
-// Every sentence that cites a reference is checked against the stored KJV via
-// verify_citation before it reaches the user. Sentences with unverifiable
+// Every paragraph that cites a reference is checked against the stored KJV via
+// verify_citation before it reaches the user. Paragraphs with unverifiable
 // citations are suppressed; every check is logged to scripture_citations.
 type VerifiedBlock = { reference: string; text: string; valid: boolean; reason: string };
 
@@ -220,7 +220,7 @@ async function verifyScriptureBlock(
       return { reference, text: verseText, valid: true, reason: "verifier_unavailable" };
     }
     const reason = String(data?.reason ?? "unknown");
-    // Not a real citation the parser understood — leave the sentence alone.
+    // Not a real citation the parser understood — leave the paragraph alone.
     const valid = Boolean(data?.valid) || reason === "unparseable_reference";
     return { reference, text: verseText, valid, reason };
   } catch (err) {
@@ -242,9 +242,10 @@ async function verifySegment(supabase: any, segment: string, audit: VerifiedBloc
   return results.every((r) => r.valid);
 }
 
-const SEGMENT_END_RE = /[.!?]["”’)]?\s+|\n/g;
+// Paragraph-level segments so a multi-sentence quotation is checked whole.
+const SEGMENT_END_RE = /\n+/g;
 
-/** Splits off complete sentences; returns [completeText, remainder]. */
+/** Splits off complete paragraphs; returns [completeText, remainder]. */
 function splitComplete(carry: string): [string, string] {
   let last = -1;
   SEGMENT_END_RE.lastIndex = 0;
@@ -580,7 +581,7 @@ serve(async (req) => {
               controller.enqueue(encoder.encode(seg));
             }
           };
-          // Hold text until a sentence completes, then verify its citations.
+          // Hold text until a paragraph completes, then verify its citations.
           const push = async (text: string) => {
             carry += text;
             const [complete, rest] = splitComplete(carry);
@@ -620,7 +621,7 @@ serve(async (req) => {
             }
           }
 
-          // Verify and emit whatever is left in the sentence buffer.
+          // Verify and emit whatever is left in the paragraph buffer.
           if (carry) await emit(carry);
           carry = "";
           logCitations(supabase, sessionId, audit);
