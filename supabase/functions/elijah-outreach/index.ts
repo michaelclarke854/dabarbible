@@ -10,6 +10,10 @@ const FOOTER = `\n\n—\nMike Clarke\nFounder, DABAR · dabarbible.com\n\nDABAR 
 
 serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
+  // Outreach channel retired (Sept 2026 owner decision) — disabled. Nothing below runs.
+  return new Response(JSON.stringify({ error: "outreach channel retired — disabled" }), {
+    status: 410, headers: { ...corsHeaders, "Content-Type": "application/json" },
+  });
 
   const supabaseUrl = Deno.env.get("SUPABASE_URL");
   const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");

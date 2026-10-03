@@ -20,17 +20,17 @@ project_id = "crkkimoblnrxpszehmkg"
   [functions.update-user-role]
     verify_jwt = false
   [functions.pastoral-outreach]
-    verify_jwt = false
+    verify_jwt = true
   [functions.trial-nudges]
     verify_jwt = false
   [functions.daily-verse]
     verify_jwt = false
   [functions.elijah-outreach]
-    verify_jwt = false
+    verify_jwt = true
   [functions.outreach-resend-webhook]
     verify_jwt = false
   [functions.expand-pastor-leads]
-    verify_jwt = false
+    verify_jwt = true
   [functions.register-videos]
     verify_jwt = false
   [functions.upload-video]
